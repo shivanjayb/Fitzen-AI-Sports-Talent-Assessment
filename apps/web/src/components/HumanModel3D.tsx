@@ -358,7 +358,7 @@ export function HumanModel3D({
   onSelectExercise,
   onSelectMuscle,
 }: HumanModel3DProps) {
-  const verified = useMemo(() => assessments.filter((a) => a.integrity === 'verified'), [assessments]);
+  const verified = useMemo(() => (assessments || []).filter((a) => a?.integrity === 'verified'), [assessments]);
   const latestSquat = useMemo(() => verified.find((a) => a.test === 'squat'), [verified]);
 
   const muscleGroups: MuscleInfo[] = useMemo(() => {

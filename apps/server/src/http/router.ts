@@ -133,6 +133,9 @@ export function applyCors(
 }
 
 export async function readJsonBody(req: IncomingMessage, maxBytes = 5_000_000): Promise<unknown> {
+  if ((req as any).body !== undefined && (req as any).body !== null) {
+    return (req as any).body;
+  }
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
     let size = 0;

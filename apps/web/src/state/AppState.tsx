@@ -15,7 +15,7 @@ import {
 } from 'react';
 import { api, ApiError, getToken, setToken, type Profile, type User } from '../lib/api';
 import { startSyncLoop, subscribeSync, type SyncState } from '../lib/sync';
-import { supabase } from '../lib/supabaseClient';
+import { isSupabaseConfigured, supabase } from '../lib/supabaseClient';
 
 // ---------------------------------------------------------------------------
 // Auth
@@ -124,10 +124,12 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       tokenResult = 'fitzen-local-jwt-token';
     }
 
-    // 2. Supabase Auth sync (non-blocking background attempt)
-    supabase.auth.signInWithPassword({ email, password }).catch((e) => {
-      console.warn('Supabase Auth sync deferred:', e);
-    });
+    // 2. Supabase Auth sync (non-blocking background attempt if configured)
+    if (isSupabaseConfigured) {
+      supabase.auth.signInWithPassword({ email, password }).catch((e) => {
+        console.warn('Supabase Auth sync deferred:', e);
+      });
+    }
 
     setToken(tokenResult);
     setUser(userResult);
@@ -163,16 +165,18 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         tokenResult = 'fitzen-local-jwt-token';
       }
 
-      // 2. Supabase Auth signup (non-blocking background attempt)
-      supabase.auth
-        .signUp({
-          email: input.email,
-          password: input.password,
-          options: { data: { full_name: input.name, role: input.role ?? 'athlete' } },
-        })
-        .catch((e) => {
-          console.warn('Supabase Auth signup deferred:', e);
-        });
+      // 2. Supabase Auth signup (non-blocking background attempt if configured)
+      if (isSupabaseConfigured) {
+        supabase.auth
+          .signUp({
+            email: input.email,
+            password: input.password,
+            options: { data: { full_name: input.name, role: input.role ?? 'athlete' } },
+          })
+          .catch((e) => {
+            console.warn('Supabase Auth signup deferred:', e);
+          });
+      }
 
       setToken(tokenResult);
       setUser(userResult);
@@ -189,7 +193,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(() => {
-    void supabase.auth.signOut();
+    if (isSupabaseConfigured) void supabase.auth.signOut();
     setToken(null);
     setUser(null);
     setProfile(null);

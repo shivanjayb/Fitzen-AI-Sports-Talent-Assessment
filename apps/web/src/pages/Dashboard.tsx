@@ -75,8 +75,8 @@ function AthleteDashboard() {
     );
   }
 
-  const { stats, potential, assessments, brief } = data;
-  const verified = assessments.filter((a) => a.integrity === 'verified');
+  const { stats, potential, assessments = [], brief } = data;
+  const verified = (assessments || []).filter((a) => a?.integrity === 'verified');
 
   const pushupAssessments = verified.filter((a) => a.test === 'pushup');
   const squatAssessments = verified.filter((a) => a.test === 'squat');

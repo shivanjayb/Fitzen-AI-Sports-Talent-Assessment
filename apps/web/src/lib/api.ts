@@ -309,7 +309,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   }
   const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   if (!res.ok) {
-    if (res.status === 404) {
+    if (res.status === 404 || res.status === 405 || res.status === 500 || res.status === 502 || res.status === 504) {
       return handleLocalFallback<T>(method, path, body);
     }
     throw new ApiError(res.status, typeof data.error === 'string' ? data.error : `Request failed (${res.status})`);
