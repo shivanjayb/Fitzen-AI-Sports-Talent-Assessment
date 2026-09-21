@@ -75,7 +75,25 @@ function AthleteDashboard() {
     );
   }
 
-  const { stats, potential, assessments, brief } = data;
+  const {
+    stats = {
+      assessmentCount: 0,
+      totalAssessments: 0,
+      bestJumpHeightM: 0,
+      latestJumpHeightM: 0,
+      bestRelativePowerWkg: 0,
+      bestSymmetryScore: 0,
+      bestMovementQuality: 0,
+      activeDays: 0,
+      streakDays: 0,
+      bestImprovementM: 0,
+      avgConfidence: 0,
+      jumpCv: 0,
+    },
+    potential = null,
+    assessments = [],
+    brief = null,
+  } = data ?? {};
 
   const safeAssessments = Array.isArray(assessments)
     ? assessments

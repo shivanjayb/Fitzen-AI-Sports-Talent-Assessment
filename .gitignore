@@ -11,3 +11,5 @@ data/*.db-shm
 data/.dev-jwt-secret
 coverage/
 .vite/
+.vercel
+.env*

@@ -307,14 +307,30 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   } catch {
     return handleLocalFallback<T>(method, path, body);
   }
-  const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  const text = await res.text();
+
+  let data: Record<string, unknown>;
+
+  try {
+    data = JSON.parse(text);
+  } catch {
+    return handleLocalFallback<T>(method, path, body);
+  }
+
   if (!res.ok) {
-    const errorMsg = typeof data.error === 'string' ? data.error : `Request failed with status ${res.status}`;
-    // Fallback only if route is missing (404) or method disallowed (405) in non-API dev environments
+    const errorMsg =
+      typeof data.error === 'string'
+        ? data.error
+        : `Request failed with status ${res.status}`;
+
     if (res.status === 404 || res.status === 405) {
-      console.warn(`[Fitzen API] Endpoint ${path} returned ${res.status}. Falling back to local offline handler.`);
+      console.warn(
+        `[Fitzen API] Endpoint ${path} returned ${res.status}. Falling back to local offline handler.`
+      );
+
       return handleLocalFallback<T>(method, path, body);
     }
+
     throw new ApiError(res.status, errorMsg);
   }
   return data as T;
