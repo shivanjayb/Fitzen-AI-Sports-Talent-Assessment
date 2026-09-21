@@ -9,5 +9,9 @@ const config = loadConfig({
 const app = createApp(config);
 
 export default function handler(req: any, res: any) {
-  app.server.emit('request', req, res);
+  return new Promise<void>((resolve) => {
+    res.on('finish', resolve);
+    res.on('close', resolve);
+    app.server.emit('request', req, res);
+  });
 }

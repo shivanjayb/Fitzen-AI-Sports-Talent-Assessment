@@ -96,7 +96,11 @@ export function openDatabase(path: string): Database {
     mkdirSync(dirname(path), { recursive: true });
   }
   const db = new DatabaseSync(path);
-  db.exec('PRAGMA journal_mode = WAL;');
+  try {
+    db.exec('PRAGMA journal_mode = WAL;');
+  } catch {
+    db.exec('PRAGMA journal_mode = DELETE;');
+  }
   db.exec('PRAGMA foreign_keys = ON;');
   db.exec(SCHEMA);
   return db;
