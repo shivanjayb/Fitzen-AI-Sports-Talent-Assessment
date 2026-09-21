@@ -75,9 +75,15 @@ function AthleteDashboard() {
     );
   }
 
-  const { stats, potential, assessments = [], brief } = data;
-  const safeAssessments = Array.isArray(assessments) ? assessments : [];
-  const verified = safeAssessments.filter((a) => a?.integrity === 'verified');
+  const { stats, potential, assessments, brief } = data;
+
+  const safeAssessments = Array.isArray(assessments)
+    ? assessments
+    : [];
+
+  const verified = safeAssessments.filter(
+    (a) => a?.integrity === 'verified'
+  );
 
   const pushupAssessments = verified.filter((a) => a?.test === 'pushup');
   const squatAssessments = verified.filter((a) => a?.test === 'squat');
