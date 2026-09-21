@@ -134,7 +134,15 @@ export function applyCors(
 
 export async function readJsonBody(req: IncomingMessage, maxBytes = 5_000_000): Promise<unknown> {
   if ((req as any).body !== undefined && (req as any).body !== null) {
-    return (req as any).body;
+    const raw = (req as any).body;
+    if (typeof raw === 'string') {
+      try {
+        return JSON.parse(raw);
+      } catch {
+        return raw;
+      }
+    }
+    return raw;
   }
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];

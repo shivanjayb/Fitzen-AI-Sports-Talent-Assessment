@@ -309,10 +309,13 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   }
   const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   if (!res.ok) {
-    if (res.status === 404 || res.status === 405 || res.status === 500 || res.status === 502 || res.status === 504) {
+    const errorMsg = typeof data.error === 'string' ? data.error : `Request failed with status ${res.status}`;
+    // Fallback only if route is missing (404) or method disallowed (405) in non-API dev environments
+    if (res.status === 404 || res.status === 405) {
+      console.warn(`[Fitzen API] Endpoint ${path} returned ${res.status}. Falling back to local offline handler.`);
       return handleLocalFallback<T>(method, path, body);
     }
-    throw new ApiError(res.status, typeof data.error === 'string' ? data.error : `Request failed (${res.status})`);
+    throw new ApiError(res.status, errorMsg);
   }
   return data as T;
 }

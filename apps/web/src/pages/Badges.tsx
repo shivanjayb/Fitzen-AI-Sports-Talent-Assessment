@@ -22,9 +22,10 @@ export default function BadgesPage() {
     api.badges().then(({ badges }) => setBadges(badges)).catch(() => setBadges([]));
   }, []);
 
-  const earned = badges?.filter((b) => b.earned) ?? [];
+  const safeBadges = Array.isArray(badges) ? badges : [];
+  const earned = safeBadges.filter((b) => b?.earned);
 
-  const filteredBadges = badges?.filter((b) => {
+  const filteredBadges = safeBadges.filter((b) => {
     const matchesCategory = activeCategory === 'all' || (b as unknown as { category?: string }).category === activeCategory;
     const matchesSearch =
       b.name.toLowerCase().includes(searchQuery.toLowerCase()) ||

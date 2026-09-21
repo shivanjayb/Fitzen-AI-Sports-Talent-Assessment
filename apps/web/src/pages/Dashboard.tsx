@@ -76,11 +76,12 @@ function AthleteDashboard() {
   }
 
   const { stats, potential, assessments = [], brief } = data;
-  const verified = (assessments || []).filter((a) => a?.integrity === 'verified');
+  const safeAssessments = Array.isArray(assessments) ? assessments : [];
+  const verified = safeAssessments.filter((a) => a?.integrity === 'verified');
 
-  const pushupAssessments = verified.filter((a) => a.test === 'pushup');
-  const squatAssessments = verified.filter((a) => a.test === 'squat');
-  const jumpAssessments = verified.filter((a) => a.test === 'vertical_jump' || !a.test);
+  const pushupAssessments = verified.filter((a) => a?.test === 'pushup');
+  const squatAssessments = verified.filter((a) => a?.test === 'squat');
+  const jumpAssessments = verified.filter((a) => a?.test === 'vertical_jump' || !a?.test);
 
   const bestPushups = pushupAssessments.length
     ? Math.max(...pushupAssessments.map((a) => a.metrics.validReps ?? 0))
@@ -155,7 +156,7 @@ function AthleteDashboard() {
             </div>
 
             <HumanModel3D
-              assessments={assessments}
+              assessments={safeAssessments}
               potential={potential}
               selectedExercise={chartMetric}
               onSelectExercise={setChartMetric}
@@ -209,7 +210,7 @@ function AthleteDashboard() {
                     <Meter label="Maturity headroom" value={potential.components.maturityHeadroom} />
                   </div>
                   <div style={{ marginTop: 'var(--space-4)' }}>
-                    {potential.insights.slice(0, 3).map((insight) => (
+                    {(Array.isArray(potential.insights) ? potential.insights : []).slice(0, 3).map((insight) => (
                       <div key={insight.factor + insight.message} className={`fz-insight fz-insight--${insight.kind}`}>
                         <div className="fz-insight__icon" aria-hidden>
                           {insight.kind === 'strength' ? '▲' : insight.kind === 'opportunity' ? '◆' : '●'}
@@ -240,7 +241,7 @@ function AthleteDashboard() {
                     {brief.brief}
                   </p>
                   <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
-                    {brief.focusAreas.map((area) => <Chip key={area}>{area}</Chip>)}
+                    {(Array.isArray(brief.focusAreas) ? brief.focusAreas : []).map((area) => <Chip key={area}>{area}</Chip>)}
                   </div>
                 </div>
               ) : null}

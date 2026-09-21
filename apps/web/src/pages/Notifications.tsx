@@ -16,7 +16,7 @@ export default function NotificationsPage() {
 
   useEffect(() => { void load(); }, []);
 
-  const unread = items?.filter((n) => !n.readAt).length ?? 0;
+  const unread = (Array.isArray(items) ? items : []).filter((n) => !n?.readAt).length;
 
   return (
     <Shell

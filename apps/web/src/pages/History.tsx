@@ -56,9 +56,9 @@ export default function HistoryPage() {
 
   // Filter Squat Sessions & Chronological Sorting
   const squatRecords = useMemo(() => {
-    if (!records) return [];
+    if (!Array.isArray(records)) return [];
     return [...records]
-      .filter((r) => r.test === 'squat' || !r.test)
+      .filter((r) => r?.test === 'squat' || !r?.test)
       .sort((a, b) => new Date(a.capturedAt).getTime() - new Date(b.capturedAt).getTime());
   }, [records]);
 

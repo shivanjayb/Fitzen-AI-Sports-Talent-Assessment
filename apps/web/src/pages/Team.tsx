@@ -75,8 +75,8 @@ function AthleteDetail({ athleteId }: { athleteId: string }) {
     return <Shell title="Athlete"><div className="fz-card"><Skeleton height={280} /></div></Shell>;
   }
 
-  const jumpSeries = [...data.assessments]
-    .filter((a) => a.integrity === 'verified')
+  const jumpSeries = [...(Array.isArray(data.assessments) ? data.assessments : [])]
+    .filter((a) => a?.integrity === 'verified')
     .sort((a, b) => a.capturedAt.localeCompare(b.capturedAt))
     .map((a) => a.metrics.jumpHeightM * 100);
 

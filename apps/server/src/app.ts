@@ -413,11 +413,19 @@ export function createApp(config: AppConfig): FitzenApp {
       res.end();
       return;
     }
+    let reqUrl = req.url ?? '/';
+    const parsedUrl = new URL(reqUrl, 'http://localhost');
+    let pathname = parsedUrl.pathname;
+    if (pathname !== '/' && !pathname.startsWith('/api/') && pathname !== '/api') {
+      pathname = '/api' + pathname;
+    }
+    const fullPath = pathname + parsedUrl.search;
+
     const ctx: RequestContext = {
       method: req.method ?? 'GET',
-      path: req.url ?? '/',
+      path: fullPath,
       params: {},
-      query: new URL(req.url ?? '/', 'http://localhost').searchParams,
+      query: parsedUrl.searchParams,
       body: undefined,
       headers: req.headers,
       user: null,

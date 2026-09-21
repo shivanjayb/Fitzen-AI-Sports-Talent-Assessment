@@ -53,6 +53,7 @@ export default function AssessPage() {
   const [activeGesture, setActiveGesture] = useState<HandGesture>(null);
   const [endingCountdown, setEndingCountdown] = useState<number | null>(null);
   const [currentSetIndex, setCurrentSetIndex] = useState(1);
+  const [stageAspectRatio, setStageAspectRatio] = useState<string | number>('16 / 9');
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -220,6 +221,10 @@ export default function AssessPage() {
           const h = video && video.videoHeight > 0 ? video.videoHeight : 720;
           if (canvas.width !== w) canvas.width = w;
           if (canvas.height !== h) canvas.height = h;
+          if (w > 0 && h > 0) {
+            const ar = `${w} / ${h}`;
+            setStageAspectRatio((prev) => (prev !== ar ? ar : prev));
+          }
           drawPoseOverlay(canvas, frame, recordingRef.current ? 'RECORDING' : 'READY');
         }
 
@@ -366,8 +371,19 @@ export default function AssessPage() {
             <Chip tone="accent">🏋️ Squats (Depth &amp; Bilateral Balance)</Chip>
           </div>
 
-          <div className="fz-assess-stage">
-            <video ref={videoRef} playsInline muted style={{ display: mode !== 'simulation' ? 'block' : 'none' }} />
+          <div className="fz-assess-stage" style={{ aspectRatio: stageAspectRatio }}>
+            <video
+              ref={videoRef}
+              playsInline
+              muted
+              onLoadedMetadata={(e) => {
+                const v = e.currentTarget;
+                if (v.videoWidth > 0 && v.videoHeight > 0) {
+                  setStageAspectRatio(`${v.videoWidth} / ${v.videoHeight}`);
+                }
+              }}
+              style={{ display: mode !== 'simulation' ? 'block' : 'none' }}
+            />
             {mode === 'simulation' || stage === 'setup' ? (
               <div className="fz-assess-stage__placeholder">
                 {stage === 'setup' ? (

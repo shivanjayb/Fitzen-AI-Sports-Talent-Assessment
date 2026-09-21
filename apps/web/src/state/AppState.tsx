@@ -200,9 +200,13 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // --- theme ---
-  const [preference, setPreferenceState] = useState<ThemePreference>(
-    () => (localStorage.getItem(THEME_KEY) as ThemePreference) || 'dark',
-  );
+  const [preference, setPreferenceState] = useState<ThemePreference>(() => {
+    try {
+      return (localStorage.getItem(THEME_KEY) as ThemePreference) || 'dark';
+    } catch {
+      return 'dark';
+    }
+  });
   const [resolved, setResolved] = useState<'light' | 'dark'>(() => resolveTheme(preference));
 
   useEffect(() => {
@@ -212,13 +216,21 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       document.documentElement.dataset.theme = mode;
     };
     apply();
-    const media = window.matchMedia('(prefers-color-scheme: light)');
-    media.addEventListener('change', apply);
-    return () => media.removeEventListener('change', apply);
+    try {
+      const media = window.matchMedia('(prefers-color-scheme: light)');
+      media.addEventListener('change', apply);
+      return () => media.removeEventListener('change', apply);
+    } catch {
+      return undefined;
+    }
   }, [preference]);
 
   const setPreference = useCallback((p: ThemePreference) => {
-    localStorage.setItem(THEME_KEY, p);
+    try {
+      localStorage.setItem(THEME_KEY, p);
+    } catch {
+      // Ignored if storage is restricted
+    }
     setPreferenceState(p);
   }, []);
 
@@ -235,9 +247,12 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   }, [dismiss]);
 
   // --- sync ---
-  const [syncState, setSyncState] = useState<SyncState>({
-    pending: 0, syncing: false, lastSyncAt: null, online: navigator.onLine,
-  });
+  const [syncState, setSyncState] = useState<SyncState>(() => ({
+    pending: 0,
+    syncing: false,
+    lastSyncAt: null,
+    online: typeof navigator !== 'undefined' ? navigator.onLine : true,
+  }));
   useEffect(() => {
     startSyncLoop();
     return subscribeSync(setSyncState);

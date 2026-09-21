@@ -358,8 +358,11 @@ export function HumanModel3D({
   onSelectExercise,
   onSelectMuscle,
 }: HumanModel3DProps) {
-  const verified = useMemo(() => (assessments || []).filter((a) => a?.integrity === 'verified'), [assessments]);
-  const latestSquat = useMemo(() => verified.find((a) => a.test === 'squat'), [verified]);
+  const verified = useMemo(() => {
+    const list = Array.isArray(assessments) ? assessments : [];
+    return list.filter((a) => a?.integrity === 'verified');
+  }, [assessments]);
+  const latestSquat = useMemo(() => verified.find((a) => a?.test === 'squat'), [verified]);
 
   const muscleGroups: MuscleInfo[] = useMemo(() => {
     const squatAccuracy = latestSquat?.metrics.formAccuracyPercent ?? 88;
