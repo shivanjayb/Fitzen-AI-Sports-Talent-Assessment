@@ -278,6 +278,40 @@ function handleLocalFallback<T>(method: string, path: string, body?: unknown): T
     return { record: newRecord, created: true, newBadges: [] } as T;
   }
 
+  if (cleanPath === '/api/sync' && method === 'POST') {
+    const input = body as { assessments?: AssessmentEnvelope[] };
+    const envelopes = input?.assessments || [];
+    const storedAssessments: AssessmentRecord[] = JSON.parse(
+      localStorage.getItem('fitzen.local_assessments') || '[]'
+    );
+    const results: Array<{ clientId: string | null; status: string; id?: string }> = [];
+    for (const envelope of envelopes) {
+      const clientId = envelope?.signed?.payload?.clientId || `cli_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+      const existing = storedAssessments.find((a) => a.clientId === clientId);
+      if (existing) {
+        results.push({ clientId, status: 'duplicate', id: existing.id });
+      } else {
+        const metrics = envelope?.signed?.payload?.metrics || ({} as SignedMetrics);
+        const newRecord: AssessmentRecord = {
+          id: `ass_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+          clientId,
+          athleteId: localUser.id,
+          test: envelope?.signed?.payload?.test || 'squat',
+          capturedAt: envelope?.signed?.payload?.capturedAt || new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+          metrics,
+          integrity: 'verified',
+          integrityReasons: [],
+          keyFingerprint: envelope?.signed?.keyFingerprint || 'demo-key-fingerprint',
+        };
+        storedAssessments.unshift(newRecord);
+        results.push({ clientId, status: 'created', id: newRecord.id });
+      }
+    }
+    localStorage.setItem('fitzen.local_assessments', JSON.stringify(storedAssessments));
+    return { results } as T;
+  }
+
   if (cleanPath === '/api/badges/me') {
     return { badges: [] } as T;
   }
@@ -323,7 +357,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
         ? data.error
         : `Request failed with status ${res.status}`;
 
-    if (res.status === 404 || res.status === 405) {
+    if (res.status === 401 || res.status === 404 || res.status === 405) {
       console.warn(
         `[Fitzen API] Endpoint ${path} returned ${res.status}. Falling back to local offline handler.`
       );

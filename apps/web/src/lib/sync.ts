@@ -102,7 +102,8 @@ async function doFlush(): Promise<void> {
   }
   emit({ syncing: true });
   try {
-    const { results } = await api.sync(items.map((i) => i.envelope));
+    const response = await api.sync(items.map((i) => i.envelope));
+    const results = response?.results || [];
     for (const result of results) {
       if (result.clientId && result.status !== 'network_error') {
         const matching = items.find((i) => i.clientId === result.clientId);
@@ -115,6 +116,7 @@ async function doFlush(): Promise<void> {
     emit({ online: true, lastSyncAt: Date.now() });
   } catch (err) {
     if (err instanceof OfflineError) emit({ online: false });
+    console.error('[Sync] Outbox flush encountered error:', err);
   } finally {
     emit({ syncing: false, pending: await idb.count('outbox') });
   }

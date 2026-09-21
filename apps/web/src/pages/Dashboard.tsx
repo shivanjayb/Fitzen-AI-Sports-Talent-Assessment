@@ -5,6 +5,7 @@ import { Chip, EmptyState, ProgressRing, Skeleton, Stat, Meter } from '../compon
 import { TrendChart, Bars } from '../components/charts';
 import { api, OfflineError, type AssessmentRecord, type AthleteStats, type CoachingBrief, type PotentialResult } from '../lib/api';
 import { cacheGet, cachePut } from '../lib/idb';
+import { flushOutbox } from '../lib/sync';
 import { formatHeight, formatDate } from '../lib/format';
 import { useAuth } from '../state/AppState';
 
@@ -17,6 +18,7 @@ interface DashboardData {
 
 async function loadDashboard(): Promise<DashboardData> {
   try {
+    await flushOutbox().catch(() => undefined);
     const [{ stats, potential }, { assessments }] = await Promise.all([
       api.stats(),
       api.listAssessments(),

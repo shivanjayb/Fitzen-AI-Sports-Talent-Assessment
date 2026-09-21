@@ -5,6 +5,7 @@ import { Bars, Sparkline, TrendChart, type SeriesPoint } from '../components/cha
 import { Chip, EmptyState, IntegrityChip, Skeleton } from '../components/ui';
 import { api, OfflineError, type AssessmentRecord } from '../lib/api';
 import { cacheGet, cachePut } from '../lib/idb';
+import { flushOutbox } from '../lib/sync';
 import { formatDateTime } from '../lib/format';
 import { useToasts } from '../state/AppState';
 
@@ -16,23 +17,25 @@ export default function HistoryPage() {
   const { push } = useToasts();
 
   useEffect(() => {
-    api
-      .listAssessments()
-      .then(async ({ assessments }) => {
-        setRecords(assessments);
-        await cachePut('history', assessments);
-      })
-      .catch(async (err) => {
-        if (err instanceof OfflineError) {
-          const cached = await cacheGet<AssessmentRecord[]>('history');
-          if (cached) {
-            setRecords(cached.value);
-            setOffline(true);
-            return;
+    void flushOutbox().finally(() => {
+      api
+        .listAssessments()
+        .then(async ({ assessments }) => {
+          setRecords(assessments);
+          await cachePut('history', assessments);
+        })
+        .catch(async (err) => {
+          if (err instanceof OfflineError) {
+            const cached = await cacheGet<AssessmentRecord[]>('history');
+            if (cached) {
+              setRecords(cached.value);
+              setOffline(true);
+              return;
+            }
           }
-        }
-        setRecords([]);
-      });
+          setRecords([]);
+        });
+    });
   }, []);
 
   async function reverify(id: string) {
