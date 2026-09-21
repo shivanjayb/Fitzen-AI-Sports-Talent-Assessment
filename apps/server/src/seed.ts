@@ -1,15 +1,3 @@
-/**
- * Fitzen demo seed.
- *
- * Creates an admin, a coach, and a squad of athletes, then generates a
- * history of assessments for each athlete by running the REAL pipeline:
- * synthesized pose frames → jump analyzer → ECDSA signing → audit trail →
- * server-side integrity verification. Seeded data is indistinguishable from
- * production data because it is produced the same way.
- *
- * Run: npm run seed        (safe to re-run; existing users are kept)
- */
-
 import {
   analyzeJump,
   appendAuditEntry,
@@ -27,7 +15,7 @@ import { pushNotification } from './services/notificationService.ts';
 import type { AssessmentPayload, SignedMetrics } from './domain/types.ts';
 
 const config = loadConfig();
-const db = openDatabase(config.dbPath);
+const db = openDatabase(config.supabaseUrl, config.supabaseKey, true);
 
 interface SeedAthlete {
   email: string;
@@ -38,7 +26,6 @@ interface SeedAthlete {
   massKg: number;
   sport: string;
   region: string;
-  /** Baseline jump height in metres; improves slightly per session. */
   baseJump: number;
   sessions: number;
 }
@@ -54,20 +41,20 @@ const ATHLETES: SeedAthlete[] = [
 
 const PASSWORD = 'fitzen-demo-2026';
 
-function ensureUser(email: string, name: string, role: 'athlete' | 'coach' | 'admin') {
-  const existing = findUserByEmail(db, email);
+async function ensureUser(email: string, name: string, role: 'athlete' | 'coach' | 'admin') {
+  const existing = await findUserByEmail(db, email);
   if (existing) return { id: existing.id, created: false };
-  const user = createUser(db, { email, password: PASSWORD, name, role });
+  const user = await createUser(db, { email, password: PASSWORD, name, role });
   return { id: user.id, created: true };
 }
 
 async function seedAthlete(seed: SeedAthlete, coachId: string): Promise<void> {
-  const { id: athleteId, created } = ensureUser(seed.email, seed.name, 'athlete');
+  const { id: athleteId, created } = await ensureUser(seed.email, seed.name, 'athlete');
   if (!created) {
     console.log(`  = ${seed.name} already exists, skipping`);
     return;
   }
-  upsertProfile(db, athleteId, {
+  await upsertProfile(db, athleteId, {
     sex: seed.sex,
     birthDate: seed.birthDate,
     heightCm: seed.heightCm,
@@ -78,10 +65,9 @@ async function seedAthlete(seed: SeedAthlete, coachId: string): Promise<void> {
   });
 
   const keys = await generateAssessmentKeyPair();
-  const before = computeAthleteStats(db, athleteId);
+  const before = await computeAthleteStats(db, athleteId);
 
   for (let session = 0; session < seed.sessions; session++) {
-    // Sessions spread over the last ~6 weeks; gradual improvement plus noise.
     const daysAgo = (seed.sessions - session) * 4 + (session % 3);
     const capturedAt = new Date(Date.now() - daysAgo * 24 * 3600 * 1000).toISOString();
     const trueHeight = seed.baseJump + session * 0.006 + ((session * 7919) % 10) * 0.003 - 0.012;
@@ -129,22 +115,21 @@ async function seedAthlete(seed: SeedAthlete, coachId: string): Promise<void> {
     await ingestAssessment(db, athleteId, { signed, auditTrail: trail });
   }
 
-  const earned = awardBadges(db, athleteId, before);
-  pushNotification(db, athleteId, 'welcome', 'Welcome to Fitzen',
+  const earned = await awardBadges(db, athleteId, before);
+  await pushNotification(db, athleteId, 'welcome', 'Welcome to Fitzen',
     'Your training history has been imported. Run a new assessment to keep the streak going.');
   console.log(`  + ${seed.name}: ${seed.sessions} sessions, ${earned.length} badges`);
 }
 
 async function main() {
   console.log('Seeding Fitzen demo data…');
-  ensureUser('admin@fitzen.demo', 'Fitzen Admin', 'admin');
-  const coach = ensureUser('coach@fitzen.demo', 'Coach Meera Nair', 'coach');
+  await ensureUser('admin@fitzen.demo', 'Fitzen Admin', 'admin');
+  const coach = await ensureUser('coach@fitzen.demo', 'Coach Meera Nair', 'coach');
   for (const athlete of ATHLETES) {
     await seedAthlete(athlete, coach.id);
   }
   console.log('\nDemo accounts (password for all: ' + PASSWORD + ')');
   console.log('  athlete: arjun@fitzen.demo   coach: coach@fitzen.demo   admin: admin@fitzen.demo');
-  db.close();
 }
 
 main().catch((err) => {

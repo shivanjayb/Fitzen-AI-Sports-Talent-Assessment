@@ -16,7 +16,7 @@ let app: FitzenApp;
 let baseUrl: string;
 
 beforeAll(async () => {
-  const config = loadConfig({ dbPath: ':memory:', port: 0 });
+  const config = loadConfig({ port: 0, supabaseUrl: 'https://test.supabase.co' });
   app = createApp(config);
   await new Promise<void>((resolve) => app.server.listen(0, '127.0.0.1', resolve));
   const address = app.server.address() as AddressInfo;
@@ -27,7 +27,6 @@ afterAll(async () => {
   await new Promise<void>((resolve, reject) =>
     app.server.close((err) => (err ? reject(err) : resolve())),
   );
-  app.db.close();
 });
 
 async function api(

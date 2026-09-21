@@ -14,15 +14,6 @@ import type {
   SignedMetrics,
 } from '../domain/types.ts';
 
-/**
- * Server-side assessment ingestion.
- *
- * The authoritative integrity decision happens HERE, not on the client: the
- * server re-verifies the ECDSA signature, re-hashes the canonical payload,
- * validates the audit chain, and screens the metrics for physical
- * plausibility. Clients cannot mark their own results "verified".
- */
-
 function num(v: unknown): number {
   return typeof v === 'number' && Number.isFinite(v) ? v : NaN;
 }
@@ -53,7 +44,6 @@ function coerceMetrics(m: unknown): SignedMetrics {
     avgAsymmetryDeg: typeof o.avgAsymmetryDeg === 'number' ? o.avgAsymmetryDeg : undefined,
   };
 }
-
 
 export function parseEnvelope(body: unknown, athleteId: string): AssessmentEnvelope {
   if (typeof body !== 'object' || body === null) {
@@ -97,11 +87,6 @@ interface UpsertResult {
   created: boolean;
 }
 
-/**
- * Idempotently persist an assessment keyed by (athleteId, clientId).
- * Re-uploading the same client id (e.g. a retried offline sync) returns the
- * existing row instead of duplicating.
- */
 export async function ingestAssessment(
   db: Database,
   athleteId: string,
@@ -110,11 +95,10 @@ export async function ingestAssessment(
   const envelope = parseEnvelope(body, athleteId);
   const payload = envelope.signed.payload;
 
-  const existing = db
-    .prepare('SELECT id FROM assessments WHERE athlete_id = ? AND client_id = ?')
-    .get(athleteId, payload.clientId) as { id: string } | undefined;
+  const existing = await db.findAssessmentByClient(athleteId, payload.clientId);
   if (existing) {
-    return { record: getAssessment(db, existing.id)!, created: false };
+    const record = await getAssessment(db, existing.id);
+    return { record: record!, created: false };
   }
 
   const { integrity, reasons } = await evaluateIntegrity(envelope);
@@ -122,40 +106,40 @@ export async function ingestAssessment(
   const id = newId('asm');
   const createdAt = new Date().toISOString();
 
-  db.prepare(
-    `INSERT INTO assessments (
-      id, client_id, athlete_id, test, captured_at, created_at,
-      jump_height_m, jump_height_ci_low, jump_height_ci_high, flight_time_s,
-      peak_power_w, relative_power_wkg, symmetry_score, movement_quality, confidence,
-      metrics_json, envelope_json, integrity, integrity_reasons_json
-    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-  ).run(
+  await db.insertAssessment({
     id,
-    payload.clientId,
-    athleteId,
-    payload.test,
-    payload.capturedAt,
-    createdAt,
-    metrics.jumpHeightM,
-    metrics.jumpHeightCiLow,
-    metrics.jumpHeightCiHigh,
-    metrics.flightTimeS,
-    metrics.peakPowerW,
-    metrics.relativePowerWkg,
-    metrics.symmetryScore,
-    metrics.movementQuality,
-    metrics.confidence,
-    JSON.stringify(metrics),
-    JSON.stringify(envelope),
+    client_id: payload.clientId,
+    athlete_id: athleteId,
+    test: payload.test,
+    captured_at: payload.capturedAt,
+    created_at: createdAt,
+    jump_height_m: metrics.jumpHeightM,
+    jump_height_ci_low: metrics.jumpHeightCiLow,
+    jump_height_ci_high: metrics.jumpHeightCiHigh,
+    flight_time_s: metrics.flightTimeS,
+    peak_power_w: metrics.peakPowerW,
+    relative_power_wkg: metrics.relativePowerWkg,
+    symmetry_score: metrics.symmetryScore,
+    movement_quality: metrics.movementQuality,
+    confidence: metrics.confidence,
+    metrics_json: typeof metrics === 'string' ? metrics : JSON.stringify(metrics),
+    envelope_json: typeof envelope === 'string' ? envelope : JSON.stringify(envelope),
     integrity,
-    JSON.stringify(reasons),
-  );
+    integrity_reasons_json: JSON.stringify(reasons),
+  });
 
-  return { record: getAssessment(db, id)!, created: true };
+  const record = await getAssessment(db, id);
+  return { record: record!, created: true };
 }
 
 function rowToRecord(row: Record<string, unknown>): AssessmentRecord {
-  const envelope = JSON.parse(String(row.envelope_json)) as AssessmentEnvelope;
+  const envRaw = row.envelope_json;
+  const envelope = typeof envRaw === 'string' ? JSON.parse(envRaw) : envRaw as AssessmentEnvelope;
+  const metRaw = row.metrics_json;
+  const metrics = typeof metRaw === 'string' ? JSON.parse(metRaw) : metRaw as SignedMetrics;
+  const reasRaw = row.integrity_reasons_json;
+  const reasons = typeof reasRaw === 'string' ? JSON.parse(reasRaw) : (reasRaw as string[]) || [];
+
   return {
     id: String(row.id),
     clientId: String(row.client_id),
@@ -163,47 +147,38 @@ function rowToRecord(row: Record<string, unknown>): AssessmentRecord {
     test: String(row.test),
     capturedAt: String(row.captured_at),
     createdAt: String(row.created_at),
-    metrics: JSON.parse(String(row.metrics_json)) as SignedMetrics,
+    metrics,
     integrity: String(row.integrity) as Integrity,
-    integrityReasons: JSON.parse(String(row.integrity_reasons_json)) as string[],
-    keyFingerprint: envelope.signed.keyFingerprint ?? 'unknown',
+    integrityReasons: reasons,
+    keyFingerprint: envelope?.signed?.keyFingerprint ?? 'unknown',
   };
 }
 
-export function getAssessment(db: Database, id: string): AssessmentRecord | null {
-  const row = db.prepare('SELECT * FROM assessments WHERE id = ?').get(id) as
-    | Record<string, unknown>
-    | undefined;
+export async function getAssessment(db: Database, id: string): Promise<AssessmentRecord | null> {
+  const row = await db.getAssessment(id);
   return row ? rowToRecord(row) : null;
 }
 
-export function listAssessments(db: Database, athleteId: string, limit = 100): AssessmentRecord[] {
-  const rows = db
-    .prepare('SELECT * FROM assessments WHERE athlete_id = ? ORDER BY captured_at DESC LIMIT ?')
-    .all(athleteId, limit) as Record<string, unknown>[];
+export async function listAssessments(db: Database, athleteId: string, limit = 100): Promise<AssessmentRecord[]> {
+  const rows = await db.listAssessments(athleteId, limit);
   return rows.map(rowToRecord);
 }
 
-/** Re-verify a stored assessment on demand (audit / dispute workflow). */
 export async function reverifyAssessment(
   db: Database,
   id: string,
 ): Promise<{ integrity: Integrity; reasons: string[]; auditValid: boolean } | null> {
-  const row = db.prepare('SELECT envelope_json FROM assessments WHERE id = ?').get(id) as
-    | { envelope_json: string }
-    | undefined;
+  const row = await db.getAssessment(id);
   if (!row) return null;
-  const envelope = JSON.parse(row.envelope_json) as AssessmentEnvelope;
+  const record = rowToRecord(row);
+  const envRaw = row.envelope_json;
+  const envelope = typeof envRaw === 'string' ? JSON.parse(envRaw) : envRaw as AssessmentEnvelope;
   const report = await detectTampering(
     envelope.signed as unknown as SignedAssessment<Record<string, unknown>>,
     envelope.auditTrail,
   );
   const integrity: Integrity = report.tampered ? 'tampered' : 'verified';
-  db.prepare('UPDATE assessments SET integrity = ?, integrity_reasons_json = ? WHERE id = ?').run(
-    integrity,
-    JSON.stringify(report.reasons),
-    id,
-  );
+  await db.updateAssessmentIntegrity(id, integrity, report.reasons);
   return {
     integrity,
     reasons: report.reasons,

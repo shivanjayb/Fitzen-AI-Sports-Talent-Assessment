@@ -63,7 +63,8 @@ export interface FitzenApp {
 }
 
 export function createApp(config: AppConfig): FitzenApp {
-  const db = openDatabase(config.dbPath);
+  const isTest = process.env.NODE_ENV === 'test' || config.supabaseUrl.includes('test');
+  const db = openDatabase(config.supabaseUrl, config.supabaseKey, isTest);
   const router = new Router();
   router.use(authMiddleware(config.jwtSecret));
 
@@ -81,43 +82,43 @@ export function createApp(config: AppConfig): FitzenApp {
   );
   router.get('/api/health', () => json(200, { status: 'ok', service: 'fitzen-api', version: '1.0.0' }));
 
-
   // ---- Auth ----------------------------------------------------------------
-  router.post('/api/auth/register', (ctx) => {
+  router.post('/api/auth/register', async (ctx) => {
     const body = asObject(ctx.body);
     const role = body.role === undefined ? 'athlete' : requireEnum(body, 'role', ['athlete', 'coach', 'admin'] as const);
 
-    const user = createUser(db, {
+    const user = await createUser(db, {
       email: requireEmail(body, 'email'),
       password: requireString(body, 'password', { min: 8, max: 128 }),
       name: requireString(body, 'name', { min: 1, max: 100 }),
       role,
     });
-    pushNotification(db, user.id, 'welcome', 'Welcome to Fitzen',
+    await pushNotification(db, user.id, 'welcome', 'Welcome to Fitzen',
       role === 'athlete'
         ? 'Complete your athlete profile, then run your first jump assessment.'
         : 'Your coach account is ready. Athletes can now be assigned to you.');
     return json(201, { user, token: issueToken(user) });
   });
 
-  router.post('/api/auth/login', (ctx) => {
+  router.post('/api/auth/login', async (ctx) => {
     const body = asObject(ctx.body);
-    const user = authenticate(db, requireEmail(body, 'email'), requireString(body, 'password', { max: 128 }));
+    const user = await authenticate(db, requireEmail(body, 'email'), requireString(body, 'password', { max: 128 }));
     return json(200, { user, token: issueToken(user) });
   });
 
   // ---- Current user --------------------------------------------------------
-  router.get('/api/me', (ctx) => {
+  router.get('/api/me', async (ctx) => {
     const auth = requireUser(ctx);
-    const user = getUser(db, auth.sub);
+    const user = await getUser(db, auth.sub);
     if (!user) throw new HttpError(404, 'User not found');
-    return json(200, { user, profile: getProfile(db, auth.sub) });
+    const profile = await getProfile(db, auth.sub);
+    return json(200, { user, profile });
   });
 
-  router.put('/api/me/profile', (ctx) => {
+  router.put('/api/me/profile', async (ctx) => {
     const auth = requireUser(ctx);
     const body = asObject(ctx.body);
-    const profile = upsertProfile(db, auth.sub, {
+    const profile = await upsertProfile(db, auth.sub, {
       sex: requireEnum(body, 'sex', ['male', 'female'] as const),
       birthDate: requireString(body, 'birthDate', { min: 8, max: 30 }),
       heightCm: requireNumber(body, 'heightCm', { min: 80, max: 250 }),
@@ -130,10 +131,9 @@ export function createApp(config: AppConfig): FitzenApp {
     return json(200, { profile });
   });
 
-  router.get('/api/me/settings', (ctx) => {
+  router.get('/api/me/settings', async (ctx) => {
     const auth = requireUser(ctx);
-    const row = db.prepare('SELECT * FROM settings WHERE user_id = ?').get(auth.sub) as
-      | Record<string, unknown> | undefined;
+    const row = await db.getSettings(auth.sub);
     return json(200, {
       settings: {
         theme: row ? String(row.theme) : 'system',
@@ -144,45 +144,43 @@ export function createApp(config: AppConfig): FitzenApp {
     });
   });
 
-  router.put('/api/me/settings', (ctx) => {
+  router.put('/api/me/settings', async (ctx) => {
     const auth = requireUser(ctx);
     const body = asObject(ctx.body);
     const theme = requireEnum(body, 'theme', ['system', 'light', 'dark'] as const);
     const units = requireEnum(body, 'units', ['metric', 'imperial'] as const);
     const notificationsEnabled = body.notificationsEnabled !== false;
     const leaderboardOptIn = body.leaderboardOptIn !== false;
-    db.prepare(
-      `INSERT INTO settings (user_id, theme, units, notifications_enabled, leaderboard_opt_in, updated_at)
-       VALUES (?,?,?,?,?,?)
-       ON CONFLICT(user_id) DO UPDATE SET
-         theme = excluded.theme, units = excluded.units,
-         notifications_enabled = excluded.notifications_enabled,
-         leaderboard_opt_in = excluded.leaderboard_opt_in,
-         updated_at = excluded.updated_at`,
-    ).run(auth.sub, theme, units, notificationsEnabled ? 1 : 0, leaderboardOptIn ? 1 : 0, new Date().toISOString());
+
+    await db.upsertSettings(auth.sub, {
+      theme,
+      units,
+      notifications_enabled: notificationsEnabled ? 1 : 0,
+      leaderboard_opt_in: leaderboardOptIn ? 1 : 0,
+    });
     return json(200, { settings: { theme, units, notificationsEnabled, leaderboardOptIn } });
   });
 
   // ---- Assessments -----------------------------------------------------------
   const ingestAndNotify = async (athleteId: string, envelope: unknown) => {
-    const before = computeAthleteStats(db, athleteId);
+    const before = await computeAthleteStats(db, athleteId);
     const { record, created } = await ingestAssessment(db, athleteId, envelope);
     let newBadges: string[] = [];
     if (created && record.integrity === 'verified') {
-      newBadges = awardBadges(db, athleteId, before);
+      newBadges = await awardBadges(db, athleteId, before);
       for (const badgeId of newBadges) {
         const def = BADGE_DEFINITIONS.find((b) => b.id === badgeId);
         if (def) {
-          pushNotification(db, athleteId, 'badge', `Badge earned: ${def.name}`, def.description);
+          await pushNotification(db, athleteId, 'badge', `Badge earned: ${def.name}`, def.description);
         }
       }
       if (record.metrics.jumpHeightM > before.bestJumpHeightM && before.assessmentCount > 0) {
-        pushNotification(db, athleteId, 'pb', 'New personal best!',
+        await pushNotification(db, athleteId, 'pb', 'New personal best!',
           `You jumped ${(record.metrics.jumpHeightM * 100).toFixed(1)} cm — a new record.`);
       }
     }
     if (created && record.integrity === 'tampered') {
-      pushNotification(db, athleteId, 'integrity', 'Assessment failed verification',
+      await pushNotification(db, athleteId, 'integrity', 'Assessment failed verification',
         'Your last upload did not pass integrity checks and will not count toward rankings.');
     }
     return { record, created, newBadges };
@@ -194,19 +192,21 @@ export function createApp(config: AppConfig): FitzenApp {
     return json(result.created ? 201 : 200, result);
   });
 
-  router.get('/api/assessments', (ctx) => {
+  router.get('/api/assessments', async (ctx) => {
     const auth = requireUser(ctx);
     const athleteId = ctx.query.get('athleteId');
     if (athleteId && athleteId !== auth.sub) {
       requireRole(ctx, 'coach', 'admin');
-      return json(200, { assessments: listAssessments(db, athleteId) });
+      const assessments = await listAssessments(db, athleteId);
+      return json(200, { assessments });
     }
-    return json(200, { assessments: listAssessments(db, auth.sub) });
+    const assessments = await listAssessments(db, auth.sub);
+    return json(200, { assessments });
   });
 
-  router.get('/api/assessments/:id', (ctx) => {
+  router.get('/api/assessments/:id', async (ctx) => {
     const auth = requireUser(ctx);
-    const record = getAssessment(db, ctx.params.id!);
+    const record = await getAssessment(db, ctx.params.id!);
     if (!record) throw new HttpError(404, 'Assessment not found');
     if (record.athleteId !== auth.sub && auth.role === 'athlete') {
       throw new HttpError(403, 'Not your assessment');
@@ -257,42 +257,47 @@ export function createApp(config: AppConfig): FitzenApp {
   });
 
   // ---- Stats, potential, badges, leaderboard -----------------------------------
-  router.get('/api/stats/me', (ctx) => {
+  router.get('/api/stats/me', async (ctx) => {
     const auth = requireUser(ctx);
-    const stats = computeAthleteStats(db, auth.sub);
-    const profile = getProfile(db, auth.sub);
-    const potential = profile ? potentialForAthlete(db, profile) : null;
+    const stats = await computeAthleteStats(db, auth.sub);
+    const profile = await getProfile(db, auth.sub);
+    const potential = profile ? await potentialForAthlete(db, profile) : null;
     return json(200, { stats, potential });
   });
 
-  router.get('/api/badges/me', (ctx) => {
+  router.get('/api/badges/me', async (ctx) => {
     const auth = requireUser(ctx);
-    return json(200, { badges: athleteBadges(db, auth.sub) });
+    const badges = await athleteBadges(db, auth.sub);
+    return json(200, { badges });
   });
 
-  router.get('/api/leaderboard', (ctx) => {
+  router.get('/api/leaderboard', async (ctx) => {
     const rawMetric = ctx.query.get('metric');
     const metric = rawMetric === 'power' || rawMetric === 'pushup' || rawMetric === 'squat' || rawMetric === 'jump'
       ? rawMetric
       : undefined;
     const region = ctx.query.get('region') ?? undefined;
-    return json(200, { leaderboard: leaderboard(db, { metric, region }) });
+    const board = await leaderboard(db, { metric, region });
+    return json(200, { leaderboard: board });
   });
 
   // ---- Notifications ---------------------------------------------------------
-  router.get('/api/notifications', (ctx) => {
+  router.get('/api/notifications', async (ctx) => {
     const auth = requireUser(ctx);
-    return json(200, { notifications: listNotifications(db, auth.sub) });
+    const notifications = await listNotifications(db, auth.sub);
+    return json(200, { notifications });
   });
 
-  router.post('/api/notifications/read-all', (ctx) => {
+  router.post('/api/notifications/read-all', async (ctx) => {
     const auth = requireUser(ctx);
-    return json(200, { updated: markAllRead(db, auth.sub) });
+    const updated = await markAllRead(db, auth.sub);
+    return json(200, { updated });
   });
 
-  router.post('/api/notifications/:id/read', (ctx) => {
+  router.post('/api/notifications/:id/read', async (ctx) => {
     const auth = requireUser(ctx);
-    if (!markRead(db, auth.sub, ctx.params.id!)) throw new HttpError(404, 'Notification not found');
+    const ok = await markRead(db, auth.sub, ctx.params.id!);
+    if (!ok) throw new HttpError(404, 'Notification not found');
     return json(200, { ok: true });
   });
 
@@ -302,72 +307,68 @@ export function createApp(config: AppConfig): FitzenApp {
     const targetId =
       auth.role === 'athlete' ? auth.sub : ctx.query.get('athleteId') ?? auth.sub;
     if (targetId !== auth.sub) requireRole(ctx, 'coach', 'admin');
-    const user = getUser(db, targetId);
-    const profile = getProfile(db, targetId);
+    const user = await getUser(db, targetId);
+    const profile = await getProfile(db, targetId);
     if (!user || !profile) throw new HttpError(404, 'Athlete profile not found');
-    const stats = computeAthleteStats(db, targetId);
+    const stats = await computeAthleteStats(db, targetId);
+    const potential = await potentialForAthlete(db, profile);
     const brief = await generateCoachingBrief({
       athleteName: user.name,
       ageYears: ageYears(profile.birthDate),
       sport: profile.sport,
       stats,
-      potential: potentialForAthlete(db, profile),
+      potential,
     });
     return json(200, { brief });
   });
 
   // ---- Coach -------------------------------------------------------------------
-  router.get('/api/coach/roster', (ctx) => {
+  router.get('/api/coach/roster', async (ctx) => {
     const auth = requireRole(ctx, 'coach', 'admin');
-    const roster = coachRoster(db, auth.sub).map((athlete) => ({
-      ...athlete,
-      stats: computeAthleteStats(db, athlete.id),
-    }));
+    const rawRoster = await coachRoster(db, auth.sub);
+    const roster = await Promise.all(
+      rawRoster.map(async (athlete) => ({
+        ...athlete,
+        stats: await computeAthleteStats(db, athlete.id),
+      }))
+    );
     return json(200, { roster });
   });
 
-  router.get('/api/coach/athletes/:id', (ctx) => {
+  router.get('/api/coach/athletes/:id', async (ctx) => {
     requireRole(ctx, 'coach', 'admin');
     const athleteId = ctx.params.id!;
-    const user = getUser(db, athleteId);
+    const user = await getUser(db, athleteId);
     if (!user) throw new HttpError(404, 'Athlete not found');
-    const profile = getProfile(db, athleteId);
+    const profile = await getProfile(db, athleteId);
+    const stats = await computeAthleteStats(db, athleteId);
+    const potential = profile ? await potentialForAthlete(db, profile) : null;
+    const assessments = await listAssessments(db, athleteId, 25);
+    const badges = await athleteBadges(db, athleteId);
     return json(200, {
       user,
       profile,
-      stats: computeAthleteStats(db, athleteId),
-      potential: profile ? potentialForAthlete(db, profile) : null,
-      assessments: listAssessments(db, athleteId, 25),
-      badges: athleteBadges(db, athleteId),
+      stats,
+      potential,
+      assessments,
+      badges,
     });
   });
 
   // ---- Admin ---------------------------------------------------------------------
-  router.get('/api/admin/users', (ctx) => {
+  router.get('/api/admin/users', async (ctx) => {
     requireRole(ctx, 'admin');
     const role = ctx.query.get('role');
-    return json(200, {
-      users: listUsers(db, role === 'athlete' || role === 'coach' || role === 'admin' ? role : undefined),
-    });
+    const users = await listUsers(db, role === 'athlete' || role === 'coach' || role === 'admin' ? role : undefined);
+    return json(200, { users });
   });
 
-  router.get('/api/admin/overview', (ctx) => {
+  router.get('/api/admin/overview', async (ctx) => {
     requireRole(ctx, 'admin');
-    const count = (sql: string) => Number((db.prepare(sql).get() as { n: number }).n);
-    return json(200, {
-      overview: {
-        users: count('SELECT COUNT(*) AS n FROM users'),
-        athletes: count("SELECT COUNT(*) AS n FROM users WHERE role = 'athlete'"),
-        coaches: count("SELECT COUNT(*) AS n FROM users WHERE role = 'coach'"),
-        assessments: count('SELECT COUNT(*) AS n FROM assessments'),
-        verified: count("SELECT COUNT(*) AS n FROM assessments WHERE integrity = 'verified'"),
-        tampered: count("SELECT COUNT(*) AS n FROM assessments WHERE integrity = 'tampered'"),
-        badgesAwarded: count('SELECT COUNT(*) AS n FROM badges'),
-      },
-    });
+    const overview = await db.getAdminOverview();
+    return json(200, { overview });
   });
 
-  // Default geometric thresholds configuration state
   let currentGeometricThresholds = {
     pushup: { downAngleThreshold: 90.0, upAngleThreshold: 160.0, maxAsymmetryDeg: 15.0, minVisibility: 0.5 },
     squat: { downAngleThreshold: 90.0, upAngleThreshold: 160.0, maxAsymmetryDeg: 15.0, minVisibility: 0.5 },
@@ -402,7 +403,6 @@ export function createApp(config: AppConfig): FitzenApp {
       thresholds: currentGeometricThresholds,
     });
   });
-
 
   // ---- HTTP server ------------------------------------------------------------------
   const server = createServer(async (req, res) => {

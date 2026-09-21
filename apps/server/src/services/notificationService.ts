@@ -11,35 +11,34 @@ export interface Notification {
   readAt: string | null;
 }
 
-export function pushNotification(
+export async function pushNotification(
   db: Database,
   userId: string,
   kind: string,
   title: string,
   body: string,
-): Notification {
-  // Respect the user's notification preference.
-  const settings = db
-    .prepare('SELECT notifications_enabled FROM settings WHERE user_id = ?')
-    .get(userId) as { notifications_enabled: number } | undefined;
+): Promise<Notification> {
+  const settings = await db.getSettings(userId);
   const id = newId('ntf');
   const createdAt = new Date().toISOString();
   if (settings && settings.notifications_enabled === 0) {
     return { id, userId, kind, title, body, createdAt, readAt: createdAt };
   }
-  db.prepare(
-    'INSERT INTO notifications (id, user_id, kind, title, body, created_at) VALUES (?,?,?,?,?,?)',
-  ).run(id, userId, kind, title, body, createdAt);
+  await db.insertNotification({
+    id,
+    user_id: userId,
+    kind,
+    title,
+    body,
+    created_at: createdAt,
+    read_at: null,
+  });
   return { id, userId, kind, title, body, createdAt, readAt: null };
 }
 
-export function listNotifications(db: Database, userId: string, limit = 50): Notification[] {
-  const rows = db
-    .prepare(
-      'SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT ?',
-    )
-    .all(userId, limit) as Array<Record<string, unknown>>;
-  return rows.map((r) => ({
+export async function listNotifications(db: Database, userId: string, limit = 50): Promise<Notification[]> {
+  const rows = await db.listNotifications(userId, limit);
+  return rows.map((r: any) => ({
     id: String(r.id),
     userId: String(r.user_id),
     kind: String(r.kind),
@@ -50,16 +49,10 @@ export function listNotifications(db: Database, userId: string, limit = 50): Not
   }));
 }
 
-export function markAllRead(db: Database, userId: string): number {
-  const res = db
-    .prepare('UPDATE notifications SET read_at = ? WHERE user_id = ? AND read_at IS NULL')
-    .run(new Date().toISOString(), userId);
-  return Number(res.changes);
+export async function markAllRead(db: Database, userId: string): Promise<number> {
+  return await db.markAllNotificationsRead(userId);
 }
 
-export function markRead(db: Database, userId: string, id: string): boolean {
-  const res = db
-    .prepare('UPDATE notifications SET read_at = ? WHERE id = ? AND user_id = ?')
-    .run(new Date().toISOString(), id, userId);
-  return Number(res.changes) > 0;
+export async function markRead(db: Database, userId: string, id: string): Promise<boolean> {
+  return await db.markNotificationRead(userId, id);
 }

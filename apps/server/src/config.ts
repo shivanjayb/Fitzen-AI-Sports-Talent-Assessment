@@ -6,11 +6,6 @@ import { dirname, join } from 'node:path';
 const here = dirname(fileURLToPath(import.meta.url));
 const dataDir = join(here, '..', '..', '..', 'data');
 
-/**
- * Development-only: persist a generated JWT secret under data/ so dev-server
- * restarts (file watching, engine rebuilds) don't invalidate every session.
- * Production refuses to run without an explicit FITZEN_JWT_SECRET.
- */
 function devSecret(): string {
   const secretPath = join(dataDir, '.dev-jwt-secret');
   try {
@@ -30,7 +25,8 @@ export interface AppConfig {
   host: string;
   jwtSecret: string;
   jwtTtlSeconds: number;
-  dbPath: string;
+  supabaseUrl: string;
+  supabaseKey: string;
   corsOrigins: string[];
 }
 
@@ -39,23 +35,33 @@ function envOr(name: string, fallback: string): string {
   return v && v.length > 0 ? v : fallback;
 }
 
-/**
- * Application configuration, sourced from environment variables with safe
- * development defaults. In production, FITZEN_JWT_SECRET must be set; a random
- * per-process secret is used otherwise (which invalidates tokens on restart —
- * fine for local dev, unacceptable for prod, hence the warning).
- */
 export function loadConfig(overrides: Partial<AppConfig> = {}): AppConfig {
   const jwtSecret = process.env.FITZEN_JWT_SECRET;
   if (!jwtSecret && process.env.NODE_ENV === 'production') {
     throw new Error('FITZEN_JWT_SECRET must be set in production.');
   }
+  const supabaseUrl = envOr(
+    'SUPABASE_URL',
+    envOr('VITE_SUPABASE_URL', 'https://hfcodbbwiidrehbjwhmg.supabase.co')
+  );
+  const supabaseKey = envOr(
+    'SUPABASE_SECRET_KEY',
+    envOr(
+      'SUPABASE_ANON_KEY',
+      envOr(
+        'VITE_SUPABASE_ANON_KEY',
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhmY29kYmJ3aWlkcmVoYmp3aG1nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1NTYzODUsImV4cCI6MjEwNTEzMjM4NX0.3x4ykChTmPJJT1n3HymIrwdg95TOGbaOTIqwd5nlkbY'
+      )
+    )
+  );
+
   return {
     port: Number(envOr('FITZEN_PORT', '4000')),
     host: envOr('FITZEN_HOST', '0.0.0.0'),
     jwtSecret: jwtSecret ?? devSecret(),
     jwtTtlSeconds: Number(envOr('FITZEN_JWT_TTL', String(60 * 60 * 24 * 7))),
-    dbPath: envOr('FITZEN_DB_PATH', join(here, '..', '..', '..', 'data', 'fitzen.db')),
+    supabaseUrl,
+    supabaseKey,
     corsOrigins: envOr('FITZEN_CORS_ORIGINS', 'http://localhost:5173,http://localhost:4173')
       .split(',')
       .map((s) => s.trim())
