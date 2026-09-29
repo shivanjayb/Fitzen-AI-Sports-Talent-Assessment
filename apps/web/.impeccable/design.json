@@ -1,0 +1,458 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-29T16:56:11.172748+00:00",
+  "title": "Design System: Fitzen",
+  "extensions": {
+    "colorMeta": {
+      "accent-lime": {
+        "role": "primary",
+        "displayName": "Electric Lime",
+        "canonical": "#c8f135",
+        "tonalRamp": [
+          "oklch(15% 0.2 125)",
+          "oklch(27% 0.2 125)",
+          "oklch(39% 0.2 125)",
+          "oklch(51% 0.2 125)",
+          "oklch(63% 0.2 125)",
+          "oklch(75% 0.2 125)",
+          "oklch(86% 0.2 125)",
+          "oklch(95% 0.2 125)"
+        ]
+      },
+      "accent-lime-light": {
+        "role": "primary",
+        "displayName": "Moss Lime",
+        "canonical": "#5b8c00",
+        "tonalRamp": [
+          "oklch(15% 0.17 128)",
+          "oklch(27% 0.17 128)",
+          "oklch(39% 0.17 128)",
+          "oklch(51% 0.17 128)",
+          "oklch(63% 0.17 128)",
+          "oklch(75% 0.17 128)",
+          "oklch(86% 0.17 128)",
+          "oklch(95% 0.17 128)"
+        ]
+      },
+      "accent-ink": {
+        "role": "primary",
+        "displayName": "Lime Ink",
+        "canonical": "#0b1400",
+        "tonalRamp": [
+          "oklch(15% 0.05 128)",
+          "oklch(27% 0.05 128)",
+          "oklch(39% 0.05 128)",
+          "oklch(51% 0.05 128)",
+          "oklch(63% 0.05 128)",
+          "oklch(75% 0.05 128)",
+          "oklch(86% 0.05 128)",
+          "oklch(95% 0.05 128)"
+        ]
+      },
+      "accent-cyan": {
+        "role": "secondary",
+        "displayName": "Pool Cyan",
+        "canonical": "#64d2ff",
+        "tonalRamp": [
+          "oklch(15% 0.13 230)",
+          "oklch(27% 0.13 230)",
+          "oklch(39% 0.13 230)",
+          "oklch(51% 0.13 230)",
+          "oklch(63% 0.13 230)",
+          "oklch(75% 0.13 230)",
+          "oklch(86% 0.13 230)",
+          "oklch(95% 0.13 230)"
+        ]
+      },
+      "zone-good": {
+        "role": "tertiary",
+        "displayName": "Signal Green",
+        "canonical": "#30d158",
+        "tonalRamp": [
+          "oklch(15% 0.19 148)",
+          "oklch(27% 0.19 148)",
+          "oklch(39% 0.19 148)",
+          "oklch(51% 0.19 148)",
+          "oklch(63% 0.19 148)",
+          "oklch(75% 0.19 148)",
+          "oklch(86% 0.19 148)",
+          "oklch(95% 0.19 148)"
+        ]
+      },
+      "zone-ok": {
+        "role": "tertiary",
+        "displayName": "Caution Amber",
+        "canonical": "#ffd60a",
+        "tonalRamp": [
+          "oklch(15% 0.18 95)",
+          "oklch(27% 0.18 95)",
+          "oklch(39% 0.18 95)",
+          "oklch(51% 0.18 95)",
+          "oklch(63% 0.18 95)",
+          "oklch(75% 0.18 95)",
+          "oklch(86% 0.18 95)",
+          "oklch(95% 0.18 95)"
+        ]
+      },
+      "zone-bad": {
+        "role": "tertiary",
+        "displayName": "Flag Red",
+        "canonical": "#ff453a",
+        "tonalRamp": [
+          "oklch(15% 0.21 28)",
+          "oklch(27% 0.21 28)",
+          "oklch(39% 0.21 28)",
+          "oklch(51% 0.21 28)",
+          "oklch(63% 0.21 28)",
+          "oklch(75% 0.21 28)",
+          "oklch(86% 0.21 28)",
+          "oklch(95% 0.21 28)"
+        ]
+      },
+      "night-bg": {
+        "role": "neutral",
+        "displayName": "Night Sky",
+        "canonical": "#05070b",
+        "tonalRamp": [
+          "oklch(15% 0.01 260)",
+          "oklch(27% 0.01 260)",
+          "oklch(39% 0.01 260)",
+          "oklch(51% 0.01 260)",
+          "oklch(63% 0.01 260)",
+          "oklch(75% 0.01 260)",
+          "oklch(86% 0.01 260)",
+          "oklch(95% 0.01 260)"
+        ]
+      },
+      "night-text": {
+        "role": "neutral",
+        "displayName": "Starlight",
+        "canonical": "#f5f7fb",
+        "tonalRamp": [
+          "oklch(15% 0.01 260)",
+          "oklch(27% 0.01 260)",
+          "oklch(39% 0.01 260)",
+          "oklch(51% 0.01 260)",
+          "oklch(63% 0.01 260)",
+          "oklch(75% 0.01 260)",
+          "oklch(86% 0.01 260)",
+          "oklch(95% 0.01 260)"
+        ]
+      },
+      "day-bg": {
+        "role": "neutral",
+        "displayName": "Daylight Mist",
+        "canonical": "#eef2f8",
+        "tonalRamp": [
+          "oklch(15% 0.015 255)",
+          "oklch(27% 0.015 255)",
+          "oklch(39% 0.015 255)",
+          "oklch(51% 0.015 255)",
+          "oklch(63% 0.015 255)",
+          "oklch(75% 0.015 255)",
+          "oklch(86% 0.015 255)",
+          "oklch(95% 0.015 255)"
+        ]
+      },
+      "day-text": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#0b0d12",
+        "tonalRamp": [
+          "oklch(15% 0.01 265)",
+          "oklch(27% 0.01 265)",
+          "oklch(39% 0.01 265)",
+          "oklch(51% 0.01 265)",
+          "oklch(63% 0.01 265)",
+          "oklch(75% 0.01 265)",
+          "oklch(86% 0.01 265)",
+          "oklch(95% 0.01 265)"
+        ]
+      },
+      "glass": {
+        "role": "neutral",
+        "displayName": "Frost",
+        "canonical": "rgba(255, 255, 255, 0.075)"
+      },
+      "aurora-blue": {
+        "role": "neutral",
+        "displayName": "Aurora Blue",
+        "canonical": "#1f6fff",
+        "tonalRamp": [
+          "oklch(15% 0.2 262)",
+          "oklch(27% 0.2 262)",
+          "oklch(39% 0.2 262)",
+          "oklch(51% 0.2 262)",
+          "oklch(63% 0.2 262)",
+          "oklch(75% 0.2 262)",
+          "oklch(86% 0.2 262)",
+          "oklch(95% 0.2 262)"
+        ]
+      },
+      "aurora-violet": {
+        "role": "neutral",
+        "displayName": "Aurora Violet",
+        "canonical": "#7c3aed",
+        "tonalRamp": [
+          "oklch(15% 0.22 293)",
+          "oklch(27% 0.22 293)",
+          "oklch(39% 0.22 293)",
+          "oklch(51% 0.22 293)",
+          "oklch(63% 0.22 293)",
+          "oklch(75% 0.22 293)",
+          "oklch(86% 0.22 293)",
+          "oklch(95% 0.22 293)"
+        ]
+      },
+      "aurora-teal": {
+        "role": "neutral",
+        "displayName": "Aurora Teal",
+        "canonical": "#00c2a8",
+        "tonalRamp": [
+          "oklch(15% 0.13 178)",
+          "oklch(27% 0.13 178)",
+          "oklch(39% 0.13 178)",
+          "oklch(51% 0.13 178)",
+          "oklch(63% 0.13 178)",
+          "oklch(75% 0.13 178)",
+          "oklch(86% 0.13 178)",
+          "oklch(95% 0.13 178)"
+        ]
+      },
+      "aurora-lime": {
+        "role": "neutral",
+        "displayName": "Aurora Lime",
+        "canonical": "#b7ff3c",
+        "tonalRamp": [
+          "oklch(15% 0.21 130)",
+          "oklch(27% 0.21 130)",
+          "oklch(39% 0.21 130)",
+          "oklch(51% 0.21 130)",
+          "oklch(63% 0.21 130)",
+          "oklch(75% 0.21 130)",
+          "oklch(86% 0.21 130)",
+          "oklch(95% 0.21 130)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Hero headline; width 112%, closing line 125%."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Section heads, max 18–22ch."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Step titles, stage exercise name."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Reading copy, 34–56ch."
+      },
+      "lede": {
+        "displayName": "Lede",
+        "purpose": "Hero explanation, max 44ch."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Stat captions, tags, field labels."
+      },
+      "metric": {
+        "displayName": "Metric",
+        "purpose": "Rep counts, cadence, grades; tabular."
+      },
+      "mono": {
+        "displayName": "Mono",
+        "purpose": "Live HUD timers and angle values."
+      }
+    },
+    "shadows": [
+      {
+        "name": "glass-ambient",
+        "value": "inset 0 1px 0 var(--glass-hi), inset 0 -1px 1px rgba(255,255,255,0.04), 0 18px 50px rgba(0,0,0,0.45)",
+        "purpose": "Every glass panel (light mode drop: 0 16px 40px rgba(40,60,110,0.16))."
+      },
+      {
+        "name": "lime-glow",
+        "value": "inset 0 1px 0 rgba(255,255,255,0.55), 0 12px 32px -8px color-mix(in srgb, var(--accent) 60%, transparent)",
+        "purpose": "Primary buttons; 75% on hover."
+      },
+      {
+        "name": "zone-ring",
+        "value": "inset 0 0 0 1px color-mix(in srgb, var(--good) 70%, transparent)",
+        "purpose": "Angle pills and zone chips; swap zone token."
+      }
+    ],
+    "motion": [
+      {
+        "name": "spring",
+        "value": "cubic-bezier(0.34, 1.56, 0.64, 1)",
+        "purpose": "Presses, chips, tab pill, sheets."
+      },
+      {
+        "name": "ease",
+        "value": "cubic-bezier(0.22, 1, 0.36, 1)",
+        "purpose": "Page entry, reveals, bar fills."
+      },
+      {
+        "name": "press",
+        "value": "scale(0.96) over 0.12s",
+        "purpose": "Active state of anything pressable."
+      },
+      {
+        "name": "width-pulse",
+        "value": "font-stretch 150% → 112%, 1.1s ease",
+        "purpose": "Hero headline on sport change."
+      },
+      {
+        "name": "aurora-drift",
+        "value": "22–38s ease-in-out alternate",
+        "purpose": "Background blobs."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "phone",
+        "value": "760px"
+      },
+      {
+        "name": "stack",
+        "value": "900px"
+      },
+      {
+        "name": "two-col",
+        "value": "860px"
+      },
+      {
+        "name": "sheet-float",
+        "value": "720px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The single lime action per view.",
+      "html": "<button class=\"ds-btn\">Try now <svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M5 12h14M13 6l6 6-6 6\"/></svg></button>",
+      "css": ":host{--accent:#c8f135;--accent-2:#64d2ff;--accent-ink:#0b1400;--good:#30d158;--ok:#ffd60a;--bad:#ff453a;--bg:#05070b;--text:#f5f7fb;--text-2:rgba(235,240,255,.64);--text-3:rgba(235,240,255,.4);--glass:rgba(255,255,255,.075);--glass-strong:rgba(255,255,255,.13);--glass-edge:rgba(255,255,255,.16);--glass-hi:rgba(255,255,255,.42);--spring:cubic-bezier(.34,1.56,.64,1);--ease:cubic-bezier(.22,1,.36,1);font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',Inter,sans-serif;color:var(--text);} .ds-btn{display:inline-flex;align-items:center;gap:10px;border:0;padding:16px 26px;border-radius:999px;font:inherit;font-weight:800;font-size:1.02rem;letter-spacing:-.01em;background:var(--accent);color:var(--accent-ink);box-shadow:inset 0 1px 0 rgba(255,255,255,.55),0 12px 32px -8px color-mix(in srgb,var(--accent) 60%,transparent);transition:transform .5s var(--spring),box-shadow .3s var(--ease);cursor:pointer}.ds-btn svg{transition:transform .5s var(--spring)}.ds-btn:hover{transform:translateY(-2px);box-shadow:inset 0 1px 0 rgba(255,255,255,.55),0 18px 40px -8px color-mix(in srgb,var(--accent) 75%,transparent)}.ds-btn:hover svg{transform:translateX(4px)}.ds-btn:active{transform:scale(.96);transition-duration:.12s}.ds-btn:focus-visible{outline:2px solid var(--accent-2);outline-offset:3px}"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Secondary action in raised glass beside the primary.",
+      "html": "<button class=\"ds-btn-ghost\">Watch demo</button>",
+      "css": ":host{--accent:#c8f135;--accent-2:#64d2ff;--accent-ink:#0b1400;--good:#30d158;--ok:#ffd60a;--bad:#ff453a;--bg:#05070b;--text:#f5f7fb;--text-2:rgba(235,240,255,.64);--text-3:rgba(235,240,255,.4);--glass:rgba(255,255,255,.075);--glass-strong:rgba(255,255,255,.13);--glass-edge:rgba(255,255,255,.16);--glass-hi:rgba(255,255,255,.42);--spring:cubic-bezier(.34,1.56,.64,1);--ease:cubic-bezier(.22,1,.36,1);font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',Inter,sans-serif;color:var(--text);} .ds-btn-ghost{border:0;padding:16px 26px;border-radius:999px;font:inherit;font-weight:800;font-size:1.02rem;background:var(--glass-strong);color:var(--text);box-shadow:inset 0 1px 0 var(--glass-hi);backdrop-filter:blur(20px);transition:transform .5s var(--spring),box-shadow .3s var(--ease);cursor:pointer}.ds-btn-ghost:hover{transform:translateY(-2px);box-shadow:inset 0 1px 0 var(--glass-hi),0 12px 30px -10px rgba(0,0,0,.4)}.ds-btn-ghost:active{transform:scale(.96)}.ds-btn-ghost:focus-visible{outline:2px solid var(--accent-2);outline-offset:3px}"
+    },
+    {
+      "name": "Filter Chips",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "Glass pills with a count; selected inverts on a spring.",
+      "html": "<div class=\"ds-chips\"><button class=\"ds-chip on\">All <b>90</b></button><button class=\"ds-chip\">Gym <b>24</b></button><button class=\"ds-chip\">Yoga <b>10</b></button></div>",
+      "css": ":host{--accent:#c8f135;--accent-2:#64d2ff;--accent-ink:#0b1400;--good:#30d158;--ok:#ffd60a;--bad:#ff453a;--bg:#05070b;--text:#f5f7fb;--text-2:rgba(235,240,255,.64);--text-3:rgba(235,240,255,.4);--glass:rgba(255,255,255,.075);--glass-strong:rgba(255,255,255,.13);--glass-edge:rgba(255,255,255,.16);--glass-hi:rgba(255,255,255,.42);--spring:cubic-bezier(.34,1.56,.64,1);--ease:cubic-bezier(.22,1,.36,1);font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',Inter,sans-serif;color:var(--text);} .ds-chips{display:flex;gap:8px;flex-wrap:wrap}.ds-chip{border:1px solid var(--glass-edge);background:var(--glass);color:var(--text-2);font:inherit;font-weight:700;font-size:.9rem;padding:10px 16px;border-radius:999px;cursor:pointer;transition:background .3s,color .3s,transform .45s var(--spring)}.ds-chip b{font-variant-numeric:tabular-nums;margin-left:4px;opacity:.6}.ds-chip:hover{color:var(--text);background:var(--glass-strong)}.ds-chip.on{background:var(--text);color:var(--bg);border-color:transparent;transform:scale(1.04)}.ds-chip:focus-visible{outline:2px solid var(--accent-2);outline-offset:3px}"
+    },
+    {
+      "name": "Glass Card",
+      "kind": "card",
+      "refersTo": "glass-card",
+      "description": "The core material: blurred, edged, highlighted panel.",
+      "html": "<div class=\"ds-glass\"><b>Back Squat</b><p>6 reps · 5 correct · form 92/100</p></div>",
+      "css": ":host{--accent:#c8f135;--accent-2:#64d2ff;--accent-ink:#0b1400;--good:#30d158;--ok:#ffd60a;--bad:#ff453a;--bg:#05070b;--text:#f5f7fb;--text-2:rgba(235,240,255,.64);--text-3:rgba(235,240,255,.4);--glass:rgba(255,255,255,.075);--glass-strong:rgba(255,255,255,.13);--glass-edge:rgba(255,255,255,.16);--glass-hi:rgba(255,255,255,.42);--spring:cubic-bezier(.34,1.56,.64,1);--ease:cubic-bezier(.22,1,.36,1);font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',Inter,sans-serif;color:var(--text);} .ds-glass{position:relative;padding:18px;border-radius:24px;background:linear-gradient(160deg,var(--glass-strong),var(--glass) 45%);backdrop-filter:blur(28px) saturate(185%);border:1px solid var(--glass-edge);box-shadow:inset 0 1px 0 var(--glass-hi),inset 0 -1px 1px rgba(255,255,255,.04),0 18px 50px rgba(0,0,0,.45);transition:transform .45s var(--spring)}.ds-glass:hover{transform:translateY(-2px)}.ds-glass p{margin:4px 0 0;color:var(--text-2);font-size:.9rem}"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input-field",
+      "description": "Glass field with label above.",
+      "html": "<label class=\"ds-field\"><span>Weight (kg)</span><input placeholder=\"62\"></label>",
+      "css": ":host{--accent:#c8f135;--accent-2:#64d2ff;--accent-ink:#0b1400;--good:#30d158;--ok:#ffd60a;--bad:#ff453a;--bg:#05070b;--text:#f5f7fb;--text-2:rgba(235,240,255,.64);--text-3:rgba(235,240,255,.4);--glass:rgba(255,255,255,.075);--glass-strong:rgba(255,255,255,.13);--glass-edge:rgba(255,255,255,.16);--glass-hi:rgba(255,255,255,.42);--spring:cubic-bezier(.34,1.56,.64,1);--ease:cubic-bezier(.22,1,.36,1);font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',Inter,sans-serif;color:var(--text);} .ds-field{display:flex;flex-direction:column;gap:6px}.ds-field span{font-size:.78rem;color:var(--text-2);font-weight:600;padding-left:4px}.ds-field input{font:inherit;color:var(--text);background:var(--glass);border:1px solid var(--glass-edge);padding:13px 16px;border-radius:18px;outline:0}.ds-field input:focus-visible{outline:2px solid var(--accent-2);outline-offset:3px}"
+    },
+    {
+      "name": "Nav Bar",
+      "kind": "nav",
+      "description": "Floating glass pill nav with wordmark and small primary.",
+      "html": "<header class=\"ds-nav\"><span class=\"ds-mark\"><svg viewBox=\"0 0 28 28\" width=\"26\" height=\"26\" aria-hidden=\"true\"><circle cx=\"17\" cy=\"5.5\" r=\"3\" fill=\"#c8f135\"/><path d=\"M17 9.5 13 16l5 3.5-2 6.5M13 16l-6 1.5M15.5 12.5l6 1\" stroke=\"currentColor\" stroke-width=\"2.6\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>fitzen</span><nav><a href=\"#\">How it works</a><a href=\"#\">Exercises</a></nav><a class=\"ds-nav-cta\" href=\"#\">Try now</a></header>",
+      "css": ":host{--accent:#c8f135;--accent-2:#64d2ff;--accent-ink:#0b1400;--good:#30d158;--ok:#ffd60a;--bad:#ff453a;--bg:#05070b;--text:#f5f7fb;--text-2:rgba(235,240,255,.64);--text-3:rgba(235,240,255,.4);--glass:rgba(255,255,255,.075);--glass-strong:rgba(255,255,255,.13);--glass-edge:rgba(255,255,255,.16);--glass-hi:rgba(255,255,255,.42);--spring:cubic-bezier(.34,1.56,.64,1);--ease:cubic-bezier(.22,1,.36,1);font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',Inter,sans-serif;color:var(--text);} .ds-nav{display:flex;align-items:center;gap:20px;padding:8px 8px 8px 18px;border-radius:999px;background:linear-gradient(160deg,var(--glass-strong),var(--glass) 45%);backdrop-filter:blur(28px) saturate(185%);border:1px solid var(--glass-edge);box-shadow:inset 0 1px 0 var(--glass-hi)}.ds-mark{display:inline-flex;align-items:center;gap:8px;font-family:'Anybody Variable',sans-serif;font-weight:800;font-stretch:118%;font-size:1.3rem;letter-spacing:-.03em}.ds-nav nav{display:flex;gap:4px;margin-left:auto}.ds-nav nav a{padding:8px 14px;border-radius:999px;font-size:.9rem;font-weight:600;color:var(--text-2);text-decoration:none;transition:color .25s,background .25s}.ds-nav nav a:hover{color:var(--text);background:var(--glass)}.ds-nav a:focus-visible{outline:2px solid var(--accent-2);outline-offset:3px}.ds-nav-cta{padding:10px 18px;border-radius:999px;background:var(--accent);color:var(--accent-ink);font-weight:800;font-size:.9rem;text-decoration:none}"
+    },
+    {
+      "name": "Angle Pills",
+      "kind": "custom",
+      "refersTo": "angle-pill",
+      "description": "Live joint readouts ringed in their judgement colour.",
+      "html": "<div class=\"ds-angles\"><div class=\"ds-angle good\"><span>Knee</span><b>94°</b></div><div class=\"ds-angle ok\"><span>Hip</span><b>112°</b></div><div class=\"ds-angle bad\"><span>Torso lean</span><b>38°</b></div></div>",
+      "css": ":host{--accent:#c8f135;--accent-2:#64d2ff;--accent-ink:#0b1400;--good:#30d158;--ok:#ffd60a;--bad:#ff453a;--bg:#05070b;--text:#f5f7fb;--text-2:rgba(235,240,255,.64);--text-3:rgba(235,240,255,.4);--glass:rgba(255,255,255,.075);--glass-strong:rgba(255,255,255,.13);--glass-edge:rgba(255,255,255,.16);--glass-hi:rgba(255,255,255,.42);--spring:cubic-bezier(.34,1.56,.64,1);--ease:cubic-bezier(.22,1,.36,1);font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',Inter,sans-serif;color:var(--text);} .ds-angles{display:grid;gap:6px;width:max-content;padding:16px;border-radius:24px;background:#0a0e1a}.ds-angle{display:flex;gap:14px;justify-content:space-between;align-items:baseline;min-width:150px;padding:7px 12px;border-radius:12px;background:rgba(8,10,18,.55);backdrop-filter:blur(12px);font-size:.8rem;color:#fff;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);transition:box-shadow .3s}.ds-angle span{opacity:.75}.ds-angle b{font-variant-numeric:tabular-nums;font-size:.95rem}.ds-angle.good{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--good) 70%,transparent)}.ds-angle.good b{color:var(--good)}.ds-angle.ok{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ok) 70%,transparent)}.ds-angle.ok b{color:var(--ok)}.ds-angle.bad{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--bad) 70%,transparent)}.ds-angle.bad b{color:var(--bad)}"
+    },
+    {
+      "name": "Accuracy Bar",
+      "kind": "custom",
+      "description": "Share of time in each judgement zone.",
+      "html": "<div class=\"ds-bar-row\"><span>Knee <small>at depth</small></span><div class=\"ds-bar\"><i style=\"width:78%;background:var(--good)\"></i><i style=\"width:14%;background:var(--ok)\"></i><i style=\"width:8%;background:var(--bad)\"></i></div></div>",
+      "css": ":host{--accent:#c8f135;--accent-2:#64d2ff;--accent-ink:#0b1400;--good:#30d158;--ok:#ffd60a;--bad:#ff453a;--bg:#05070b;--text:#f5f7fb;--text-2:rgba(235,240,255,.64);--text-3:rgba(235,240,255,.4);--glass:rgba(255,255,255,.075);--glass-strong:rgba(255,255,255,.13);--glass-edge:rgba(255,255,255,.16);--glass-hi:rgba(255,255,255,.42);--spring:cubic-bezier(.34,1.56,.64,1);--ease:cubic-bezier(.22,1,.36,1);font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',Inter,sans-serif;color:var(--text);} .ds-bar-row{display:grid;grid-template-columns:150px 1fr;gap:14px;align-items:center;font-size:.88rem;font-weight:600}.ds-bar-row small{color:var(--text-3);font-weight:500}.ds-bar{height:10px;border-radius:6px;overflow:hidden;display:flex;background:var(--glass-strong)}.ds-bar i{height:100%;transition:width 1s var(--ease)}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Glass Lab at Night",
+    "overview": "Fitzen is a sports-science lab that fits in a pocket, and the interface looks like one: frosted instrument panels floating over a slow, living aurora, with a body drawn in light as the only picture on the page. Surfaces are translucent and refractive rather than opaque; everything the athlete touches responds on a spring. The world is dark by default and remaps, token for token, to a pale daylight version with the same structure.\n\nTwo voices share the work. Anybody, a variable-width grotesque set wide and tight, carries headlines, metrics and the wordmark with an athletic, stretched stance. The system sans carries everything you read. Colour has two jobs and never mixes them: lime and cyan are the brand accents; green, amber and red are judgement colours that mean *correct, almost, fix it* and appear only where form is being assessed.\n\nDensity is calm on the landing (big type, wide gutters, one idea per band) and instrument-dense in the app (stacked glass panels, tabular numbers, HUD overlays on the camera).",
+    "keyCharacteristics": [
+      "Translucent glass (blur 28px, saturate 185%) with a specular rim over a drifting four-blob aurora and 5% grain.",
+      "Lime `#c8f135` as the single action colour; cyan `#64d2ff` for focus, timers and secondary highlights.",
+      "Judgement colours reserved for measured form: skeleton bones, angle pills, grade tiles, accuracy bars.",
+      "Pill-shaped controls, generously rounded panels (12–34px).",
+      "Spring motion (`cubic-bezier(0.34, 1.56, 0.64, 1)`) on every press, chip and sheet.",
+      "Skeleton linework and exercise pictograms are the only illustration."
+    ],
+    "rules": [
+      {
+        "name": "The Judgement Rule",
+        "body": "Green, amber and red mean correct, almost and fix it. They appear only on measured form (skeleton, angle pills, grades, accuracy bars, coaching tips) and never as decoration or brand colour.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Voice Rule",
+        "body": "Lime is the only filled-button colour. One primary action per view; everything else is ghost glass.",
+        "section": "colors"
+      },
+      {
+        "name": "The Two Worlds Rule",
+        "body": "Every colour is a semantic token remapped for light and dark. Never hard-code a hex in a component; the live camera stage is the only surface that stays dark in both modes.",
+        "section": "colors"
+      },
+      {
+        "name": "The Width Pulse Rule",
+        "body": "The width axis moves only as a response: when the sport changes, the first headline line stretches from 150% to 112% in 1.1s. Nothing else animates font-stretch.",
+        "section": "typography"
+      },
+      {
+        "name": "The Tabular Rule",
+        "body": "Every live or measured number uses tabular figures so counters don't jitter.",
+        "section": "typography"
+      },
+      {
+        "name": "The Frost-Not-Fill Rule",
+        "body": "A surface is raised by being glass (blur + edge + top highlight), never by a heavier opaque shadow.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** build every raised surface from the glass tokens (`--glass`, `--glass-strong`, `--glass-edge`, `--glass-hi`) so it remaps in light mode.",
+      "**Do** use lime for the single primary action per view and cyan for focus and timing.",
+      "**Do** colour form feedback with the three judgement tokens only, as hairline rings, bar segments or skeleton strokes.",
+      "**Do** set headlines and metrics in Anybody at 800 with width 105–125% and tight tracking; set reading text in the system sans.",
+      "**Do** use the spring easing for presses, chips and sheets, and the soft ease (`cubic-bezier(0.22, 1, 0.36, 1)`) for reveals and fills; honour reduced motion.",
+      "**Do** use tabular figures for every measured number."
+    ],
+    "donts": [
+      "**Don't** use green, amber or red for decoration, category coding or brand accents.",
+      "**Don't** give a surface an opaque fill or a heavy shadow to raise it; use glass.",
+      "**Don't** add a second filled button colour beside lime.",
+      "**Don't** draw illustrations other than skeleton linework and the exercise pictograms.",
+      "**Don't** hard-code hex values in components; go through the tokens."
+    ]
+  }
+}

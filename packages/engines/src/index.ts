@@ -43,3 +43,9 @@ export * from './exercise/simulateExercises.js';
 
 
 
+
+// Config-driven motion analysis (exercise library)
+export * from './motion/types.js';
+export * from './motion/engine.js';
+export { simulateExercise, type PuppetOptions } from './motion/puppet.js';
+export * from './motion/catalog/index.js';

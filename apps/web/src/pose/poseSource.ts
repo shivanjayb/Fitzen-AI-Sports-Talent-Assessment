@@ -32,11 +32,13 @@ export interface PoseSource {
 }
 
 /** Shared MediaPipe loader (camera + video-file sources). */
-async function createLandmarker(): Promise<import('@mediapipe/tasks-vision').PoseLandmarker> {
+export type PoseModel = 'lite' | 'full' | 'heavy';
+
+async function createLandmarker(model: PoseModel = 'lite'): Promise<import('@mediapipe/tasks-vision').PoseLandmarker> {
   const vision = await import('@mediapipe/tasks-vision');
   const fileset = await vision.FilesetResolver.forVisionTasks(MEDIAPIPE_WASM_BASE);
   return vision.PoseLandmarker.createFromOptions(fileset, {
-    baseOptions: { modelAssetPath: POSE_MODEL_URL, delegate: 'GPU' },
+    baseOptions: { modelAssetPath: POSE_MODEL_URL(model), delegate: 'GPU' },
     runningMode: 'VIDEO',
     numPoses: 1,
   });
@@ -44,8 +46,8 @@ async function createLandmarker(): Promise<import('@mediapipe/tasks-vision').Pos
 
 const MEDIAPIPE_WASM_BASE =
   'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.18/wasm';
-const POSE_MODEL_URL =
-  'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task';
+const POSE_MODEL_URL = (m: PoseModel) =>
+  `https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_${m}/float16/1/pose_landmarker_${m}.task`;
 
 export class CameraPoseSource implements PoseSource {
   readonly kind = 'camera' as const;
@@ -54,9 +56,11 @@ export class CameraPoseSource implements PoseSource {
   private rafId = 0;
   private landmarker: import('@mediapipe/tasks-vision').PoseLandmarker | null = null;
   private stopped = false;
+  private opts: { facingMode: 'user' | 'environment'; model: PoseModel };
 
-  constructor(callbacks: PoseSourceCallbacks) {
+  constructor(callbacks: PoseSourceCallbacks, opts: Partial<{ facingMode: 'user' | 'environment'; model: PoseModel }> = {}) {
     this.callbacks = callbacks;
+    this.opts = { facingMode: 'environment', model: 'lite', ...opts };
   }
 
   async start(video: HTMLVideoElement | null): Promise<void> {
@@ -65,7 +69,7 @@ export class CameraPoseSource implements PoseSource {
     this.callbacks.onStatus('Requesting camera…');
     try {
       this.stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+        video: { facingMode: this.opts.facingMode, width: { ideal: 1280 }, height: { ideal: 720 } },
         audio: false,
       });
     } catch {
@@ -79,7 +83,7 @@ export class CameraPoseSource implements PoseSource {
 
     this.callbacks.onStatus('Loading pose model…');
     try {
-      this.landmarker = await createLandmarker();
+      this.landmarker = await createLandmarker(this.opts.model);
     } catch {
       this.callbacks.onError(
         'Could not load the pose model (first load needs a network connection).',
@@ -135,9 +139,12 @@ export class VideoFilePoseSource implements PoseSource {
   private objectUrl: string | null = null;
   private video: HTMLVideoElement | null = null;
 
-  constructor(callbacks: PoseSourceCallbacks, file: File) {
+  private model: PoseModel;
+
+  constructor(callbacks: PoseSourceCallbacks, file: File, model: PoseModel = 'lite') {
     this.callbacks = callbacks;
     this.file = file;
+    this.model = model;
   }
 
   async start(video: HTMLVideoElement | null): Promise<void> {
@@ -147,7 +154,7 @@ export class VideoFilePoseSource implements PoseSource {
 
     this.callbacks.onStatus('Loading pose model…');
     try {
-      this.landmarker = await createLandmarker();
+      this.landmarker = await createLandmarker(this.model);
     } catch {
       this.callbacks.onError(
         'Could not load the pose model (first load needs a network connection).',

@@ -1,88 +1,48 @@
-import { lazy, Suspense, type ReactNode } from 'react';
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
-import { AppStateProvider, useAuth } from './state/AppState';
+import { lazy, Suspense, useEffect } from 'react';
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import Shell, { Aurora } from './app/Shell';
+import Home from './app/Home';
+import Landing from './app/Landing';
+import { applyTheme, getTheme } from './app/Profile';
 
-const AuthPage = lazy(() => import('./pages/Auth'));
-const DashboardPage = lazy(() => import('./pages/Dashboard'));
-const AssessPage = lazy(() => import('./pages/Assess'));
-const HistoryPage = lazy(() => import('./pages/History'));
-const LeaderboardPage = lazy(() => import('./pages/Leaderboard'));
-const BadgesPage = lazy(() => import('./pages/Badges'));
-const NotificationsPage = lazy(() => import('./pages/Notifications'));
-const SettingsPage = lazy(() => import('./pages/Settings'));
-const TeamPage = lazy(() => import('./pages/Team'));
+// Email/password auth is removed for now (the old Auth/Dashboard pages remain in
+// src/pages for when it returns). Everything below runs locally with no account.
+const Session = lazy(() => import('./app/Session'));
+const Results = lazy(() => import('./app/Results'));
+const History = lazy(() => import('./app/History'));
+const Profile = lazy(() => import('./app/Profile'));
 
-function PageLoader() {
-  return (
-    <div
-      style={{
-        minHeight: '100vh',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: '#0c0e12',
-        color: '#f2f4f8',
-        fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-        gap: '1rem',
-      }}
-    >
-      <div
-        style={{
-          width: '36px',
-          height: '36px',
-          border: '3px solid rgba(255, 255, 255, 0.1)',
-          borderTopColor: '#3b82f6',
-          borderRadius: '50%',
-          animation: 'spin 0.8s linear infinite',
-        }}
-      />
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      <span style={{ fontSize: '0.95rem', fontWeight: 500, color: '#94a3b8' }}>Loading Fitzen...</span>
-    </div>
-  );
+applyTheme(getTheme());
+
+/** Every route change starts at the top (the browser keeps the old scroll otherwise). */
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
+  return null;
 }
 
-function Protected({ children, roles }: { children: ReactNode; roles?: Array<'athlete' | 'coach' | 'admin'> }) {
-  const { user, loading } = useAuth();
-  if (loading) {
-    return <PageLoader />;
-  }
-  if (!user) return <Navigate to="/" replace />;
-  if (roles && !roles.includes(user.role)) return <Navigate to="/dashboard" replace />;
-  return <>{children}</>;
-}
-
-function Landing() {
-  const { user, loading } = useAuth();
-  if (loading) return <PageLoader />;
-  if (user) return <Navigate to="/dashboard" replace />;
-  return <AuthPage />;
-}
+const Loading = () => <div className="app"><Aurora /><div className="page"><div className="spinner" style={{ marginTop: '40vh' }} /></div></div>;
 
 export default function App() {
   return (
     <ErrorBoundary>
-      <AppStateProvider>
-        <BrowserRouter>
-          <Suspense fallback={<PageLoader />}>
-            <Routes>
-              <Route path="/" element={<Landing />} />
-              <Route path="/dashboard" element={<Protected><DashboardPage /></Protected>} />
-              <Route path="/assess" element={<Protected roles={['athlete']}><AssessPage /></Protected>} />
-              <Route path="/history" element={<Protected roles={['athlete']}><HistoryPage /></Protected>} />
-              <Route path="/leaderboard" element={<Protected><LeaderboardPage /></Protected>} />
-              <Route path="/badges" element={<Protected roles={['athlete']}><BadgesPage /></Protected>} />
-              <Route path="/notifications" element={<Protected><NotificationsPage /></Protected>} />
-              <Route path="/settings" element={<Protected><SettingsPage /></Protected>} />
-              <Route path="/team" element={<Protected roles={['coach', 'admin']}><TeamPage /></Protected>} />
-              <Route path="/team/:athleteId" element={<Protected roles={['coach', 'admin']}><TeamPage /></Protected>} />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </Suspense>
-        </BrowserRouter>
-      </AppStateProvider>
+      <BrowserRouter>
+        <ScrollToTop />
+        <Suspense fallback={<Loading />}>
+          <Routes>
+            <Route path="/" element={<Landing />} />
+            <Route element={<Shell />}>
+              <Route path="/app" element={<Home />} />
+              <Route path="/history" element={<History />} />
+              <Route path="/profile" element={<Profile />} />
+              <Route path="/results/:id" element={<Results />} />
+            </Route>
+            <Route path="/train/:id" element={<Session />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
+      </BrowserRouter>
     </ErrorBoundary>
   );
 }

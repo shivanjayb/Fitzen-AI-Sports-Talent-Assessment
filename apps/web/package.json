@@ -9,27 +9,23 @@
     "prebuild": "npm run build -w @fitzen/engines",
     "build": "npx tsc -p tsconfig.json --noEmit && vite build",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
     "@fitzen/engines": "*",
+    "@fontsource/barlow": "^5.3.0",
+    "@fontsource/barlow-condensed": "^5.3.0",
     "@mediapipe/tasks-vision": "^0.10.18",
-    "@react-three/drei": "^9.122.0",
-    "@react-three/fiber": "^8.18.0",
-    "@supabase/supabase-js": "^2.116.0",
-    "@types/three": "^0.186.0",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "react-router-dom": "^6.28.0",
-    "three": "^0.186.0",
-    "typescript": "^5.7.2",
-    "vitest": "^3.2.6",
     "@testing-library/jest-dom": "^6.6.3",
-    "@testing-library/react": "^16.1.0",
     "@types/react": "^18.3.14",
     "@types/react-dom": "^18.3.2",
     "@vitejs/plugin-react": "^4.3.4",
     "jsdom": "^25.0.1",
-    "vite": "^6.0.7"
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.28.0",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.7",
+    "vitest": "^3.2.6"
   }
 }

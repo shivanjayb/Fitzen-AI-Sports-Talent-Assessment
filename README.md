@@ -16,6 +16,27 @@ syncing automatically when a connection returns.
 
 ---
 
+## Movement Lab (current build)
+
+The app now opens straight into a **Movement Lab** — no sign-in (email auth is paused; the old
+pages remain in `apps/web/src/pages`). Pick any of **90 exercises** across Gym, Calisthenics,
+Athletics, Throws & Strikes, Olympic lifts, the SAI fitness battery, Yoga and Mobility; the
+camera opens, every measured joint is drawn on the video in **green / yellow / red**, and the
+session ends with a scientific report (reps, cadence, tempo, ROM ± SD, time under tension,
+fatigue drift, per-joint time-in-zone, angle noise, jump height from flight time, release
+angle) plus a "how to do better" coaching list.
+
+- Engine: `packages/engines/src/motion/` — `types.ts` (exercise schema), `engine.ts`
+  (MotionSession: 2D aspect-corrected angles, One Euro filter, Schmitt rep counter, holds,
+  throw/jump events, report + insights), `puppet.ts` (synthetic athlete for demos/tests),
+  `catalog/*.ts` (the 90 definitions).
+- UI: `apps/web/src/app/` — Liquid-Glass design system (`glass.css`), library, exercise sheet,
+  live session HUD, results, local history/profile (stored on the device only).
+- No camera? Every exercise has **Watch demo** (synthetic athlete through the real engine) and
+  **Analyse video** (upload a clip).
+- Pose model: MediaPipe Pose Landmarker (lite/full/heavy, chosen in Profile). OpenPose is not
+  used — its licence forbids sports use. See `THIRD_PARTY_NOTICES.md`.
+
 ## Demo accounts
 
 

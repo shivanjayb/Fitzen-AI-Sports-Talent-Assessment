@@ -13,3 +13,7 @@ coverage/
 .vite/
 .vercel
 .env*
+graphify-out/
+**/.impeccable/review/
+.playwright-mcp/
+.claude/settings.json
