@@ -80,7 +80,7 @@ export default function Session() {
   const probe = useRef<MotionSession | null>(null);
   const stageRef = useRef<Stage>('loading');
   const okSince = useRef<number | null>(null);
-  const prev = useRef({ reps: 0, events: 0, cue: '' as string | null });
+  const prev = useRef({ reps: 0, events: 0, cue: '' as string | null, wrong: 0 });
   const forensics = useRef<ForensicsReport | undefined>(undefined);
 
   const [stage, setStageState] = useState<Stage>('loading');
@@ -122,7 +122,7 @@ export default function Session() {
   const beginActive = useCallback(() => {
     if (!def) return;
     session.current = new MotionSession(def, { weightKg: profile.weightKg ?? undefined });
-    prev.current = { reps: 0, events: 0, cue: null };
+    prev.current = { reps: 0, events: 0, cue: null, wrong: 0 };
     setStage('active');
     say(def.mode === 'hold' ? 'Hold it' : 'Go', voiceRef.current);
   }, [def, profile.weightKg]);
@@ -140,6 +140,12 @@ export default function Session() {
     if (st === 'active' && session.current) {
       l = session.current.push(f, aspect);
       const p = prev.current;
+      if (l.mismatchedReps > p.wrong) {
+        // Different exercise detected: not counted — alert with a red flash, buzz and voice (the cue carries the reason).
+        if (navigator.userActivation?.hasBeenActive) navigator.vibrate?.([60, 80, 60]);
+        setFlash({ k: Date.now(), c: 'var(--bad)' });
+        say(`Not counted. ${l.mismatch ?? `That doesn't look like ${def.name}`}`, voiceRef.current);
+      }
       if (l.reps > p.reps) {
         const rep = l.lastRep!;
         playRepCompletedSound();
@@ -152,8 +158,8 @@ export default function Session() {
         setFlash({ k: Date.now(), c: e.score >= 0.75 ? 'var(--good)' : e.score >= 0.5 ? 'var(--ok)' : 'var(--bad)' });
         say(e.jumpHeightCm !== undefined ? `${Math.round(e.jumpHeightCm)} centimetres` : e.releaseAngle !== undefined ? `Release ${Math.round(e.releaseAngle)} degrees` : 'Good', voiceRef.current);
       }
-      if (l.cue && l.cue !== p.cue && l.reps === p.reps) say(l.cue, voiceRef.current);
-      prev.current = { reps: l.reps, events: l.events.length, cue: l.cue };
+      if (l.cue && l.cue !== p.cue && l.reps === p.reps && l.mismatchedReps === p.wrong) say(l.cue, voiceRef.current);
+      prev.current = { reps: l.reps, events: l.events.length, cue: l.cue, wrong: l.mismatchedReps };
     } else {
       probe.current ??= new MotionSession(def);
       l = probe.current.push(f, aspect);

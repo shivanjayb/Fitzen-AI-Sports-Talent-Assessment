@@ -13,6 +13,7 @@
 
 import type { PoseFrame } from '../jump/types.js';
 import type { AngleDef, Check, ExerciseDef, Range, SegmentName } from './types.js';
+import { simulateExercise } from './puppet.js';
 
 export type Zone = 'good' | 'ok' | 'bad';
 
@@ -158,6 +159,9 @@ export interface LiveState {
   score: number;
   /** 0..1 progress of the current rep toward the target (for the ring). */
   progress: number;
+  /** Set for ~4 s after a movement that doesn't match the selected exercise (not counted). */
+  mismatch: string | null;
+  mismatchedReps: number;
 }
 
 export interface CheckStat {
@@ -198,6 +202,8 @@ export interface SessionReport {
     valid: number;
     partial: number;
     rejected: number;
+    /** Movements that didn't match the selected exercise, with the reason; not counted as reps. */
+    mismatched: Array<{ tMs: number; reason: string }>;
     perMin: number;
     perSec: number;
     avgDurationSec: number;
@@ -238,6 +244,68 @@ interface Frame { t: number; a: Record<string, number>; raw: Record<string, numb
 
 const W: Record<Zone, number> = { good: 1, ok: 0.6, bad: 0 };
 
+/**
+ * Movement signature of one rep: range of motion of the major joints, mean trunk inclination and how often each
+ * limb segment left the image plane. Compared with the selected exercise's reference (its own demo athlete) to
+ * catch a different movement being performed, e.g. lateral raises or presses while front raises are selected.
+ */
+export interface RepSignature { rom: Record<Probe, number>; trunk: number; outOfPlane: Record<SegKey, number> }
+type Probe = 'knee' | 'hip' | 'elbow' | 'shoulder';
+const PROBES: Probe[] = ['knee', 'hip', 'elbow', 'shoulder'];
+/**
+ * A joint the exercise keeps still (reference ROM < STILL) that moves more than MOVED[joint] is a different movement.
+ * MOVED is set well above what real athletes add around the prime mover (arm swing in a squat ≈ 60–90° shoulder,
+ * knee dip in a press ≈ 20–30°), so only a clear change of exercise trips it.
+ * ponytail: thresholds tuned on the synthetic demo athlete; recalibrate on real clips.
+ */
+const STILL = 20;
+const MOVED: Record<Probe, number> = { knee: 50, hip: 50, elbow: 60, shoulder: 100 };
+/** Trunk inclination change that means a different body position (standing ↔ lying/bent over). */
+const TRUNK_SHIFT = 40;
+/** Extra ROM on a moving joint beyond the reference that means a different lift (front raise ≈ 90° vs overhead ≈ 160°). */
+const OVERSHOOT = 55;
+/** Fraction of rep frames a segment may be out of plane before the movement is judged to be in another plane. */
+const OUT_OF_PLANE = 0.5;
+
+const refCache = new Map<string, RepSignature | null>();
+function referenceSignature(def: ExerciseDef): RepSignature | null {
+  if (refCache.has(def.id)) return refCache.get(def.id)!;
+  const s = new MotionSession(def, { checkMovement: false });
+  for (const f of simulateExercise(def, { reps: 3, seed: 1 })) s.push(f);
+  const sigs = s.signatures().slice(0, 2); // the demo's last rep is deliberately shallow
+  const med = (xs: number[]) => [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)] ?? 0;
+  const ref = sigs.length ? {
+    rom: Object.fromEntries(PROBES.map((p) => [p, med(sigs.map((g) => g.rom[p]))])) as Record<Probe, number>,
+    trunk: med(sigs.map((g) => g.trunk)),
+    outOfPlane: Object.fromEntries((Object.keys(SEGMENTS) as SegKey[]).map((k) => [k, med(sigs.map((g) => g.outOfPlane[k]))])) as Record<SegKey, number>,
+  } : null;
+  refCache.set(def.id, ref);
+  return ref;
+}
+
+/** Why a rep's signature doesn't match the reference, or null if it does. Exported for tests. */
+export function movementMismatch(def: ExerciseDef, sig: RepSignature, ref: RepSignature | null): string | null {
+  if (!ref) return null;
+  const name = def.name;
+  for (const p of PROBES) {
+    if (ref.rom[p] < STILL && sig.rom[p] > MOVED[p]) return `Your ${p}s are moving a lot — that doesn't look like ${name}`;
+    // A joint that should move, moving through far more range than this exercise ever uses (e.g. overhead press in a front raise).
+    if (ref.rom[p] >= STILL && sig.rom[p] > ref.rom[p] + OVERSHOOT) return `That range of motion is far beyond ${name} — looks like a different exercise`;
+  }
+  if (def.camera === 'side' && Math.abs(sig.trunk - ref.trunk) > TRUNK_SHIFT) {
+    return `Body position doesn't match ${name} (${sig.trunk > ref.trunk ? 'leaning or lying' : 'more upright'} than expected)`;
+  }
+  const drv = def.reps ? def.angles.find((a) => a.id === def.reps!.driver) : undefined;
+  const segs: SegKey[] = !drv ? [] : drv.kind === 'joint' ? JOINT_SEGS[drv.joint] : drv.kind === 'segment' && drv.segment in SEGMENTS ? [drv.segment as SegKey] : [];
+  for (const g of segs) {
+    // Arms only: a limb swinging into depth tells front from lateral raises; legs going out of plane usually means the
+    // athlete turned, which the foreshortening gate already greys out.
+    if (g !== 'upperArm' && g !== 'forearm') continue;
+    if (ref.outOfPlane[g] < 0.2 && sig.outOfPlane[g] > OUT_OF_PLANE) return `The movement left the camera plane — that doesn't look like ${name}`;
+  }
+  return null;
+}
+
 export class MotionSession {
   readonly def: ExerciseDef;
   private filters = new Map<number, [OneEuro, OneEuro]>();
@@ -263,6 +331,14 @@ export class MotionSession {
   private descending = false;
   private reps: RepRecord[] = [];
   private rejected = 0;
+  // movement check: per-rep probe ranges, trunk inclination and out-of-plane counts
+  private checkMovement: boolean;
+  private sigs: RepSignature[] = [];
+  private mismatched: Array<{ tMs: number; reason: string }> = [];
+  private lastShort = new Set<string>();
+  private probeMin: Record<Probe, number> = { knee: Infinity, hip: Infinity, elbow: Infinity, shoulder: Infinity };
+  private probeMax: Record<Probe, number> = { knee: -Infinity, hip: -Infinity, elbow: -Infinity, shoulder: -Infinity };
+  private trunkSum = 0; private repFrames = 0; private shortCount: Partial<Record<SegKey, number>> = {};
 
   // hold
   private holdMs = 0; private holdRun = 0; private bestHold = 0; private lastTrackedT = NaN;
@@ -284,10 +360,11 @@ export class MotionSession {
   private smooth: boolean;
 
   /** `smoothing: 'none'` skips the causal One Euro filter, for frames already zero-phase filtered offline (filtfiltLandmarks). */
-  constructor(def: ExerciseDef, opts: { weightKg?: number; smoothing?: 'one-euro' | 'none' } = {}) {
+  constructor(def: ExerciseDef, opts: { weightKg?: number; smoothing?: 'one-euro' | 'none'; checkMovement?: boolean } = {}) {
     this.def = def;
     this.weightKg = opts.weightKg ?? null;
     this.smooth = opts.smoothing !== 'none';
+    this.checkMovement = opts.checkMovement !== false;
     this.acc = def.checks.map(() => ({ good: 0, ok: 0, bad: 0, sum: 0, n: 0 }));
     this.excluded = def.checks.map(() => 0);
   }
@@ -335,7 +412,7 @@ export class MotionSession {
     // Phase for check applicability
     let phase: LiveState['phase'] = 'idle';
     let progress = 0;
-    if (tracking && this.def.mode === 'reps' && this.def.reps) progress = this.stepReps(t, values, fs);
+    if (tracking && this.def.mode === 'reps' && this.def.reps) progress = this.stepReps(t, values, fs, pts);
     if (this.def.mode === 'reps') phase = this.repState === 'down' ? 'active' : 'start';
     if (this.def.mode === 'event') phase = 'active';
 
@@ -436,6 +513,8 @@ export class MotionSession {
       cue: this.cue,
       score: this.runningScore(),
       progress,
+      mismatch: this.mismatched.length && t - this.startMs - this.mismatched[this.mismatched.length - 1]!.tMs < 4000 ? this.mismatched[this.mismatched.length - 1]!.reason : null,
+      mismatchedReps: this.mismatched.length,
     };
   }
 
@@ -468,6 +547,7 @@ export class MotionSession {
         if (len < FILTER.minSegmentRatio * ref) short.add(key);
       }
     }
+    this.lastShort = short;
     const out = new Set<string>();
     if (!short.size) return out;
     for (const a of this.def.angles) {
@@ -533,7 +613,7 @@ export class MotionSession {
   }
 
   // Reps — Schmitt trigger on the driver. `s` flips 'low' rules so one code path serves both.
-  private stepReps(t: number, v: Record<string, number>, fs: Set<string>): number {
+  private stepReps(t: number, v: Record<string, number>, fs: Set<string>, p: P[]): number {
     const rule = this.def.reps!;
     const raw = v[rule.driver];
     if (raw === undefined) return 0;
@@ -554,14 +634,35 @@ export class MotionSession {
         this.repStart = h.length ? h[j]!.t : this.lastTop || t;
         this.extreme = x; this.extremeT = t; this.extremeSnap = { ...v }; this.extremeFs = fs;
         this.repActive = this.def.checks.map(() => ({ good: 0, ok: 0, bad: 0, sum: 0, n: 0 }));
+        for (const q of PROBES) { this.probeMin[q] = Infinity; this.probeMax[q] = -Infinity; }
+        this.trunkSum = 0; this.repFrames = 0; this.shortCount = {};
+        this.sampleProbes(p);
       }
       return 0;
     }
     if (x < this.extreme) { this.extreme = x; this.extremeT = t; this.extremeSnap = { ...v }; this.extremeFs = fs; }
+    this.sampleProbes(p);
     if (x > exit) this.completeRep(t, s, target);
     const span = this.topPeak - target;
     return span > 0 ? Math.max(0, Math.min(1, (this.topPeak - this.extreme) / span)) : 0;
   }
+
+  /** Accumulate the movement signature for the rep in progress (side facing the camera). */
+  private sampleProbes(p: P[]): void {
+    const m = this.sideMap(this.side);
+    for (const q of PROBES) {
+      const [i, j, k] = JOINTS[q](m);
+      const a = jointAngle(p[i]!, p[j]!, p[k]!);
+      if (!Number.isFinite(a)) continue;
+      this.probeMin[q] = Math.min(this.probeMin[q], a); this.probeMax[q] = Math.max(this.probeMax[q], a);
+    }
+    this.trunkSum += vsVertical(p[m.hip]!, p[m.shoulder]!);
+    this.repFrames++;
+    for (const g of Object.keys(SEGMENTS) as SegKey[]) if (this.lastShort.has(`${this.side}:${g}`)) this.shortCount[g] = (this.shortCount[g] ?? 0) + 1;
+  }
+
+  /** Signatures of every completed rep (used to build an exercise's reference from its demo athlete). */
+  signatures(): RepSignature[] { return this.sigs; }
 
   private completeRep(t: number, s: number, target: number): void {
     const rule = this.def.reps!;
@@ -570,6 +671,22 @@ export class MotionSession {
     const top = this.topPeak;
     this.topPeak = -Infinity;
     if (duration < (rule.minRepMs ?? 600)) { this.rejected++; return; }
+    const n = Math.max(1, this.repFrames);
+    const sig: RepSignature = {
+      rom: Object.fromEntries(PROBES.map((q) => [q, Number.isFinite(this.probeMax[q] - this.probeMin[q]) ? this.probeMax[q] - this.probeMin[q] : 0])) as Record<Probe, number>,
+      trunk: this.trunkSum / n,
+      outOfPlane: Object.fromEntries((Object.keys(SEGMENTS) as SegKey[]).map((g) => [g, (this.shortCount[g] ?? 0) / n])) as Record<SegKey, number>,
+    };
+    this.sigs.push(sig);
+    if (this.checkMovement) {
+      const why = movementMismatch(this.def, sig, referenceSignature(this.def));
+      if (why) {
+        // A different movement: don't count it, and tell the athlete right away.
+        this.mismatched.push({ tMs: t - this.startMs, reason: why });
+        this.cue = why; this.cueT = t + 1500; // hold the alert ~4 s
+        return;
+      }
+    }
     const faults: string[] = [];
     let wsum = 0, score = 0;
     this.def.checks.forEach((c, i) => {
@@ -833,6 +950,7 @@ export class MotionSession {
         valid: list.filter((r) => r.valid).length,
         partial: list.filter((r) => !r.fullRange).length,
         rejected: this.rejected,
+        mismatched: this.mismatched,
         perMin: span > 0 ? (list.length / span) * 60 : 0,
         perSec: span > 0 ? list.length / span : 0,
         avgDurationSec: mean(durs),
@@ -914,6 +1032,7 @@ export function buildInsights(def: ExerciseDef, r: SessionReport): CoachInsight[
   if (rp) {
     if (rp.count === 0) out.push({ level: 'warn', title: 'No reps detected', detail: `Move through the full range — the counter needs the ${rp.driverLabel.toLowerCase()} to pass ${def.reps!.enter}° and return past ${def.reps!.exit}°.` });
     if (rp.partial > 0) out.push({ level: rp.partial / Math.max(1, rp.count) > 0.3 ? 'bad' : 'warn', title: `${rp.partial} of ${rp.count} reps were short of full range`, detail: `Target ${rp.driverLabel.toLowerCase()} ${def.reps!.start === 'high' ? '≤' : '≥'} ${rp.target}°. Reduce the load or slow down until every rep reaches it — partial reps build less strength through the full range.` });
+    if (rp.mismatched?.length) out.push({ level: 'bad', title: `${rp.mismatched.length} movement${rp.mismatched.length > 1 ? 's' : ''} didn't match ${def.name} and ${rp.mismatched.length > 1 ? 'were' : 'was'} not counted`, detail: `${rp.mismatched[0]!.reason}. Stick to one exercise per session, or pick the exercise you're actually doing.` });
     if (rp.rejected > 0) out.push({ level: 'warn', title: `${rp.rejected} movements were too fast to count`, detail: 'Bouncing reps under 0.6 s were discarded. Control every rep.' });
     if (rp.count >= 3 && rp.avgEccentricSec < 1) out.push({ level: 'warn', title: 'Lowering phase is rushed', detail: `Average eccentric ${f1(rp.avgEccentricSec)} s. A 2–3 s controlled lowering increases time under tension and reduces injury risk.` });
     if (rp.count >= 4 && rp.velocityLossPct > 20) out.push({ level: 'warn', title: `Concentric velocity fell ${Math.round(rp.velocityLossPct)} % across the set`, detail: 'Velocity loss above 20 % signals accumulating fatigue. For strength, stop the set here and rest 2–3 min; for endurance, this is your working limit.' });
