@@ -54,6 +54,7 @@ export class CameraPoseSource implements PoseSource {
   private callbacks: PoseSourceCallbacks;
   private stream: MediaStream | null = null;
   private rafId = 0;
+  private video: HTMLVideoElement | null = null;
   private landmarker: import('@mediapipe/tasks-vision').PoseLandmarker | null = null;
   private stopped = false;
   private opts: { facingMode: 'user' | 'environment'; model: PoseModel };
@@ -94,12 +95,17 @@ export class CameraPoseSource implements PoseSource {
     if (this.stopped) return;
     this.callbacks.onStatus('Tracking');
 
+    // Stamp frames with the camera capture time (requestVideoFrameCallback metadata.captureTime), not the rAF
+    // time, which adds up to one display interval of jitter to every dt. WICG video-rvfc. rAF is the fallback.
+    const rvfc = typeof video.requestVideoFrameCallback === 'function';
     let lastVideoTime = -1;
-    const loop = () => {
+    let lastTs = -Infinity;
+    const loop = (_now?: number, meta?: { captureTime?: number }) => {
       if (this.stopped || !this.landmarker) return;
-      if (video.currentTime !== lastVideoTime && video.videoWidth > 0) {
+      if ((rvfc || video.currentTime !== lastVideoTime) && video.videoWidth > 0) {
         lastVideoTime = video.currentTime;
-        const nowMs = performance.now();
+        const nowMs = Math.max(meta?.captureTime ?? performance.now(), lastTs + 0.001); // detectForVideo needs monotonic time
+        lastTs = nowMs;
         const result = this.landmarker.detectForVideo(video, nowMs);
         const lm = result.landmarks?.[0];
         if (lm && lm.length >= 33) {
@@ -114,14 +120,20 @@ export class CameraPoseSource implements PoseSource {
           });
         }
       }
-      this.rafId = requestAnimationFrame(loop);
+      schedule();
     };
-    this.rafId = requestAnimationFrame(loop);
+    const schedule = () => {
+      if (rvfc) this.rafId = video.requestVideoFrameCallback(loop);
+      else this.rafId = requestAnimationFrame(() => loop());
+    };
+    this.video = video;
+    schedule();
   }
 
   stop(): void {
     this.stopped = true;
-    cancelAnimationFrame(this.rafId);
+    if (this.video && typeof this.video.cancelVideoFrameCallback === 'function') this.video.cancelVideoFrameCallback(this.rafId);
+    else cancelAnimationFrame(this.rafId);
     this.landmarker?.close();
     this.landmarker = null;
     this.stream?.getTracks().forEach((t) => t.stop());

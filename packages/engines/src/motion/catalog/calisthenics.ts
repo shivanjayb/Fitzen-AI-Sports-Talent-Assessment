@@ -25,7 +25,6 @@ export const CALISTHENICS: ExerciseDef[] = [
     ],
     checks: [
       { angle: 'elbow', when: 'bottom', good: [50, 95], ok: [45, 115], cue: 'Lower your chest closer to the floor', why: 'Reaching ~90° elbow flexion loads the pectorals and triceps through their full working range.', weight: 2 },
-      { angle: 'elbow', when: 'top', good: [160, 180], ok: [150, 180], cue: 'Lock your arms out at the top', why: 'Full extension completes the triceps range and standardises rep counting.' },
       { angle: 'bodyLine', when: 'active', good: [165, 180], ok: [155, 180], cue: 'Brace your core, keep hips in line', why: 'Hip sag or pike shifts load off the chest and stresses the lumbar spine.', weight: 2 },
       { angle: 'knee', when: 'any', good: [160, 180], ok: [150, 180], cue: 'Keep your legs straight', why: 'Bent knees shorten the lever and indicate a loss of full-body tension.' },
     ],
@@ -54,7 +53,6 @@ export const CALISTHENICS: ExerciseDef[] = [
     ],
     checks: [
       { angle: 'elbow', when: 'bottom', good: [50, 95], ok: [45, 115], cue: 'Lower your chest closer to the floor', why: 'Reaching ~90° elbow flexion trains the full pressing range.', weight: 2 },
-      { angle: 'elbow', when: 'top', good: [160, 180], ok: [150, 180], cue: 'Lock your arms out at the top', why: 'Full extension completes each rep.' },
       { angle: 'hip', when: 'active', good: [160, 180], ok: [145, 180], cue: 'Push hips forward, stay in line', why: 'Piking at the hips turns the press into a partial rep and reduces chest loading.', weight: 2 },
     ],
     reps: { driver: 'elbow', start: 'high', enter: 150, exit: 165, target: 95 },
@@ -83,7 +81,6 @@ export const CALISTHENICS: ExerciseDef[] = [
     ],
     checks: [
       { angle: 'elbow', when: 'bottom', good: [50, 100], ok: [45, 120], cue: 'Lower until chest nears your hands', why: 'Deep elbow flexion is what makes the narrow grip a triceps-dominant press.', weight: 2 },
-      { angle: 'elbow', when: 'top', good: [160, 180], ok: [150, 180], cue: 'Lock your arms out at the top', why: 'Full lockout completes the triceps range.' },
       { angle: 'bodyLine', when: 'active', good: [165, 180], ok: [155, 180], cue: 'Brace your core, keep hips in line', why: 'A sagging or piked trunk reduces load on the pressing muscles and stresses the low back.', weight: 2 },
       { angle: 'knee', when: 'any', good: [160, 180], ok: [150, 180], cue: 'Keep your legs straight', why: 'Straight legs keep the full body lever and tension.' },
     ],
@@ -113,7 +110,6 @@ export const CALISTHENICS: ExerciseDef[] = [
     ],
     checks: [
       { angle: 'elbow', when: 'bottom', good: [55, 100], ok: [45, 120], cue: 'Lower your head closer to the floor', why: 'Deeper elbow flexion takes the deltoids through a fuller overhead-press range.', weight: 2 },
-      { angle: 'elbow', when: 'top', good: [160, 180], ok: [150, 180], cue: 'Press all the way up', why: 'Full lockout completes the rep and trains overhead stability.' },
       { angle: 'hip', when: 'active', good: [50, 100], ok: [40, 120], cue: 'Keep your hips high', why: 'A tight pike keeps the torso near vertical so the shoulders, not the chest, do the pressing.', weight: 2 },
       { angle: 'knee', when: 'any', good: [155, 180], ok: [140, 180], cue: 'Straighten your legs', why: 'Straight legs hold the pike angle; mild bend is acceptable with tight hamstrings.' },
     ],
@@ -142,12 +138,11 @@ export const CALISTHENICS: ExerciseDef[] = [
       { id: 'hips', label: 'Hip tilt', kind: 'segment', segment: 'hips', ref: 'horizontal' },
     ],
     checks: [
-      { angle: 'elbow', when: 'bottom', good: [25, 80], ok: [25, 100], cue: 'Pull your chin over the bar', why: 'Chin-over-bar is the standard full-range criterion used in fitness testing.', weight: 2 },
-      { angle: 'elbow', when: 'top', good: [155, 180], ok: [140, 180], cue: 'Lower to a full dead hang', why: 'Starting each rep from straight arms trains the full lat range and prevents half reps.', weight: 2 },
+      { angle: 'elbow', when: 'bottom', good: [20, 60], ok: [20, 75], cue: 'Pull your chin over the bar', why: 'Chin-over-bar is the standard full-range criterion used in fitness testing.', weight: 2 },
       { angle: 'shoulders', when: 'active', good: [0, 6], ok: [0, 12], cue: 'Pull evenly with both arms', why: 'Shoulder tilt indicates one side is doing more of the work.' },
       { angle: 'hips', when: 'active', good: [0, 6], ok: [0, 12], cue: 'Keep hips square, no twisting', why: 'Hip rotation or swinging is a compensation for insufficient pulling strength.' },
     ],
-    reps: { driver: 'elbow', start: 'high', enter: 140, exit: 155, target: 80, minRepMs: 1000 },
+    reps: { driver: 'elbow', start: 'high', enter: 140, exit: 155, target: 60, minRepMs: 1000 },
   },
   {
     id: 'chin-up',
@@ -172,12 +167,11 @@ export const CALISTHENICS: ExerciseDef[] = [
       { id: 'trunk', label: 'Trunk lean', kind: 'segment', segment: 'trunk', ref: 'vertical' },
     ],
     checks: [
-      { angle: 'elbow', when: 'bottom', good: [25, 75], ok: [25, 95], cue: 'Pull your chin over the bar', why: 'Chin-over-bar is the standard full-range criterion for vertical pulls.', weight: 2 },
-      { angle: 'elbow', when: 'top', good: [155, 180], ok: [140, 180], cue: 'Lower to a full dead hang', why: 'Full extension at the bottom trains the complete range and prevents half reps.', weight: 2 },
+      { angle: 'elbow', when: 'bottom', good: [20, 60], ok: [20, 75], cue: 'Pull your chin over the bar', why: 'Chin-over-bar is the standard full-range criterion for vertical pulls.', weight: 2 },
       { angle: 'hip', when: 'active', good: [150, 180], ok: [130, 180], cue: 'No kipping, keep legs still', why: 'Hip flexion swings generate momentum that reduces work done by the pulling muscles.' },
       { angle: 'trunk', when: 'active', good: [0, 20], ok: [0, 35], cue: 'Stay tall, avoid leaning back', why: 'Excessive lean turns the pull into a row and hides a short range of motion.' },
     ],
-    reps: { driver: 'elbow', start: 'high', enter: 140, exit: 155, target: 75, minRepMs: 1000 },
+    reps: { driver: 'elbow', start: 'high', enter: 140, exit: 155, target: 60, minRepMs: 1000 },
   },
   {
     id: 'parallel-bar-dip',
@@ -203,8 +197,7 @@ export const CALISTHENICS: ExerciseDef[] = [
     ],
     checks: [
       { angle: 'elbow', when: 'bottom', good: [70, 95], ok: [60, 110], cue: 'Lower until elbows reach 90°', why: 'About 90° elbow flexion gives full triceps and chest range without excessive shoulder extension.', weight: 2 },
-      { angle: 'upperArm', when: 'bottom', good: [80, 120], ok: [70, 135], cue: 'Stop when upper arms are level', why: 'Dropping the elbows above the shoulders overloads the anterior shoulder capsule.' },
-      { angle: 'elbow', when: 'top', good: [160, 180], ok: [150, 180], cue: 'Lock your arms out at the top', why: 'Full lockout completes the rep.' },
+      { angle: 'upperArm', when: 'bottom', good: [80, 180], ok: [70, 180], cue: 'Stop when upper arms are level', why: 'Letting the shoulders sink below the elbows overloads the anterior shoulder capsule.' },
       { angle: 'trunk', when: 'active', good: [0, 35], ok: [0, 50], cue: 'Keep your torso controlled, not folded', why: 'A moderate lean is normal, but excessive forward fold increases shoulder stress.' },
     ],
     reps: { driver: 'elbow', start: 'high', enter: 145, exit: 160, target: 95, minRepMs: 800 },
@@ -234,7 +227,6 @@ export const CALISTHENICS: ExerciseDef[] = [
     checks: [
       { angle: 'elbow', when: 'bottom', good: [75, 100], ok: [65, 115], cue: 'Lower until elbows reach 90°', why: 'About 90° elbow flexion works the triceps fully without extreme shoulder extension.', weight: 2 },
       { angle: 'upperArm', when: 'bottom', good: [80, 125], ok: [70, 140], cue: "Don't sink below arm level", why: 'Excessive depth forces the shoulder into end-range extension, a common source of anterior shoulder pain.' },
-      { angle: 'elbow', when: 'top', good: [160, 180], ok: [150, 180], cue: 'Press all the way up', why: 'Full lockout completes the triceps range.' },
       { angle: 'trunk', when: 'active', good: [0, 20], ok: [0, 35], cue: 'Keep your back close to the bench', why: 'Staying upright and close keeps load on the triceps and off the shoulders.' },
     ],
     reps: { driver: 'elbow', start: 'high', enter: 145, exit: 160, target: 100 },
@@ -263,13 +255,12 @@ export const CALISTHENICS: ExerciseDef[] = [
       { id: 'ankle', label: 'Ankle', kind: 'joint', joint: 'ankle' },
     ],
     checks: [
-      { angle: 'knee', when: 'bottom', good: [55, 100], ok: [50, 120], cue: 'Sit deeper, thighs to parallel', why: 'Parallel depth maximises quadriceps and gluteal activation compared with partial squats.', weight: 2 },
+      { angle: 'knee', when: 'bottom', good: [20, 80], ok: [20, 95], cue: 'Sit deeper, thighs to parallel', why: 'Parallel depth maximises quadriceps and gluteal activation compared with partial squats.', weight: 2 },
       { angle: 'trunk', when: 'bottom', good: [10, 50], ok: [0, 60], cue: 'Keep your chest up', why: 'Excessive forward lean shifts load to the lower back and hips.' },
       { angle: 'ankle', when: 'bottom', good: [40, 85], ok: [35, 95], cue: 'Keep your heels on the floor', why: 'Heel rise signals limited ankle dorsiflexion and moves stress onto the knees.' },
-      { angle: 'knee', when: 'top', good: [165, 180], ok: [155, 180], cue: 'Stand all the way up', why: 'Full knee extension completes each rep.' },
       { angle: 'hip', when: 'top', good: [165, 180], ok: [155, 180], cue: 'Squeeze glutes, hips fully through', why: 'Full hip extension at the top completes the gluteal range.' },
     ],
-    reps: { driver: 'knee', start: 'high', enter: 150, exit: 165, target: 100 },
+    reps: { driver: 'knee', start: 'high', enter: 150, exit: 165, target: 80 },
   },
   {
     id: 'jump-squat',
@@ -316,6 +307,7 @@ export const CALISTHENICS: ExerciseDef[] = [
       'Place the camera 2–3 m to your side at hip height.',
       'Stand on the leg nearest the camera.',
       'Hold a doorframe or pole for assistance if needed.',
+      'Turn around to train the other leg.',
     ],
     met: 3.8,
     angles: [
@@ -324,10 +316,9 @@ export const CALISTHENICS: ExerciseDef[] = [
       { id: 'ankle', label: 'Ankle', kind: 'joint', joint: 'ankle' },
     ],
     checks: [
-      { angle: 'knee', when: 'bottom', good: [30, 80], ok: [30, 105], cue: 'Sink deeper on the standing leg', why: 'Full-depth single-leg squats demand the most quadriceps and gluteal strength and balance.', weight: 2 },
+      { angle: 'knee', when: 'bottom', good: [20, 80], ok: [15, 105], cue: 'Sink deeper on the standing leg', why: 'Full-depth single-leg squats demand the most quadriceps and gluteal strength and balance.', weight: 2 },
       { angle: 'trunk', when: 'bottom', good: [15, 55], ok: [5, 70], cue: 'Reach forward, chest up', why: 'A moderate forward lean counterbalances the hips; folding over shifts load to the back.' },
       { angle: 'ankle', when: 'bottom', good: [30, 80], ok: [25, 92], cue: 'Keep your heel down', why: 'Heel rise shows limited dorsiflexion and destabilises the knee.' },
-      { angle: 'knee', when: 'top', good: [160, 180], ok: [150, 180], cue: 'Stand fully tall', why: 'Full extension completes the rep.' },
     ],
     reps: { driver: 'knee', start: 'high', enter: 145, exit: 160, target: 80, minRepMs: 1200 },
   },
@@ -356,7 +347,7 @@ export const CALISTHENICS: ExerciseDef[] = [
     ],
     checks: [
       { angle: 'trunk', when: 'bottom', good: [70, 100], ok: [60, 110], cue: 'Kick all the way back to plank', why: 'Reaching a full plank is the standard for a complete burpee rep.', weight: 2 },
-      { angle: 'bodyLine', when: 'bottom', good: [160, 180], ok: [145, 180], cue: "Keep hips level in the plank", why: 'Sagging hips in the plank phase stress the lumbar spine.' },
+      { angle: 'bodyLine', when: 'bottom', good: [160, 180], ok: [145, 180], cue: "Keep hips level in the plank", why: 'Sagging hips in the plank phase stress the lumbar spine; a crouch without the kick-back fails this check.', weight: 3 },
       { angle: 'knee', when: 'top', good: [160, 180], ok: [145, 180], cue: 'Stand all the way up', why: 'Full extension at the top completes each rep.' },
       { angle: 'hip', when: 'top', good: [160, 180], ok: [145, 180], cue: 'Open your hips fully at the top', why: 'Full hip extension distinguishes a complete rep from a partial one.' },
     ],
@@ -413,11 +404,11 @@ export const CALISTHENICS: ExerciseDef[] = [
       { id: 'knee', label: 'Knee', kind: 'joint', joint: 'knee' },
     ],
     checks: [
-      { angle: 'trunk', when: 'bottom', good: [35, 60], ok: [25, 72], cue: 'Curl shoulder blades off the floor', why: 'Abdominal activation peaks in the first ~30° of trunk flexion; beyond that hip flexors take over.', weight: 2 },
+      { angle: 'trunk', when: 'bottom', good: [60, 77], ok: [50, 81], cue: 'Curl shoulder blades off the floor', why: 'Abdominal activation peaks in the first ~30° of trunk flexion; with the low back on the mat that lifts the hip-to-shoulder line only ~15–20°.', weight: 2 },
       { angle: 'trunk', when: 'top', good: [82, 100], ok: [75, 105], cue: 'Lower all the way down', why: 'Returning to the floor each rep ensures full range and consistent counting.' },
       { angle: 'knee', when: 'any', good: [70, 110], ok: [55, 130], cue: 'Keep knees bent, feet flat', why: 'Bent knees reduce hip-flexor contribution and lumbar strain.' },
     ],
-    reps: { driver: 'trunk', start: 'high', enter: 72, exit: 87, target: 60, minRepMs: 700 },
+    reps: { driver: 'trunk', start: 'high', enter: 81, exit: 86, target: 76, minRepMs: 700 },
   },
   {
     id: 'lying-leg-raise',
@@ -443,7 +434,6 @@ export const CALISTHENICS: ExerciseDef[] = [
     ],
     checks: [
       { angle: 'hip', when: 'bottom', good: [60, 95], ok: [55, 115], cue: 'Raise legs up to vertical', why: 'Lifting to ~90° hip flexion works the full range of the hip flexors and lower abdominals.', weight: 2 },
-      { angle: 'hip', when: 'top', good: [160, 180], ok: [150, 180], cue: 'Lower your legs fully, with control', why: 'The lowering phase is where the anti-extension core demand is greatest.' },
       { angle: 'knee', when: 'any', good: [160, 180], ok: [145, 180], cue: 'Keep your legs straight', why: 'Bending the knees shortens the lever and reduces the load.' },
       { angle: 'trunk', when: 'any', good: [80, 100], ok: [70, 110], cue: 'Keep shoulders down on the mat', why: 'Lifting the torso means momentum or a sit-up is replacing the leg raise.' },
     ],
@@ -534,7 +524,7 @@ export const CALISTHENICS: ExerciseDef[] = [
       { id: 'shoulder', label: 'Arm position', kind: 'joint', joint: 'shoulder' },
     ],
     checks: [
-      { angle: 'hip', when: 'hold', good: [125, 160], ok: [115, 170], cue: 'Hollow out, curl ribs down', why: 'The hollow position relies on posterior pelvic tilt and slight trunk flexion to load the abdominals.', weight: 2 },
+      { angle: 'hip', when: 'hold', good: [105, 160], ok: [90, 172], cue: 'Hollow out, curl ribs down', why: 'The hollow position relies on posterior pelvic tilt and slight trunk flexion to load the abdominals.', weight: 2 },
       { angle: 'thigh', when: 'hold', good: [50, 75], ok: [40, 85], cue: 'Keep legs low but off floor', why: 'Legs 15–40° off the floor create a long lever; lower than that the back tends to arch.' },
       { angle: 'trunk', when: 'hold', good: [55, 82], ok: [45, 88], cue: 'Lift your shoulder blades off floor', why: 'Raised shoulders complete the hollow shape and engage the upper abdominals.' },
       { angle: 'knee', when: 'hold', good: [160, 180], ok: [145, 180], cue: 'Keep your legs straight', why: 'Straight legs maximise the lever and training effect.' },

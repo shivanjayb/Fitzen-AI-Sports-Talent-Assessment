@@ -10,7 +10,6 @@ const SHOULDER: AngleDef = { id: 'shoulder', label: 'Shoulder', kind: 'joint', j
 const SHOULDER_B: AngleDef = { id: 'shoulder', label: 'Shoulder', kind: 'joint', joint: 'shoulder', side: 'both' };
 const ANKLE: AngleDef = { id: 'ankle', label: 'Ankle', kind: 'joint', joint: 'ankle' };
 const TRUNK: AngleDef = { id: 'trunk', label: 'Torso lean', kind: 'segment', segment: 'trunk', ref: 'vertical' };
-const TRUNK_B: AngleDef = { id: 'trunk', label: 'Torso side lean', kind: 'segment', segment: 'trunk', ref: 'vertical', side: 'both' };
 const SHIN: AngleDef = { id: 'shin', label: 'Shin angle', kind: 'segment', segment: 'shin', ref: 'vertical' };
 const UPPER_ARM: AngleDef = { id: 'upperArm', label: 'Upper arm', kind: 'segment', segment: 'upperArm', ref: 'vertical' };
 const FOREARM: AngleDef = { id: 'forearm', label: 'Forearm', kind: 'segment', segment: 'forearm', ref: 'vertical' };
@@ -29,10 +28,6 @@ const kneeLockout: Check = {
 const hipLockout: Check = {
   angle: 'hip', when: 'top', good: [165, 180], ok: [155, 180],
   cue: 'Finish tall, squeeze glutes', why: 'Full hip extension at lockout trains the glutes through complete range.',
-};
-const elbowLockout: Check = {
-  angle: 'elbow', when: 'top', good: [160, 180], ok: [150, 180],
-  cue: 'Fully straighten elbows each rep', why: 'Complete extension ensures full range of motion for the prime movers.',
 };
 const levelShoulders: Check = {
   angle: 'shoulders', when: 'any', good: [0, 5], ok: [0, 10],
@@ -58,12 +53,11 @@ export const GYM: ExerciseDef[] = [
     ],
     met: 5.0,
     angles: [KNEE, HIP, TRUNK, SHIN],
-    reps: { driver: 'knee', start: 'high', enter: 150, exit: 165, target: 100, minRepMs: 1000 },
+    reps: { driver: 'knee', start: 'high', enter: 150, exit: 165, target: 80, minRepMs: 1000 },
     checks: [
-      { angle: 'knee', when: 'bottom', good: [60, 100], ok: [50, 115], cue: 'Sit deeper, reach parallel', why: 'Squatting to parallel maximises quadriceps and glute recruitment (NSCA).' },
+      { angle: 'knee', when: 'bottom', good: [0, 80], ok: [0, 95], cue: 'Sit deeper, reach parallel', why: 'Parallel is about 100° knee flexion (included angle ≤80°); quadriceps work is maximised by parallel (Schoenfeld, JSCR 2010).' },
       { angle: 'trunk', when: 'bottom', good: [15, 50], ok: [5, 60], cue: 'Keep chest up', why: 'Excessive forward lean shifts load to the lower back.' },
-      { angle: 'shin', when: 'bottom', good: [5, 40], ok: [0, 50], cue: 'Sit back, control knee travel', why: 'Very high shin angle raises knee shear and often means heels lifting.' },
-      kneeLockout,
+      { angle: 'shin', when: 'bottom', good: [5, 40], ok: [0, 50], cue: 'Sit back, control knee travel', why: 'A very forward shin raises knee extensor moment and patellofemoral load; heels lifting is a common cause (Fry et al., JSCR 2003).' },
       hipLockout,
     ],
   },
@@ -85,13 +79,12 @@ export const GYM: ExerciseDef[] = [
     ],
     met: 5.0,
     angles: [KNEE, HIP, TRUNK, SHIN, UPPER_ARM],
-    reps: { driver: 'knee', start: 'high', enter: 150, exit: 165, target: 100, minRepMs: 1000 },
+    reps: { driver: 'knee', start: 'high', enter: 150, exit: 165, target: 80, minRepMs: 1000 },
     checks: [
-      { angle: 'knee', when: 'bottom', good: [55, 100], ok: [45, 115], cue: 'Sit deeper, reach parallel', why: 'Full depth maximises quadriceps work in the front squat.' },
+      { angle: 'knee', when: 'bottom', good: [0, 80], ok: [0, 95], cue: 'Sit deeper, reach parallel', why: 'Full depth maximises quadriceps work in the front squat.' },
       { angle: 'trunk', when: 'bottom', good: [0, 30], ok: [0, 40], cue: 'Stay upright, chest tall', why: 'A forward-tipping torso lets the bar roll off the rack position.' },
       { angle: 'shin', when: 'bottom', good: [15, 45], ok: [5, 55], cue: 'Let knees travel forward over toes', why: 'Forward knee travel allows an upright torso in the front squat.' },
       { angle: 'upperArm', when: 'active', good: [60, 110], ok: [45, 130], cue: 'Drive elbows up', why: 'Dropping elbows collapses the front rack and upper back.' },
-      kneeLockout,
     ],
   },
   {
@@ -112,12 +105,11 @@ export const GYM: ExerciseDef[] = [
     ],
     met: 5.0,
     angles: [KNEE, HIP, TRUNK, SHIN],
-    reps: { driver: 'knee', start: 'high', enter: 150, exit: 165, target: 100, minRepMs: 800 },
+    reps: { driver: 'knee', start: 'high', enter: 150, exit: 165, target: 80, minRepMs: 800 },
     checks: [
-      { angle: 'knee', when: 'bottom', good: [55, 100], ok: [45, 115], cue: 'Sit deeper, elbows inside knees', why: 'Full depth trains quadriceps and hip mobility through full range.' },
+      { angle: 'knee', when: 'bottom', good: [0, 80], ok: [0, 95], cue: 'Sit deeper, elbows inside knees', why: 'Full depth trains quadriceps and hip mobility through full range.' },
       { angle: 'trunk', when: 'bottom', good: [0, 35], ok: [0, 45], cue: 'Keep chest up behind the weight', why: 'The front load rewards an upright torso and spares the lower back.' },
       { angle: 'shin', when: 'bottom', good: [10, 45], ok: [5, 55], cue: 'Keep heels down', why: 'Excess shin angle usually means heels lifting and weight on toes.' },
-      kneeLockout,
     ],
   },
   {
@@ -142,7 +134,7 @@ export const GYM: ExerciseDef[] = [
     checks: [
       { angle: 'knee', when: 'bottom', good: [70, 110], ok: [60, 125], cue: 'Sink hips lower', why: 'Deeper sumo squats increase adductor and glute activation.' },
       { angle: 'feet', when: 'any', good: [1.4, 2.2], ok: [1.2, 2.6], cue: 'Widen your stance', why: 'A wide stance defines the sumo pattern and targets the adductors.' },
-      { angle: 'knees', when: 'bottom', good: [1.2, 2.4], ok: [1.0, 2.8], cue: 'Push knees out over toes', why: 'Knee valgus under load increases stress on the knee ligaments.' },
+      { angle: 'knees', when: 'bottom', good: [1.4, 2.4], ok: [1.0, 2.8], cue: 'Push knees out over toes', why: 'Knee valgus under load increases stress on the knee ligaments.' },
       { angle: 'hips', when: 'bottom', good: [0, 5], ok: [0, 10], cue: 'Keep hips level', why: 'Hip shift at depth signals a strength or mobility asymmetry.' },
       levelShoulders,
     ],
@@ -167,10 +159,8 @@ export const GYM: ExerciseDef[] = [
     angles: [ELBOW, SHOULDER, FOREARM],
     reps: { driver: 'elbow', start: 'high', enter: 145, exit: 160, target: 95, minRepMs: 1000 },
     checks: [
-      { angle: 'elbow', when: 'bottom', good: [60, 95], ok: [50, 110], cue: 'Lower the bar to your chest', why: 'Touching the chest trains the pectorals through full range.' },
-      { angle: 'shoulder', when: 'bottom', good: [40, 75], ok: [30, 90], cue: 'Tuck elbows about 45 degrees', why: 'Flared elbows near 90° increase anterior shoulder stress.' },
+      { angle: 'elbow', when: 'bottom', good: [0, 95], ok: [0, 110], cue: 'Lower the bar to your chest', why: 'Touching the chest trains the pectorals through full range; side-on, elbow tuck shrinks the projected angle, so no lower bound.' },
       { angle: 'forearm', when: 'active', good: [0, 15], ok: [0, 25], cue: 'Stack wrists over elbows', why: 'Vertical forearms transfer force efficiently and protect the wrists.' },
-      elbowLockout,
     ],
   },
   {
@@ -193,10 +183,8 @@ export const GYM: ExerciseDef[] = [
     angles: [ELBOW, SHOULDER, FOREARM],
     reps: { driver: 'elbow', start: 'high', enter: 145, exit: 160, target: 95, minRepMs: 1000 },
     checks: [
-      { angle: 'elbow', when: 'bottom', good: [60, 95], ok: [50, 110], cue: 'Lower bar to upper chest', why: 'Full range emphasises the clavicular pectoral head.' },
-      { angle: 'shoulder', when: 'bottom', good: [40, 80], ok: [30, 95], cue: 'Tuck elbows slightly', why: 'Excessive elbow flare loads the anterior shoulder capsule.' },
+      { angle: 'elbow', when: 'bottom', good: [0, 95], ok: [0, 110], cue: 'Lower bar to upper chest', why: 'Full range emphasises the clavicular pectoral head; side-on, elbow tuck shrinks the projected angle, so no lower bound.' },
       { angle: 'forearm', when: 'active', good: [0, 15], ok: [0, 25], cue: 'Stack wrists over elbows', why: 'Vertical forearms keep the bar path efficient.' },
-      elbowLockout,
     ],
   },
   {
@@ -276,7 +264,6 @@ export const GYM: ExerciseDef[] = [
       { angle: 'knee', when: 'active', good: [145, 175], ok: [130, 180], cue: 'Keep a soft, fixed knee', why: 'Bending the knees more turns the RDL into a squat.' },
       { angle: 'trunk', when: 'bottom', good: [50, 90], ok: [40, 100], cue: 'Hinge torso toward parallel, back flat', why: 'Torso angle reflects hinge depth while the spine stays neutral.' },
       { angle: 'shin', when: 'bottom', good: [0, 12], ok: [0, 20], cue: 'Keep shins vertical, hips back', why: 'Forward knee travel shifts work from hamstrings to quads.' },
-      hipLockout,
     ],
   },
   {
@@ -302,7 +289,6 @@ export const GYM: ExerciseDef[] = [
       { angle: 'elbow', when: 'bottom', good: [50, 95], ok: [40, 110], cue: 'Pull the bar to lower ribs', why: 'Full elbow flexion ensures complete scapular retraction.' },
       { angle: 'trunk', when: 'active', good: [40, 80], ok: [30, 90], cue: 'Stay bent over, no torso heave', why: 'Standing up during the pull uses momentum and reduces back work.' },
       { angle: 'knee', when: 'active', good: [135, 170], ok: [120, 180], cue: 'Keep soft, steady knees', why: 'Stable knees keep the hinge position fixed through the set.' },
-      { angle: 'elbow', when: 'top', good: [155, 180], ok: [145, 180], cue: 'Fully extend arms each rep', why: 'Letting the arms hang straight trains the lats through full range.' },
     ],
   },
   {
@@ -380,7 +366,6 @@ export const GYM: ExerciseDef[] = [
       { angle: 'elbow', when: 'bottom', good: [30, 70], ok: [25, 90], cue: 'Lower weight fully behind head', why: 'Deep elbow flexion stretches the long head of the triceps.' },
       { angle: 'upperArm', when: 'any', good: [0, 25], ok: [0, 40], cue: 'Keep elbows pointing up', why: 'Elbows drifting forward turn the movement into a pullover.' },
       { angle: 'trunk', when: 'any', good: [0, 10], ok: [0, 20], cue: "Brace core, don't arch", why: 'Leaning back overhead loads the lumbar spine in extension.' },
-      elbowLockout,
     ],
   },
   {
@@ -399,13 +384,11 @@ export const GYM: ExerciseDef[] = [
       'Stand tall, dumbbells at sides, slight elbow bend.',
     ],
     met: 3.5,
-    angles: [SHOULDER_B, ELBOW_B, SHOULDERS_TILT, TRUNK_B],
+    angles: [SHOULDER_B, ELBOW_B, SHOULDERS_TILT],
     reps: { driver: 'shoulder', start: 'low', enter: 45, exit: 30, target: 80 },
     checks: [
       { angle: 'shoulder', when: 'bottom', good: [80, 100], ok: [65, 110], cue: 'Lift to shoulder height, no higher', why: 'Deltoid load peaks near 90°; higher shifts work to the traps.' },
-      { angle: 'elbow', when: 'any', good: [150, 180], ok: [135, 180], cue: 'Keep arms long, slight bend', why: 'Bending the elbows shortens the lever and reduces deltoid load.' },
-      { ...levelShoulders, cue: "Keep shoulders level, don't shrug" },
-      { angle: 'trunk', when: 'any', good: [0, 5], ok: [0, 12], cue: "Stand still, don't swing", why: 'Body sway adds momentum and reduces deltoid work.' },
+      { ...levelShoulders, cue: 'Raise both arms evenly' },
     ],
   },
   {
@@ -430,7 +413,6 @@ export const GYM: ExerciseDef[] = [
       { angle: 'shoulder', when: 'bottom', good: [80, 105], ok: [65, 120], cue: 'Raise to shoulder height', why: 'Anterior deltoid moment arm peaks around 90° of flexion.' },
       { angle: 'elbow', when: 'any', good: [150, 180], ok: [135, 180], cue: 'Keep arms long, slight bend', why: 'Bent elbows shorten the lever and reduce load.' },
       { angle: 'trunk', when: 'any', good: [0, 8], ok: [0, 15], cue: "Don't lean back to swing", why: 'Leaning back uses momentum and stresses the lower back.' },
-      { angle: 'shoulder', when: 'top', good: [0, 30], ok: [0, 40], cue: 'Lower arms fully each rep', why: 'Full return keeps range and tension consistent.' },
     ],
   },
   {
@@ -474,12 +456,13 @@ export const GYM: ExerciseDef[] = [
       'Place camera side-on at hip height, 3 m away.',
       'Working leg nearest the camera, rear foot on bench.',
       'Front foot far enough that the knee stays over mid-foot.',
+      'Turn around to film the other leg; keep the working leg nearest the camera.',
     ],
     met: 5.0,
     angles: [KNEE, TRUNK, SHIN],
     reps: { driver: 'knee', start: 'high', enter: 145, exit: 160, target: 95, minRepMs: 900 },
     checks: [
-      { angle: 'knee', when: 'bottom', good: [70, 100], ok: [60, 115], cue: 'Lower until front thigh is parallel', why: 'Full depth maximises quad and glute work on the working leg.' },
+      { angle: 'knee', when: 'bottom', good: [0, 95], ok: [0, 110], cue: 'Lower until front thigh is parallel', why: 'Full depth maximises quad and glute work on the working leg.' },
       { angle: 'trunk', when: 'active', good: [0, 30], ok: [0, 40], cue: 'Keep chest up', why: 'Moderate lean is fine, but excess lean shifts load to the back.' },
       { angle: 'shin', when: 'bottom', good: [0, 35], ok: [0, 45], cue: 'Step front foot further forward', why: 'An excessive shin angle lifts the heel and overloads the knee.' },
       kneeLockout,
@@ -553,12 +536,11 @@ export const GYM: ExerciseDef[] = [
     ],
     met: 2.8,
     angles: [ANKLE, KNEE, TRUNK],
-    reps: { driver: 'ankle', start: 'low', enter: 110, exit: 95, target: 125 },
+    reps: { driver: 'ankle', start: 'low', enter: 118, exit: 112, target: 125 },
     checks: [
-      { angle: 'ankle', when: 'bottom', good: [125, 165], ok: [112, 170], cue: 'Rise higher onto the balls of feet', why: 'Full plantarflexion loads the calves through complete range.' },
+      { angle: 'ankle', when: 'bottom', good: [125, 165], ok: [112, 170], cue: 'Rise higher onto the balls of feet', why: 'Full plantarflexion loads the calves through complete range. Flat-foot knee-ankle-toe reads about 104–110° (Winter anthropometry), so reps start above 118° and finish back below 112°.' },
       { angle: 'knee', when: 'any', good: [165, 180], ok: [155, 180], cue: 'Keep knees straight', why: 'Straight knees bias the gastrocnemius; bending adds momentum.' },
       { angle: 'trunk', when: 'any', good: [0, 8], ok: [0, 15], cue: "Stand tall, don't lean", why: 'Leaning shifts weight off the forefoot and shortens range.' },
-      { angle: 'ankle', when: 'top', good: [80, 100], ok: [70, 105], cue: 'Lower heels fully each rep', why: 'Full return trains the calf at long length.' },
     ],
   },
   {
@@ -585,7 +567,6 @@ export const GYM: ExerciseDef[] = [
       { angle: 'trunk', when: 'bottom', good: [55, 95], ok: [45, 105], cue: 'Stop at parallel, back flat', why: 'Going below parallel under a back-loaded bar raises spinal shear.' },
       { angle: 'knee', when: 'active', good: [150, 180], ok: [135, 180], cue: "Soft knees, don't squat", why: 'Excess knee bend turns the hinge into a squat.' },
       { angle: 'shin', when: 'bottom', good: [0, 12], ok: [0, 20], cue: 'Push hips back, not knees forward', why: 'Forward knee travel reduces hamstring loading.' },
-      hipLockout,
     ],
   },
   {
@@ -604,13 +585,12 @@ export const GYM: ExerciseDef[] = [
       'Stand tall, grip at least shoulder-width.',
     ],
     met: 3.5,
-    angles: [SHOULDER_B, HANDS, SHOULDERS_TILT, TRUNK_B],
+    angles: [SHOULDER_B, HANDS, SHOULDERS_TILT],
     reps: { driver: 'shoulder', start: 'low', enter: 45, exit: 30, target: 75 },
     checks: [
       { angle: 'shoulder', when: 'bottom', good: [70, 95], ok: [60, 110], cue: 'Elbows to shoulder height, no higher', why: 'Raising the elbows above shoulder height increases impingement risk.' },
       { angle: 'hands', when: 'any', good: [0.9, 1.6], ok: [0.7, 2.0], cue: 'Grip at least shoulder-width', why: 'A wider grip reduces internal rotation and shoulder impingement.' },
       levelShoulders,
-      { angle: 'trunk', when: 'any', good: [0, 5], ok: [0, 12], cue: 'Stay upright, no body swing', why: 'Body sway uses momentum instead of the shoulders.' },
     ],
   },
   {

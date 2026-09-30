@@ -66,7 +66,9 @@ export const zoneOf = (v: number, good: Range, ok: Range): Zone =>
 // ---------------------------------------------------------------------------
 
 /** Tuning knobs — exposed because real cameras differ. */
-export const FILTER = { minCutoff: 1.5, beta: 1.0, dCutoff: 1.0, minVisibility: 0.5 };
+// beta 10 (was 1): in frame-height/s units beta=1 barely lifts the cutoff at rep speeds, giving ~2 frames of lag and
+// 5-10 % peak loss at 1 Hz; beta=10 keeps rest jitter nearly the same. Casiez, Roussel & Vogel, CHI 2012 (tune beta for lag).
+export const FILTER = { minCutoff: 1.5, beta: 10, dCutoff: 1.0, minVisibility: 0.5 };
 
 class OneEuro {
   private x = NaN; private dx = 0; private t = 0;
@@ -162,6 +164,7 @@ export interface CheckStat {
   mean: number;
 }
 
+/** `noise` = in-plane frame jitter (1 SD, degrees). It cannot see out-of-plane (perspective) error, which is a bias. */
 export interface AngleStat { label: string; mean: number; sd: number; min: number; max: number; noise: number }
 
 export interface CoachInsight { level: 'good' | 'warn' | 'bad'; title: string; detail: string }
@@ -191,6 +194,8 @@ export interface SessionReport {
     consistencyCv: number;
     /** % change in rep duration first→last (linear fit). Positive = slowing. */
     fatigueSlopePct: number;
+    /** Velocity loss %, first→last rep (linear fit) of mean concentric angular velocity. Sánchez-Medina & González-Badillo 2011. */
+    velocityLossPct: number;
     romDropDeg: number;
     list: RepRecord[];
     target: number;
@@ -240,12 +245,13 @@ export class MotionSession {
   private rejected = 0;
 
   // hold
-  private holdMs = 0; private holdRun = 0; private bestHold = 0;
+  private holdMs = 0; private holdRun = 0; private bestHold = 0; private lastTrackedT = NaN;
 
   // events
   private events: EventRecord[] = [];
   private groundY = NaN; private airborneSince = NaN; private lastEventT = -1e9;
-  private speedPeak = 0; private speedPeakFrame = -1;
+  private speedPeak = 0; private speedPeakFrame = -1; private speedPeakWrist = L.wrist;
+  private airSamples: Array<[number, number]> = []; private bodyHMax = 0;
 
   private cue: string | null = null; private cueT = 0;
   /** Zones judged at the last event, shown briefly on the skeleton. */
@@ -262,6 +268,7 @@ export class MotionSession {
   push(frame: PoseFrame, aspect = 16 / 9): LiveState {
     const t = frame.timestampMs;
     if (Number.isNaN(this.startMs)) this.startMs = t;
+    const prevT = this.lastMs;
     this.lastMs = t;
     this.frames++;
 
@@ -290,7 +297,8 @@ export class MotionSession {
         if (r.left !== undefined && r.right !== undefined) (this.sym[a.id] ??= []).push(Math.abs(r.left - r.right));
       }
       this.history.push({ t, a: values, raw, pts, rp: rawPts });
-    }
+      this.lastTrackedT = t;
+    } else if (t - this.lastTrackedT > 300) this.holdRun = 0; // tracking lost > 300 ms breaks the continuous hold
 
     // Phase for check applicability
     let phase: LiveState['phase'] = 'idle';
@@ -329,7 +337,8 @@ export class MotionSession {
     if (tracking && this.def.mode === 'hold') {
       const holdIdx = this.def.checks.map((c, i) => (c.when === 'hold' ? i : -1)).filter((i) => i >= 0);
       const holding = holdIdx.length > 0 && holdIdx.every((i) => checkZones[i] !== null && checkZones[i] !== 'bad');
-      const dt = this.history.length > 1 ? t - this.history[this.history.length - 2]!.t : 0;
+      // dt from the previous frame of any kind, capped at 100 ms, so untracked gaps never count as hold time.
+      const dt = Number.isFinite(prevT) ? Math.min(100, Math.max(0, t - prevT)) : 0;
       if (holding) { this.holdMs += dt; this.holdRun += dt; this.bestHold = Math.max(this.bestHold, this.holdRun); phase = 'hold'; }
       else { this.holdRun = 0; phase = 'start'; }
       if (this.def.hold) progress = Math.min(1, this.holdRun / (this.def.hold.targetSec * 1000));
@@ -469,7 +478,12 @@ export class MotionSession {
       if (x >= exit) this.lastTop = t;
       if (x < enter) {
         this.repState = 'down';
-        this.repStart = this.lastTop || t;
+        // Rep starts at the last local maximum of the driver (descent onset), not the last frame above `exit`.
+        const h = this.history;
+        let j = h.length - 1;
+        const xs = (k: number) => { const d = h[k]?.a[rule.driver]; return d === undefined ? NaN : s * d; };
+        while (j > 0 && xs(j - 1) > xs(j)) j--;
+        this.repStart = h.length ? h[j]!.t : this.lastTop || t;
         this.extreme = x; this.extremeT = t; this.extremeSnap = { ...v };
         this.repActive = this.def.checks.map(() => ({ good: 0, ok: 0, bad: 0, sum: 0, n: 0 }));
       }
@@ -532,7 +546,10 @@ export class MotionSession {
     const ev = this.def.event!;
     const h = this.history;
     const n = h.length;
-    const bodyH = Math.abs((p[L.foot]!.y + p[R.foot]!.y) / 2 - (p[L.shoulder]!.y + p[R.shoulder]!.y) / 2) / 0.8 || 1;
+    // Running max of the shoulder-toe span: crouched/leaning throw postures shrink the per-frame span and inflate speed.
+    // ponytail: session max, assumes roughly constant camera distance; switch to a decaying p95 if athletes move toward the camera.
+    this.bodyHMax = Math.max(this.bodyHMax, Math.abs((p[L.foot]!.y + p[R.foot]!.y) / 2 - (p[L.shoulder]!.y + p[R.shoulder]!.y) / 2));
+    const bodyH = this.bodyHMax / 0.8 || 1;
 
     if (ev.trigger === 'wristPeak') {
       if (n < 3) return;
@@ -542,11 +559,12 @@ export class MotionSession {
       const speedOf = (i: number) => Math.hypot(b[i]!.x - a[i]!.x, b[i]!.y - a[i]!.y) / dt / bodyH;
       const wrist = speedOf(L.wrist) > speedOf(R.wrist) ? L.wrist : R.wrist;
       const sp = speedOf(wrist);
-      if (sp > this.speedPeak) { this.speedPeak = sp; this.speedPeakFrame = n - 2; }
+      if (sp > this.speedPeak) { this.speedPeak = sp; this.speedPeakFrame = n - 2; this.speedPeakWrist = wrist; }
       // Peak confirmed once speed falls to 55 % of a peak above 2.5 body-heights/s.
       if (this.speedPeak > 2.5 && sp < 0.55 * this.speedPeak && t - this.lastEventT > 1200) {
         const k = this.speedPeakFrame;
-        const pa = h[Math.max(0, k - 1)]!.rp[wrist]!, pb = h[Math.min(n - 1, k + 1)]!.rp[wrist]!;
+        const w = this.speedPeakWrist; // the wrist that peaked, not whichever is faster at confirmation
+        const pa = h[Math.max(0, k - 1)]!.rp[w]!, pb = h[Math.min(n - 1, k + 1)]!.rp[w]!;
         const ang = deg(Math.atan2(pa.y - pb.y, Math.abs(pb.x - pa.x)));
         this.recordEvent('release', h[k]!.t, h[k]!.a, ang, this.speedPeak);
         this.speedPeak = 0;
@@ -565,16 +583,23 @@ export class MotionSession {
       const up = this.groundY - toeY;
       const air = up > 0.08 * legLen;
       if (!air && Number.isNaN(this.airborneSince)) this.groundY += 0.1 * (toeY - this.groundY);
-      if (air && Number.isNaN(this.airborneSince)) this.airborneSince = t;
+      if (air && Number.isNaN(this.airborneSince)) { this.airborneSince = t; this.airSamples = []; }
+      const rawUp = this.groundY - Math.max(h[n - 1]!.rp[L.foot]!.y, h[n - 1]!.rp[R.foot]!.y);
+      if (air && rawUp > 0.08 * legLen) this.airSamples.push([t, rawUp]);
       if (!air && !Number.isNaN(this.airborneSince)) {
-        const flight = t - this.airborneSince;
-        const takeoff = this.airborneSince;
+        // The 8 % gate trims ~t_th at both ends (≈ -25 % height at 30 cm). Recover true contact instants by fitting
+        // a parabola to the raw airborne toe heights and solving up(t) = 0. Bosco, Luhtanen & Komi 1983 (h = g·t²/8).
+        let flight = t - this.airborneSince;
+        let takeoff = this.airborneSince;
+        const fit = parabolaRoots(this.airSamples);
+        if (fit && fit[1] - fit[0] >= flight * 0.8 && fit[1] - fit[0] <= flight + 300) { takeoff = fit[0]; flight = fit[1] - fit[0]; }
         this.airborneSince = NaN;
         if (flight >= 120 && flight <= 1200 && takeoff - this.lastEventT > 800) {
           const k = h.findIndex((f) => f.t >= takeoff);
           const i0 = Math.max(0, k - 2);
           const hp = (f: P[]) => ({ x: (f[L.hip]!.x + f[R.hip]!.x) / 2, y: (f[L.hip]!.y + f[R.hip]!.y) / 2 });
-          const a = hp(h[i0]!.pts), b = hp(h[Math.min(h.length - 1, k + 1)]!.pts);
+          // Raw landmarks, as in the throw path: filter lag bends the take-off direction.
+          const a = hp(h[i0]!.rp), b = hp(h[Math.min(h.length - 1, k + 1)]!.rp);
           const ang = deg(Math.atan2(a.y - b.y, Math.abs(b.x - a.x)));
           const rec = this.recordEvent('jump', takeoff, h[Math.max(0, k)]!.a, ang);
           rec.flightMs = flight;
@@ -669,12 +694,17 @@ export class MotionSession {
     const angles: Record<string, AngleStat> = {};
     for (const a of def.angles) {
       const xs = this.history.map((f) => f.a[a.id]).filter((x): x is number => x !== undefined);
-      const rs = this.history.map((f) => f.raw[a.id]).filter((x): x is number => x !== undefined);
       if (!xs.length) continue;
-      // Measurement noise: SD of raw angle about its 5-frame moving average.
-      const resid: number[] = [];
-      for (let i = 2; i + 2 < rs.length; i++) resid.push(rs[i]! - (rs[i - 2]! + rs[i - 1]! + rs[i]! + rs[i + 1]! + rs[i + 2]!) / 5);
-      angles[a.id] = { label: a.label, mean: mean(xs), sd: sd(xs), min: Math.min(...xs), max: Math.max(...xs), noise: resid.length ? sd(resid) : 0 };
+      // In-plane jitter: residual of raw angle about a 5-point quadratic Savitzky-Golay fit (removes motion curvature),
+      // scaled by 1/sqrt(18/35) — the residual variance factor for white noise. Windows spanning a tracking gap are skipped.
+      const hs = this.history, resid: number[] = [];
+      for (let i = 2; i + 2 < hs.length; i++) {
+        const w = [-2, -1, 0, 1, 2].map((d) => hs[i + d]!.raw[a.id]);
+        if (w.some((x) => x === undefined) || hs[i + 2]!.t - hs[i - 2]!.t > 250) continue;
+        const [m2, m1, c, p1, p2] = w as number[];
+        resid.push(c! - (-3 * m2! + 12 * m1! + 17 * c! + 12 * p1! - 3 * p2!) / 35);
+      }
+      angles[a.id] = { label: a.label, mean: mean(xs), sd: sd(xs), min: Math.min(...xs), max: Math.max(...xs), noise: resid.length > 1 ? sd(resid) / Math.sqrt(18 / 35) : 0 };
     }
 
     const checks: CheckStat[] = def.checks.map((c, i) => {
@@ -700,6 +730,10 @@ export class MotionSession {
       const roms = list.map((r) => r.rom);
       const firstT = list[0]?.startMs ?? 0, lastT = list[list.length - 1]?.endMs ?? 0;
       const span = (lastT - firstT) / 1000;
+      // Mean concentric angular velocity proxy: driver travel from the extreme back to `exit` over the concentric time.
+      // Full-range reps only: a partial rep's shorter travel would read as a velocity drop.
+      const vel = list.filter((r) => r.fullRange).map((r) => Math.abs(def.reps!.exit - r.extreme) / Math.max(1e-3, r.concentricMs / 1000));
+      const vFirst = mean(vel) - slope(vel) * (vel.length - 1) / 2, vLast = mean(vel) + slope(vel) * (vel.length - 1) / 2;
       reps = {
         count: list.length,
         valid: list.filter((r) => r.valid).length,
@@ -715,6 +749,7 @@ export class MotionSession {
         tutSec: durs.reduce((a, b) => a + b, 0),
         consistencyCv: mean(roms) ? (100 * sd(roms)) / mean(roms) : 0,
         fatigueSlopePct: list.length >= 3 ? (100 * slope(durs) * (durs.length - 1)) / (mean(durs) || 1) : 0,
+        velocityLossPct: vel.length >= 3 && vFirst > 0 ? 100 * (1 - vLast / vFirst) : 0,
         romDropDeg: list.length >= 3 ? -slope(roms) * (roms.length - 1) : 0,
         list,
         target: def.reps.target,
@@ -784,7 +819,7 @@ export function buildInsights(def: ExerciseDef, r: SessionReport): CoachInsight[
     if (rp.partial > 0) out.push({ level: rp.partial / Math.max(1, rp.count) > 0.3 ? 'bad' : 'warn', title: `${rp.partial} of ${rp.count} reps were short of full range`, detail: `Target ${rp.driverLabel.toLowerCase()} ${def.reps!.start === 'high' ? '≤' : '≥'} ${rp.target}°. Reduce the load or slow down until every rep reaches it — partial reps build less strength through the full range.` });
     if (rp.rejected > 0) out.push({ level: 'warn', title: `${rp.rejected} movements were too fast to count`, detail: 'Bouncing reps under 0.6 s were discarded. Control every rep.' });
     if (rp.count >= 3 && rp.avgEccentricSec < 1) out.push({ level: 'warn', title: 'Lowering phase is rushed', detail: `Average eccentric ${f1(rp.avgEccentricSec)} s. A 2–3 s controlled lowering increases time under tension and reduces injury risk.` });
-    if (rp.count >= 4 && rp.fatigueSlopePct > 20) out.push({ level: 'warn', title: `Reps slowed by ${Math.round(rp.fatigueSlopePct)} % across the set`, detail: 'Velocity loss above 20 % signals accumulating fatigue. For strength, stop the set here and rest 2–3 min; for endurance, this is your working limit.' });
+    if (rp.count >= 4 && rp.velocityLossPct > 20) out.push({ level: 'warn', title: `Concentric velocity fell ${Math.round(rp.velocityLossPct)} % across the set`, detail: 'Velocity loss above 20 % signals accumulating fatigue. For strength, stop the set here and rest 2–3 min; for endurance, this is your working limit.' });
     if (rp.count >= 4 && rp.romDropDeg > 10) out.push({ level: 'warn', title: `Range dropped ${Math.round(rp.romDropDeg)}° by the last rep`, detail: 'Form broke down with fatigue. End sets when range starts to shrink.' });
     if (rp.count >= 3 && rp.consistencyCv > 15) out.push({ level: 'warn', title: 'Inconsistent range between reps', detail: `ROM varied by ${Math.round(rp.consistencyCv)} % (CV). Pick a fixed depth cue and hit it every rep.` });
   }
@@ -822,6 +857,26 @@ export function buildInsights(def: ExerciseDef, r: SessionReport): CoachInsight[
 
   if (r.formScore >= 85 && r.trackedPct >= 70 && (r.reps?.count ?? r.events?.length ?? 1) > 0) out.push({ level: 'good', title: out.some((i) => i.level !== 'good') ? 'Strong technique overall — polish the points above' : 'Excellent technique', detail: def.mode === 'reps' ? 'Progress by adding 2.5–5 % load or 1–2 reps next session.' : 'Keep practising at this quality and increase intensity gradually.' });
   return out;
+}
+
+/** Least-squares parabola through (t, up) samples; returns its two up = 0 roots, or null if not a downward parabola. */
+function parabolaRoots(pts: Array<[number, number]>): [number, number] | null {
+  if (pts.length < 3) return null;
+  const t0 = pts[0]![0];
+  let s0 = 0, s1 = 0, s2 = 0, s3 = 0, s4 = 0, y0 = 0, y1 = 0, y2 = 0;
+  for (const [tt, y] of pts) { const x = (tt - t0) / 1000; s0++; s1 += x; s2 += x * x; s3 += x ** 3; s4 += x ** 4; y0 += y; y1 += x * y; y2 += x * x * y; }
+  // Normal equations [s4 s3 s2; s3 s2 s1; s2 s1 s0]·[a b c] = [y2 y1 y0], solved by Cramer's rule.
+  const det3 = (m: number[]) => m[0]! * (m[4]! * m[8]! - m[5]! * m[7]!) - m[1]! * (m[3]! * m[8]! - m[5]! * m[6]!) + m[2]! * (m[3]! * m[7]! - m[4]! * m[6]!);
+  const D = det3([s4, s3, s2, s3, s2, s1, s2, s1, s0]);
+  if (Math.abs(D) < 1e-12) return null;
+  const a = det3([y2, s3, s2, y1, s2, s1, y0, s1, s0]) / D;
+  const b = det3([s4, y2, s2, s3, y1, s1, s2, y0, s0]) / D;
+  const c = det3([s4, s3, y2, s3, s2, y1, s2, s1, y0]) / D;
+  const disc = b * b - 4 * a * c;
+  if (!(a < 0) || disc <= 0) return null;
+  const q = Math.sqrt(disc);
+  const r1 = (-b + q) / (2 * a), r2 = (-b - q) / (2 * a);
+  return [t0 + 1000 * Math.min(r1, r2), t0 + 1000 * Math.max(r1, r2)];
 }
 
 function mean(xs: number[]): number { return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0; }

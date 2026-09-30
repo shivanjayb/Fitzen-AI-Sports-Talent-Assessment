@@ -38,9 +38,9 @@ export const SPORT: ExerciseDef[] = [
         why: 'A ~90° front knee in the set position is associated with higher block velocity (Mero 1988; Slawinski 2010).',
       },
       {
-        angle: 'rearKnee', when: 'hold', good: [115, 140], ok: [105, 150],
-        cue: 'Rear knee around one-thirty',
-        why: 'A 120–135° rear knee lets the rear leg produce a fast, forceful first push.',
+        angle: 'rearKnee', when: 'hold', good: [90, 140], ok: [80, 150],
+        cue: 'Rear knee between ninety and one-forty',
+        why: 'A more flexed rear knee (90° vs 115°/135°) gave higher block velocity (Milanese 2014); ~130° is common with medium spacing (Bezodis 2019).',
       },
       {
         angle: 'trunk', when: 'hold', good: [95, 112], ok: [88, 122],
@@ -76,6 +76,7 @@ export const SPORT: ExerciseDef[] = [
       'Camera side-on at hip height, 3 m away, whole body in frame.',
       'Stand tall, arms bent about 90°.',
       'Drive each thigh up to hip height, staying on the balls of your feet.',
+      'Reps count the leg nearest the camera only.',
     ],
     met: 8.0,
     angles: [
@@ -124,6 +125,7 @@ export const SPORT: ExerciseDef[] = [
       'Camera side-on at hip height, 4 m away; skip across the frame.',
       'Lift the knee to hip height with toes pulled up.',
       'Strike the ground under your hips, then switch legs.',
+      'Reps count the leg nearest the camera only.',
     ],
     met: 8.0,
     angles: [
@@ -144,9 +146,9 @@ export const SPORT: ExerciseDef[] = [
         why: 'A vertical shin at peak lift positions the foot to strike under the hips.',
       },
       {
-        angle: 'ankle', when: 'bottom', good: [70, 95], ok: [60, 105],
+        angle: 'ankle', when: 'bottom', good: [80, 105], ok: [70, 115],
         cue: 'Toes up, foot dorsiflexed',
-        why: 'A dorsiflexed ankle stiffens the foot for a short, reactive ground contact.',
+        why: 'A dorsiflexed ankle stiffens the foot for a short, reactive ground contact. (Knee–ankle–toe reads ~108° at neutral: toe landmark sits below the malleolus.)',
       },
       {
         angle: 'trunk', when: 'any', good: [0, 12], ok: [0, 20],
@@ -171,6 +173,7 @@ export const SPORT: ExerciseDef[] = [
       'Camera side-on at hip height, 3 m away, whole body in frame.',
       'Jog in place on the balls of your feet.',
       'Snap each heel up to your glutes, knee pointing at the floor.',
+      'Reps count the leg nearest the camera only.',
     ],
     met: 8.0,
     angles: [
@@ -223,9 +226,9 @@ export const SPORT: ExerciseDef[] = [
     ],
     checks: [
       {
-        angle: 'knee', when: 'bottom', good: [80, 110], ok: [65, 130],
+        angle: 'knee', when: 'bottom', good: [70, 110], ok: [65, 130],
         cue: 'Dip to about quarter-to-half squat',
-        why: 'Self-selected CMJ depths of ~90–110° knee angle maximise jump height (Gheller 2015).',
+        why: 'Deeper countermovements raise jump height while shallower dips raise peak force and power (Gheller 2015). Keep depth consistent for testing.',
       },
       {
         angle: 'trunk', when: 'bottom', good: [20, 50], ok: [10, 60],
@@ -353,7 +356,7 @@ export const SPORT: ExerciseDef[] = [
         why: 'An arm swing adds ~20% to standing jump distance (Ashby & Heegaard 2002).',
       },
     ],
-    event: { trigger: 'jump', releaseAngle: { good: [28, 42], ok: [18, 52] } },
+    event: { trigger: 'jump', releaseAngle: { good: [19, 32], ok: [12, 42] } }, // optimum ~19–27°, untrained preference ~34° (Wakai & Linthorne 2005)
   },
   {
     id: 'box-jump',
@@ -552,7 +555,7 @@ export const SPORT: ExerciseDef[] = [
         why: 'A tall finish keeps release height up and the push directed upward-forward.',
       },
     ],
-    event: { trigger: 'wristPeak', releaseAngle: { good: [35, 42], ok: [30, 46] } },
+    event: { trigger: 'wristPeak', releaseAngle: { good: [31, 40], ok: [26, 45] } }, // world-class 26–45°, mean ~37°; optimum is athlete-specific (Linthorne 2001)
   },
   {
     id: 'discus-release',
@@ -634,7 +637,7 @@ export const SPORT: ExerciseDef[] = [
       {
         angle: 'elbow', when: 'release', good: [165, 180], ok: [155, 180],
         cue: 'Keep the bowling arm straight',
-        why: 'ICC law allows ≤15° elbow extension; an elbow near straight at release keeps the action legal (2D screen only, not a legality test).',
+        why: 'A straight arm at release is typical. Legality depends on ≤15° elbow extension from arm-horizontal to release (ICC Reg. 2.1), which a single 2D frame cannot assess.',
         weight: 1.5,
       },
       {
@@ -770,9 +773,9 @@ export const SPORT: ExerciseDef[] = [
     ],
     checks: [
       {
-        angle: 'elbow', when: 'release', good: [160, 180], ok: [150, 180],
+        angle: 'elbow', when: 'release', good: [135, 180], ok: [120, 180],
         cue: 'Extend fully through the target',
-        why: 'Peak fist speed occurs near full elbow extension in straight punches.',
+        why: 'Aim to reach full extension on target. Scored at peak fist speed, which comes before full lock-out.',
       },
       {
         angle: 'shoulder', when: 'release', good: [80, 100], ok: [70, 110],
@@ -820,21 +823,18 @@ export const SPORT: ExerciseDef[] = [
       { id: 'elbow', label: 'Elbow', kind: 'joint', joint: 'elbow' },
     ],
     checks: [
+      // Second-pull hip/knee extension and the floor back angle are not scored: the engine has no
+      // peak-of-pull snapshot, and with the elbow driver 'top' also covers standing. Needs an engine phase.
       {
-        angle: 'hip', when: 'bottom', good: [170, 180], ok: [160, 180],
-        cue: 'Finish the hips — full extension',
-        why: 'Complete hip extension in the second pull generates peak bar power (Garhammer 1993).',
-        weight: 1.5,
+        angle: 'elbow', when: 'bottom', good: [20, 60], ok: [20, 80],
+        cue: 'Rack the bar on your shoulders',
+        why: 'A fully flexed elbow means the bar is racked on the shoulders, not held by the arms.',
       },
       {
-        angle: 'knee', when: 'bottom', good: [165, 180], ok: [150, 180],
-        cue: 'Straighten the knees at the top',
-        why: 'Full knee extension completes triple extension before pulling under.',
-      },
-      {
-        angle: 'trunk', when: 'top', good: [40, 70], ok: [30, 80],
-        cue: 'Shoulders over the bar at start',
-        why: 'A 40–70° back angle with shoulders over the bar sets an efficient first pull.',
+        angle: 'knee', when: 'bottom', good: [100, 180], ok: [85, 180],
+        cue: 'Receive above parallel',
+        why: 'A power catch is received with thighs above parallel.',
+        weight: 0.5,
       },
       {
         angle: 'elbow', when: 'top', good: [160, 180], ok: [150, 180],
@@ -842,8 +842,8 @@ export const SPORT: ExerciseDef[] = [
         why: 'Early arm bend reduces force transfer from the legs and hips.',
       },
     ],
-    // Hip flexed at the floor (~45–80°) → full extension (~180°); catch (~100–115°) stays above exit.
-    reps: { driver: 'hip', start: 'low', enter: 120, exit: 95, target: 170, minRepMs: 1200 },
+    // Elbow driver (as hang-clean): a hip driver splits one clean in two when the catch hip is < 95°.
+    reps: { driver: 'elbow', start: 'high', enter: 120, exit: 150, target: 60, minRepMs: 1000 },
   },
   {
     id: 'hang-clean',
@@ -927,7 +927,7 @@ export const SPORT: ExerciseDef[] = [
     ],
     checks: [
       {
-        angle: 'shoulder', when: 'bottom', good: [165, 180], ok: [150, 180],
+        angle: 'shoulder', when: 'bottom', good: [145, 180], ok: [130, 180],
         cue: 'Push the bar fully overhead',
         why: 'Full shoulder flexion stacks the bar over the trunk in the overhead catch.',
       },
@@ -1094,7 +1094,7 @@ export const SPORT: ExerciseDef[] = [
     checks: [
       {
         angle: 'frontKnee', when: 'hold', good: [95, 130], ok: [85, 150],
-        cue: 'Bend the front knee more',
+        cue: 'Front knee about 100–130 degrees',
         why: 'A front knee around 100–130° gives a low, stable receiving position.',
       },
       {
