@@ -37,6 +37,13 @@ const SEGMENTS: Record<Exclude<SegmentName, 'shoulders' | 'hips'>, (s: SideMap) 
   upperArm: (s) => [s.shoulder, s.elbow],
   forearm: (s) => [s.elbow, s.wrist],
 };
+type SegKey = keyof typeof SEGMENTS;
+/** Body segments whose image-plane length a joint angle depends on (foreshortening gate). */
+const JOINT_SEGS: Record<import('./types.js').JointName, SegKey[]> = {
+  knee: ['thigh', 'shin'], hip: ['trunk', 'thigh'], elbow: ['upperArm', 'forearm'], shoulder: ['trunk', 'upperArm'],
+  ankle: ['shin'], bodyLine: ['trunk', 'thigh', 'shin'], wrist: ['forearm'],
+};
+const NOSE = 0;
 
 interface P { x: number; y: number; v: number }
 
@@ -68,9 +75,12 @@ export const zoneOf = (v: number, good: Range, ok: Range): Zone =>
 /** Tuning knobs — exposed because real cameras differ. */
 // beta 10 (was 1): in frame-height/s units beta=1 barely lifts the cutoff at rep speeds, giving ~2 frames of lag and
 // 5-10 % peak loss at 1 Hz; beta=10 keeps rest jitter nearly the same. Casiez, Roussel & Vogel, CHI 2012 (tune beta for lag).
-export const FILTER = { minCutoff: 1.5, beta: 10, dCutoff: 1.0, minVisibility: 0.5 };
+// minSegmentRatio: a segment tilted φ out of the image plane projects to L·cos φ (orthographic approximation), so
+// 0.87 ≈ cos 30°. Below it the 2D angle is flagged low-confidence: out-of-plane projection is the main 2D angle error
+// source (Iizuka et al. 2026, doi:10.3389/fspor.2026.1831625, −11° hip/knee bias; view dependence, Baldinger 2025).
+export const FILTER = { minCutoff: 1.5, beta: 10, dCutoff: 1.0, minVisibility: 0.5, minSegmentRatio: 0.87 };
 
-class OneEuro {
+export class OneEuro {
   private x = NaN; private dx = 0; private t = 0;
   filter(v: number, tMs: number): number {
     if (Number.isNaN(this.x)) { this.x = v; this.t = tMs; return v; }
@@ -88,7 +98,8 @@ class OneEuro {
 // Public types
 // ---------------------------------------------------------------------------
 
-export interface AngleReading { value: number; left?: number; right?: number; zone: Zone | null }
+/** `foreshortened`: a segment the angle uses is < FILTER.minSegmentRatio of its session length — reading is low-confidence. */
+export interface AngleReading { value: number; left?: number; right?: number; zone: Zone | null; foreshortened?: boolean }
 
 export interface RepRecord {
   index: number;
@@ -162,6 +173,8 @@ export interface CheckStat {
   pctOk: number;
   pctBad: number;
   mean: number;
+  /** Readings skipped because a segment was foreshortened (out of the image plane). */
+  excluded: number;
 }
 
 /** `noise` = in-plane frame jitter (1 SD, degrees). It cannot see out-of-plane (perspective) error, which is a bias. */
@@ -178,6 +191,8 @@ export interface SessionReport {
   frames: number;
   fps: number;
   trackedPct: number;
+  /** % of tracked frames where at least one checked angle was foreshortened (limb > ~30° out of the image plane). */
+  foreshortenedPct: number;
   reps?: {
     count: number;
     valid: number;
@@ -219,6 +234,7 @@ export interface SessionReport {
 // ---------------------------------------------------------------------------
 
 interface CheckAcc { good: number; ok: number; bad: number; sum: number; n: number }
+interface Frame { t: number; a: Record<string, number>; raw: Record<string, number>; pts: P[]; rp: P[]; fs: Set<string> }
 
 const W: Record<Zone, number> = { good: 1, ok: 0.6, bad: 0 };
 
@@ -230,14 +246,18 @@ export class MotionSession {
   private lastMs = NaN;
   private frames = 0;
   private tracked = 0;
-  private history: Array<{ t: number; a: Record<string, number>; raw: Record<string, number>; pts: P[]; rp: P[] }> = [];
+  private history: Frame[] = [];
   private acc: CheckAcc[];
   private sym: Record<string, number[]> = {};
+  // foreshortening gate: session max 2D length per `${side}:${segment}`, excluded readings per check
+  private segRef = new Map<string, number>();
+  private excluded: number[];
+  private fsFrames = 0;
 
   // reps
   private repState: 'top' | 'down' = 'top';
   private repStart = 0; private lastTop = 0; private topPeak = -Infinity;
-  private extreme = Infinity; private extremeT = 0; private extremeSnap: Record<string, number> = {};
+  private extreme = Infinity; private extremeT = 0; private extremeSnap: Record<string, number> = {}; private extremeFs = new Set<string>();
   private repActive: CheckAcc[] = [];
   private atTop = true;
   private descending = false;
@@ -250,7 +270,11 @@ export class MotionSession {
   // events
   private events: EventRecord[] = [];
   private groundY = NaN; private airborneSince = NaN; private lastEventT = -1e9;
+  /** Grounded [t, lower-toe y] samples from the last 0.5 s; their median is the ground line. */
+  private groundBuf: Array<[number, number]> = [];
   private speedPeak = 0; private speedPeakFrame = -1; private speedPeakWrist = L.wrist;
+  /** Running sum of toe−heel and nose−mid-shoulder x: its sign is the direction the athlete faces (+x or −x). */
+  private facingSum = 0;
   private airSamples: Array<[number, number]> = []; private bodyHMax = 0;
 
   private cue: string | null = null; private cueT = 0;
@@ -262,6 +286,7 @@ export class MotionSession {
     this.def = def;
     this.weightKg = opts.weightKg ?? null;
     this.acc = def.checks.map(() => ({ good: 0, ok: 0, bad: 0, sum: 0, n: 0 }));
+    this.excluded = def.checks.map(() => 0);
   }
 
   /** Feed one frame. `aspect` = videoWidth / videoHeight. */
@@ -285,25 +310,28 @@ export class MotionSession {
     const angles: Record<string, AngleReading> = {};
     const values: Record<string, number> = {};
     const raw: Record<string, number> = {};
+    let fs = new Set<string>();
     if (tracking) {
       this.tracked++;
+      fs = this.foreshortened(pts);
       for (const a of this.def.angles) {
         const r = this.measure(a, pts);
         const rr = this.measure(a, rawPts);
         if (!Number.isFinite(r.value)) continue;
-        angles[a.id] = { ...r, zone: null };
+        angles[a.id] = { ...r, zone: null, ...(fs.has(a.id) ? { foreshortened: true } : {}) };
         values[a.id] = r.value;
         raw[a.id] = rr.value;
         if (r.left !== undefined && r.right !== undefined) (this.sym[a.id] ??= []).push(Math.abs(r.left - r.right));
       }
-      this.history.push({ t, a: values, raw, pts, rp: rawPts });
+      if (this.def.checks.some((c) => fs.has(c.angle))) this.fsFrames++;
+      this.history.push({ t, a: values, raw, pts, rp: rawPts, fs });
       this.lastTrackedT = t;
     } else if (t - this.lastTrackedT > 300) this.holdRun = 0; // tracking lost > 300 ms breaks the continuous hold
 
     // Phase for check applicability
     let phase: LiveState['phase'] = 'idle';
     let progress = 0;
-    if (tracking && this.def.mode === 'reps' && this.def.reps) progress = this.stepReps(t, values);
+    if (tracking && this.def.mode === 'reps' && this.def.reps) progress = this.stepReps(t, values, fs);
     if (this.def.mode === 'reps') phase = this.repState === 'down' ? 'active' : 'start';
     if (this.def.mode === 'event') phase = 'active';
 
@@ -319,6 +347,10 @@ export class MotionSession {
         (c.when === 'release' && this.def.mode === 'event');
       if (!applies) return null;
       if (this.def.mode === 'event' && (c.when === 'release' || c.when === 'bottom')) return t - this.eventZonesT < 2500 ? this.eventZones[i] ?? null : null;
+      // Foreshortened limb: the 2D angle is not the anatomical one — grey it out and keep it out of the stats.
+      // Frame-level stats for continuous checks; bottom/release are scored per rep/event.
+      const frameStat = c.when !== 'bottom' && c.when !== 'release' && !(c.when === 'hold' && this.def.mode !== 'hold');
+      if (fs.has(c.angle)) { if (frameStat) this.excluded[i]!++; return null; }
       let z = zoneOf(v, c.good, c.ok);
       if (c.when === 'bottom' && this.def.mode === 'reps') {
         // Depth feedback: stay green once reached; amber while still descending; else judge the rep's extreme.
@@ -326,8 +358,7 @@ export class MotionSession {
         const ze = ext === undefined ? z : zoneOf(ext, c.good, c.ok);
         z = ze === 'good' ? 'good' : this.descending ? (z === 'bad' ? 'ok' : z) : ze;
       }
-      // Frame-level stats for continuous checks; bottom/release are scored per rep/event.
-      if (c.when !== 'bottom' && c.when !== 'release' && !(c.when === 'hold' && this.def.mode !== 'hold')) {
+      if (frameStat) {
         const s = this.acc[i]!; s[z]++; s.sum += v; s.n++;
         if (this.repState === 'down' && this.repActive[i]) { this.repActive[i][z]++; this.repActive[i].n++; }
       }
@@ -336,10 +367,13 @@ export class MotionSession {
 
     if (tracking && this.def.mode === 'hold') {
       const holdIdx = this.def.checks.map((c, i) => (c.when === 'hold' ? i : -1)).filter((i) => i >= 0);
-      const holding = holdIdx.length > 0 && holdIdx.every((i) => checkZones[i] !== null && checkZones[i] !== 'bad');
+      const gated = (i: number) => fs.has(this.def.checks[i]!.angle);
+      const holding = holdIdx.length > 0 && holdIdx.every((i) => gated(i) || (checkZones[i] !== null && checkZones[i] !== 'bad'));
       // dt from the previous frame of any kind, capped at 100 ms, so untracked gaps never count as hold time.
       const dt = Number.isFinite(prevT) ? Math.min(100, Math.max(0, t - prevT)) : 0;
-      if (holding) { this.holdMs += dt; this.holdRun += dt; this.bestHold = Math.max(this.bestHold, this.holdRun); phase = 'hold'; }
+      // A foreshortened hold check can't be verified: pause the clock (no time added) without breaking the run.
+      if (holding && holdIdx.some(gated)) phase = 'hold';
+      else if (holding) { this.holdMs += dt; this.holdRun += dt; this.bestHold = Math.max(this.bestHold, this.holdRun); phase = 'hold'; }
       else { this.holdRun = 0; phase = 'start'; }
       if (this.def.hold) progress = Math.min(1, this.holdRun / (this.def.hold.targetSec * 1000));
     }
@@ -412,6 +446,36 @@ export class MotionSession {
 
   private sideMap(s: 'left' | 'right'): SideMap { return s === 'left' ? L : R; }
 
+  /**
+   * Angle ids whose segments are foreshortened this frame: 2D length < FILTER.minSegmentRatio × the session's longest
+   * 2D length of that segment (≈ its true length when it was parallel to the image plane).
+   * ponytail: session max assumes a fixed camera distance and trusts one clean side-on frame; use a decaying p95 if
+   * athletes walk toward the camera.
+   */
+  private foreshortened(p: P[]): Set<string> {
+    const short = new Set<string>();
+    for (const side of ['left', 'right'] as const) {
+      for (const seg of Object.keys(SEGMENTS) as SegKey[]) {
+        const [i, j] = SEGMENTS[seg](this.sideMap(side));
+        const len = Math.hypot(p[i]!.x - p[j]!.x, p[i]!.y - p[j]!.y);
+        const key = `${side}:${seg}`;
+        const ref = Math.max(this.segRef.get(key) ?? 0, len);
+        this.segRef.set(key, ref);
+        if (len < FILTER.minSegmentRatio * ref) short.add(key);
+      }
+    }
+    const out = new Set<string>();
+    if (!short.size) return out;
+    for (const a of this.def.angles) {
+      const segs: SegKey[] =
+        a.kind === 'joint' ? JOINT_SEGS[a.joint] :
+        a.kind === 'segment' && a.segment !== 'shoulders' && a.segment !== 'hips' ? [a.segment] : [];
+      const sides = 'side' in a && a.side === 'both' ? ['left', 'right'] : 'side' in a && (a.side === 'left' || a.side === 'right') ? [a.side] : [this.side];
+      if (segs.some((g) => sides.some((sd) => short.has(`${sd}:${g}`)))) out.add(a.id);
+    }
+    return out;
+  }
+
   /** Landmark chains an angle touches (for colouring). */
   private chains(a: AngleDef): number[][] {
     const sides: Array<'left' | 'right'> =
@@ -465,7 +529,7 @@ export class MotionSession {
   }
 
   // Reps — Schmitt trigger on the driver. `s` flips 'low' rules so one code path serves both.
-  private stepReps(t: number, v: Record<string, number>): number {
+  private stepReps(t: number, v: Record<string, number>, fs: Set<string>): number {
     const rule = this.def.reps!;
     const raw = v[rule.driver];
     if (raw === undefined) return 0;
@@ -484,12 +548,12 @@ export class MotionSession {
         const xs = (k: number) => { const d = h[k]?.a[rule.driver]; return d === undefined ? NaN : s * d; };
         while (j > 0 && xs(j - 1) > xs(j)) j--;
         this.repStart = h.length ? h[j]!.t : this.lastTop || t;
-        this.extreme = x; this.extremeT = t; this.extremeSnap = { ...v };
+        this.extreme = x; this.extremeT = t; this.extremeSnap = { ...v }; this.extremeFs = fs;
         this.repActive = this.def.checks.map(() => ({ good: 0, ok: 0, bad: 0, sum: 0, n: 0 }));
       }
       return 0;
     }
-    if (x < this.extreme) { this.extreme = x; this.extremeT = t; this.extremeSnap = { ...v }; }
+    if (x < this.extreme) { this.extreme = x; this.extremeT = t; this.extremeSnap = { ...v }; this.extremeFs = fs; }
     if (x > exit) this.completeRep(t, s, target);
     const span = this.topPeak - target;
     return span > 0 ? Math.max(0, Math.min(1, (this.topPeak - this.extreme) / span)) : 0;
@@ -509,6 +573,7 @@ export class MotionSession {
       if (c.when === 'bottom') {
         const val = this.extremeSnap[c.angle];
         if (val === undefined) return;
+        if (this.extremeFs.has(c.angle)) { this.excluded[i]!++; return; }
         const z = zoneOf(val, c.good, c.ok);
         const a = this.acc[i]!; a[z]++; a.sum += val; a.n++;
         score += w * W[z]; wsum += w;
@@ -552,6 +617,8 @@ export class MotionSession {
     const bodyH = this.bodyHMax / 0.8 || 1;
 
     if (ev.trigger === 'wristPeak') {
+      // Facing: toes point forward of the heels and the nose sits forward of the shoulders (side view).
+      this.facingSum += p[L.foot]!.x - p[L.heel]!.x + p[R.foot]!.x - p[R.heel]!.x + p[NOSE]!.x - (p[L.shoulder]!.x + p[R.shoulder]!.x) / 2;
       if (n < 3) return;
       // Raw landmarks: the adaptive filter lags x and y differently at speed, which bends the release direction.
       const a = h[n - 3]!.rp, b = h[n - 1]!.rp, dt = (h[n - 1]!.t - h[n - 3]!.t) / 1000;
@@ -565,8 +632,13 @@ export class MotionSession {
         const k = this.speedPeakFrame;
         const w = this.speedPeakWrist; // the wrist that peaked, not whichever is faster at confirmation
         const pa = h[Math.max(0, k - 1)]!.rp[w]!, pb = h[Math.min(n - 1, k + 1)]!.rp[w]!;
-        const ang = deg(Math.atan2(pa.y - pb.y, Math.abs(pb.x - pa.x)));
-        this.recordEvent('release', h[k]!.t, h[k]!.a, ang, this.speedPeak);
+        const facing = Math.sign(this.facingSum), dx = pb.x - pa.x;
+        // A release moves the hand toward the target: a wind-up or recovery swing (wrist moving backward) is not one.
+        // Facing unknown (front view) → fall back to |dx|.
+        if (!facing || facing * dx > 0) {
+          const ang = deg(Math.atan2(pa.y - pb.y, facing ? facing * dx : Math.abs(dx)));
+          this.recordEvent('release', h[k]!.t, h[k]!, ang, this.speedPeak);
+        }
         this.speedPeak = 0;
       }
       if (sp < 0.5) this.speedPeak = 0;
@@ -578,12 +650,24 @@ export class MotionSession {
     const legLen = Math.abs(toeY - hipY) || 0.3;
 
     if (ev.trigger === 'jump') {
-      // Ground = slowly-tracked lowest toe position while grounded.
-      if (Number.isNaN(this.groundY)) this.groundY = toeY;
+      // Ground = median lower-toe y over the last 0.5 s of grounded frames, re-evaluated every grounded frame, so
+      // walking or camera drift between jumps is followed and the rising toe-roll frames before take-off can't bias it.
+      const grounded = Number.isNaN(this.airborneSince);
+      if (grounded) {
+        while (this.groundBuf.length && this.groundBuf[0]![0] < t - 500) this.groundBuf.shift();
+        this.groundY = this.groundBuf.length ? median(this.groundBuf.map((g) => g[1])) : toeY;
+      } else if (t - this.airborneSince > 1200) {
+        // Longer than any real flight: the ground line moved (athlete stepped back), not a jump. Re-baseline on the
+        // last 0.5 s of toe positions and resume.
+        this.airborneSince = NaN;
+        this.groundBuf = h.filter((f) => f.t >= t - 500).map((f) => [f.t, Math.max(f.pts[L.foot]!.y, f.pts[R.foot]!.y)]);
+        this.groundY = median(this.groundBuf.map((g) => g[1]));
+        return;
+      }
       const up = this.groundY - toeY;
       const air = up > 0.08 * legLen;
-      if (!air && Number.isNaN(this.airborneSince)) this.groundY += 0.1 * (toeY - this.groundY);
-      if (air && Number.isNaN(this.airborneSince)) { this.airborneSince = t; this.airSamples = []; }
+      if (!air && grounded) this.groundBuf.push([t, toeY]);
+      if (air && grounded) { this.airborneSince = t; this.airSamples = []; }
       const rawUp = this.groundY - Math.max(h[n - 1]!.rp[L.foot]!.y, h[n - 1]!.rp[R.foot]!.y);
       if (air && rawUp > 0.08 * legLen) this.airSamples.push([t, rawUp]);
       if (!air && !Number.isNaN(this.airborneSince)) {
@@ -601,7 +685,7 @@ export class MotionSession {
           // Raw landmarks, as in the throw path: filter lag bends the take-off direction.
           const a = hp(h[i0]!.rp), b = hp(h[Math.min(h.length - 1, k + 1)]!.rp);
           const ang = deg(Math.atan2(a.y - b.y, Math.abs(b.x - a.x)));
-          const rec = this.recordEvent('jump', takeoff, h[Math.max(0, k)]!.a, ang);
+          const rec = this.recordEvent('jump', takeoff, h[Math.max(0, k)]!, ang);
           rec.flightMs = flight;
           rec.jumpHeightCm = (9.81 * (flight / 1000) ** 2 / 8) * 100;
         }
@@ -616,10 +700,11 @@ export class MotionSession {
     const m = hy(mid.pts);
     const isMin = [n - 5, n - 4, n - 2, n - 1].every((i) => hy(h[i]!.pts) >= m);
     const recent = h.slice(Math.max(0, n - 45)).map((f) => hy(f.pts));
-    if (isMin && Math.max(...recent) - m > 0.1 * legLen && mid.t - this.lastEventT > 1000) this.recordEvent('apex', mid.t, mid.a);
+    if (isMin && Math.max(...recent) - m > 0.1 * legLen && mid.t - this.lastEventT > 1000) this.recordEvent('apex', mid.t, mid);
   }
 
-  private recordEvent(kind: EventRecord['kind'], tAbs: number, at: Record<string, number>, releaseAngle?: number, peakSpeed?: number): EventRecord {
+  private recordEvent(kind: EventRecord['kind'], tAbs: number, atFrame: Frame, releaseAngle?: number, peakSpeed?: number): EventRecord {
+    const at = atFrame.a;
     this.lastEventT = tAbs;
     const faults: string[] = [];
     let wsum = 0, score = 0;
@@ -628,15 +713,19 @@ export class MotionSession {
     this.eventZonesT = this.lastMs;
     // Deepest countermovement = frame of minimum knee (else hip) angle in the window.
     const depthId = (this.def.angles.find((a) => a.kind === 'joint' && a.joint === 'knee') ?? this.def.angles.find((a) => a.kind === 'joint' && a.joint === 'hip'))?.id;
-    let deepest: Record<string, number> | null = null;
-    if (depthId) for (const f of win) if (f.a[depthId] !== undefined && (!deepest || f.a[depthId]! < deepest[depthId]!)) deepest = f.a;
+    let deepest: Frame | null = null;
+    if (depthId) for (const f of win) if (f.a[depthId] !== undefined && !f.fs.has(depthId) && (!deepest || f.a[depthId]! < deepest.a[depthId]!)) deepest = f;
     this.def.checks.forEach((c, i) => {
       let val: number | undefined;
-      if (c.when === 'release') val = at[c.angle];
-      else if (c.when === 'bottom') {
-        if (deepest) val = deepest[c.angle];
-        else {
-          const vals = win.map((f) => f.a[c.angle]).filter((x): x is number => x !== undefined);
+      if (c.when === 'release') {
+        if (atFrame.fs.has(c.angle)) { this.excluded[i]!++; return; }
+        val = at[c.angle];
+      } else if (c.when === 'bottom') {
+        if (deepest) {
+          if (deepest.fs.has(c.angle)) { this.excluded[i]!++; return; }
+          val = deepest.a[c.angle];
+        } else {
+          const vals = win.filter((f) => !f.fs.has(c.angle)).map((f) => f.a[c.angle]).filter((x): x is number => x !== undefined);
           if (vals.length) val = Math.min(...vals);
         }
       } else return;
@@ -717,6 +806,7 @@ export class MotionSession {
         pctOk: n ? (100 * a.ok) / n : 0,
         pctBad: n ? (100 * a.bad) / n : 0,
         mean: a.n ? a.sum / a.n : NaN,
+        excluded: this.excluded[i]!,
       };
     });
 
@@ -786,6 +876,7 @@ export class MotionSession {
       frames: this.frames,
       fps: dur > 0 ? this.frames / dur : 0,
       trackedPct: this.frames ? (100 * this.tracked) / this.frames : 0,
+      foreshortenedPct: this.tracked ? (100 * this.fsFrames) / this.tracked : 0,
       reps,
       hold,
       events: def.mode === 'event' ? this.events : undefined,
@@ -812,6 +903,8 @@ export function buildInsights(def: ExerciseDef, r: SessionReport): CoachInsight[
   const f1 = (x: number) => (Math.round(x * 10) / 10).toString();
 
   if (r.trackedPct < 70) out.push({ level: 'warn', title: 'Camera could not see you clearly', detail: `Body was tracked in ${Math.round(r.trackedPct)} % of frames. Place the camera ${def.camera === 'side' ? 'side-on' : 'facing you'} at hip height, 2–3 m away, with your whole body and good light.` });
+
+  if (r.foreshortenedPct > 20) out.push({ level: 'warn', title: `Limbs were turned away from the camera in ${Math.round(r.foreshortenedPct)} % of frames`, detail: `Those readings were greyed out and left out of the score: a 2D angle is only valid when the limb moves parallel to the screen. ${def.camera === 'side' ? 'Film exactly side-on, camera perpendicular to the direction you face' : 'Face the camera squarely and keep the movement in that plane'}, 2–3 m away at hip height.` });
 
   const rp = r.reps;
   if (rp) {
@@ -879,6 +972,10 @@ function parabolaRoots(pts: Array<[number, number]>): [number, number] | null {
   return [t0 + 1000 * Math.min(r1, r2), t0 + 1000 * Math.max(r1, r2)];
 }
 
+function median(xs: number[]): number {
+  const s = [...xs].sort((a, b) => a - b), m = s.length >> 1;
+  return s.length % 2 ? s[m]! : (s[m - 1]! + s[m]!) / 2;
+}
 function mean(xs: number[]): number { return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0; }
 function sd(xs: number[]): number {
   if (xs.length < 2) return 0;
