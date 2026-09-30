@@ -2,10 +2,14 @@
  * Local-only persistence: profile + session history live on this device.
  * No account, no network (email auth removed for now — see App.tsx).
  */
-import type { SessionReport } from '@fitzen/engines';
+import type { ForensicsReport, IntegrityReport, SessionReport } from '@fitzen/engines';
 
 export interface Profile { name: string; weightKg: number | null; heightCm: number | null; age: number | null; model: 'lite' | 'full' | 'heavy'; voice: boolean }
-export interface SavedSession { id: string; report: SessionReport; source: 'camera' | 'video' | 'demo' }
+export interface SavedSession {
+  id: string; report: SessionReport; source: 'camera' | 'video' | 'demo';
+  /** Uploaded videos only: physics plausibility of the raw landmarks, and container metadata forensics. */
+  integrity?: IntegrityReport; forensics?: ForensicsReport;
+}
 
 const PROFILE = 'fitzen.profile';
 const HISTORY = 'fitzen.history';

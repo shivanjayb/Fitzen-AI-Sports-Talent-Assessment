@@ -48,4 +48,7 @@ export * from './exercise/simulateExercises.js';
 export * from './motion/types.js';
 export * from './motion/engine.js';
 export { simulateExercise, type PuppetOptions } from './motion/puppet.js';
+export * from './motion/forensics.js';
 export * from './motion/catalog/index.js';
+export * from './motion/integrity.js';
+export * from './motion/filtfilt.js';

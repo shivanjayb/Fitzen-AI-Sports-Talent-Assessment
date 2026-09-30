@@ -30,7 +30,7 @@ import {
 } from './uncertainty.js';
 
 /** Nose height as a fraction of full stature (anthropometric average). */
-const NOSE_STATURE_RATIO = 0.93;
+export const NOSE_STATURE_RATIO = 0.93;
 
 /** Minimum frames required for a meaningful analysis. */
 const MIN_FRAMES = 24;

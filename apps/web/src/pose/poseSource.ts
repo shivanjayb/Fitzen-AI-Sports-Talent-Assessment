@@ -152,11 +152,16 @@ export class VideoFilePoseSource implements PoseSource {
   private video: HTMLVideoElement | null = null;
 
   private model: PoseModel;
+  private nativeFps: number | undefined;
+  /** Every detected frame, in order (raw landmarks, no smoothing) — for offline filtering and integrity checks. */
+  readonly frames: PoseFrame[] = [];
 
-  constructor(callbacks: PoseSourceCallbacks, file: File, model: PoseModel = 'lite') {
+  /** `nativeFps`: the container's frame rate (inspectContainer → metadata.nominalFps); 30 when unknown. */
+  constructor(callbacks: PoseSourceCallbacks, file: File, model: PoseModel = 'lite', nativeFps?: number) {
     this.callbacks = callbacks;
     this.file = file;
     this.model = model;
+    this.nativeFps = nativeFps;
   }
 
   async start(video: HTMLVideoElement | null): Promise<void> {
@@ -195,45 +200,62 @@ export class VideoFilePoseSource implements PoseSource {
       return;
     }
 
-    // Seek-based decoding: step the timeline at a fixed 30 fps and run the
-    // landmarker on each decoded frame. Unlike realtime playback this is
-    // deterministic, immune to background-tab/power-saving pauses, and works
-    // at full quality even on devices too slow to keep up in real time.
-    const SAMPLE_FPS = 30;
+    // Seek-based decoding: step the timeline once per native frame and run the landmarker on each decoded frame.
+    // Unlike realtime playback this is deterministic, immune to background-tab/power-saving pauses, and works at
+    // full quality on devices too slow to keep up in real time. Sampling at the container's own rate uses every
+    // real frame: at a fixed 30 fps a 60 fps clip loses half its frames and a 25 fps clip gets duplicates, and
+    // flight-time jump height quantises to 1/fps. Above MAX_FPS we take every k-th frame so samples still land
+    // on real frames. MAX_FPS 120: a 240 fps slow-mo clip would otherwise cost ~2× the landmarker time for
+    // little gain (flight-time quantisation 1/120 s ≈ 8 ms ≈ 1 cm at 40 cm jumps, h = g·t²/8 → dh = g·t·dt/4).
+    const MAX_FPS = 120;
+    const native = this.nativeFps && this.nativeFps >= 1 && this.nativeFps <= 1000 ? this.nativeFps : 30;
+    const SAMPLE_FPS = native / Math.ceil(native / MAX_FPS);
     const step = 1 / SAMPLE_FPS;
     const duration = video.duration;
+    // requestVideoFrameCallback reports the presented frame's exact mediaTime (WICG video-rvfc). Without it
+    // we fall back to currentTime (the seek target), which is off by up to half a frame.
+    const rvfc = typeof video.requestVideoFrameCallback === 'function';
 
     const seekTo = (t: number) =>
-      new Promise<boolean>((resolve) => {
+      new Promise<number | null>((resolve) => {
+        let done = false;
+        const finish = (v: number | null) => { if (!done) { done = true; video.removeEventListener('seeked', onSeeked); resolve(v); } };
+        // After 'seeked' the new frame is composited and rvfc fires with its mediaTime. If it does not fire within
+        // 250 ms (e.g. the seek landed on the frame already shown), fall back to currentTime, i.e. the seek target.
         const onSeeked = () => {
-          video.removeEventListener('seeked', onSeeked);
-          resolve(true);
+          if (!rvfc) { finish(video.currentTime); return; }
+          video.requestVideoFrameCallback((_now, meta) => finish(meta.mediaTime));
+          window.setTimeout(() => finish(video.currentTime), 250);
         };
         video.addEventListener('seeked', onSeeked);
-        window.setTimeout(() => {
-          video.removeEventListener('seeked', onSeeked);
-          resolve(video.readyState >= 2);
-        }, 2000);
+        window.setTimeout(() => finish(video.readyState >= 2 ? video.currentTime : null), 2000);
         video.currentTime = Math.min(t, Math.max(0, duration - 0.001));
       });
 
     let lastPct = -1;
-    for (let t = 0; t < duration; t += step) {
+    let lastMs = -Infinity;
+    // Seek to the middle of each frame interval so the decoder lands unambiguously on one frame.
+    for (let t = step / 2; t < duration; t += step) {
       if (this.stopped || !this.landmarker) return;
-      const ok = await seekTo(t);
-      if (!ok || video.videoWidth === 0) continue;
-      const result = this.landmarker.detectForVideo(video, Math.round(t * 1000));
+      const mediaTime = await seekTo(t);
+      if (mediaTime === null || video.videoWidth === 0) continue;
+      const ms = mediaTime * 1000;
+      if (ms <= lastMs) continue; // rvfc says this is a frame we already analysed (VFR clip, sub-frame step)
+      lastMs = ms;
+      const result = this.landmarker.detectForVideo(video, ms);
       const lm = result.landmarks?.[0];
       if (lm && lm.length >= 33) {
-        this.callbacks.onFrame({
-          timestampMs: t * 1000,
+        const frame: PoseFrame = {
+          timestampMs: ms,
           landmarks: lm.map((p) => ({
             x: p.x,
             y: p.y,
             z: p.z,
             visibility: p.visibility ?? 0.9,
           })),
-        });
+        };
+        this.frames.push(frame);
+        this.callbacks.onFrame(frame);
       }
       const pct = Math.floor((t / duration) * 100);
       if (pct !== lastPct && pct % 10 === 0) {

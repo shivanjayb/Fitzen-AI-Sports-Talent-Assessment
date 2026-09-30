@@ -321,6 +321,7 @@ html { caret-color: var(--accent); scrollbar-color: var(--glass-strong) transpar
 .insight.good .ic { background: color-mix(in srgb, var(--good) 20%, transparent); color: var(--good); }
 .insight.warn .ic { background: color-mix(in srgb, var(--ok) 20%, transparent); color: var(--ok); }
 .insight.bad .ic { background: color-mix(in srgb, var(--bad) 20%, transparent); color: var(--bad); }
+.insight.info .ic { background: var(--glass-strong); color: var(--text-2); }
 .insight b { display: block; margin-bottom: 3px; }
 .insight p { margin: 0; color: var(--text-2); font-size: 0.92rem; line-height: 1.45; }
 .chart { width: 100%; height: auto; display: block; }

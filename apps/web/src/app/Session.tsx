@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { MotionSession, exerciseById, simulateExercise, type LiveState, type PoseFrame } from '@fitzen/engines';
+import { MotionSession, analyseIntegrity, exerciseById, filtfiltLandmarks, inspectContainer, simulateExercise, type ForensicsReport, type LiveState, type PoseFrame } from '@fitzen/engines';
 import { CameraPoseSource, VideoFilePoseSource, type PoseSource } from '../pose/poseSource';
 import { playRepCompletedSound } from '../lib/audioFeedback';
 import { drawOverlay } from './overlay';
@@ -81,6 +81,7 @@ export default function Session() {
   const stageRef = useRef<Stage>('loading');
   const okSince = useRef<number | null>(null);
   const prev = useRef({ reps: 0, events: 0, cue: '' as string | null });
+  const forensics = useRef<ForensicsReport | undefined>(undefined);
 
   const [stage, setStageState] = useState<Stage>('loading');
   const [status, setStatus] = useState('Starting…');
@@ -96,15 +97,27 @@ export default function Session() {
   const mirror = src === 'camera' && facing === 'user';
 
   const finish = useCallback(() => {
+    const v = video.current;
+    const aspect = (v?.videoWidth || 16) / (v?.videoHeight || 9);
     source.current?.stop();
     const s = session.current;
-    if (!s) { nav(-1); return; }
-    const report = s.finish();
+    if (!s || !def) { nav(-1); return; }
+    let report = s.finish();
+    let extra = {};
+    if (src === 'video' && source.current instanceof VideoFilePoseSource) {
+      // Offline: the live pass above was only a preview. Re-analyse the whole clip with zero-phase filtering
+      // (no One Euro lag) and check the RAW landmarks for physical plausibility.
+      const raw = source.current.frames;
+      const offline = new MotionSession(def, { weightKg: profile.weightKg ?? undefined, smoothing: 'none' });
+      for (const f of filtfiltLandmarks(raw)) offline.push(f, aspect);
+      report = offline.finish();
+      extra = { integrity: analyseIntegrity(raw, { aspect, statureCm: profile.heightCm ?? undefined, mode: def.mode }), forensics: forensics.current };
+    }
     const sid = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
-    saveSession({ id: sid, report, source: src });
+    saveSession({ id: sid, report, source: src, ...extra });
     session.current = null;
     nav(`/results/${sid}`, { replace: true });
-  }, [nav, src]);
+  }, [nav, src, def, profile.weightKg, profile.heightCm]);
 
   const beginActive = useCallback(() => {
     if (!def) return;
@@ -169,9 +182,20 @@ export default function Session() {
     };
     if (src === 'camera') source.current = new CameraPoseSource(cb, { facingMode: facing, model: profile.model });
     else if (src === 'video') {
-      if (!pendingVideo) { setError('No video selected.'); setStage('error'); return; }
-      source.current = new VideoFilePoseSource(cb, pendingVideo, profile.model);
-      beginActive();
+      const file = pendingVideo;
+      if (!file) { setError('No video selected.'); setStage('error'); return; }
+      let cancelled = false;
+      setStatus('Reading video file…');
+      void (async () => {
+        // Read the bytes once for container forensics; its frame rate drives the sampling rate.
+        try { forensics.current = inspectContainer(await file.arrayBuffer(), { fileName: file.name, lastModified: file.lastModified }); }
+        catch { forensics.current = undefined; } // unreadable/huge file: analyse anyway, the report just has no container facts
+        if (cancelled) return;
+        source.current = new VideoFilePoseSource(cb, file, profile.model, forensics.current?.metadata.nominalFps);
+        beginActive();
+        void source.current.start(video.current);
+      })();
+      return () => { cancelled = true; source.current?.stop(); };
     } else {
       setStage('countdown');
       return () => source.current?.stop();

@@ -1,6 +1,6 @@
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { exerciseById, type SessionReport } from '@fitzen/engines';
-import { deleteSession, getSession, glow } from './store';
+import { deleteSession, getSession, glow, type SavedSession } from './store';
 import { IconAlert, IconBack, IconCheck, IconFolder, IconShare, IconStop } from './icons';
 
 const f = (x: number | undefined, d = 1) => (x === undefined || !Number.isFinite(x) ? '—' : x.toFixed(d));
@@ -53,12 +53,67 @@ function RepChart({ r }: { r: SessionReport }) {
   );
 }
 
+// Integrity 'fail' / forensic 'strong' → red, 'warn' → amber, 'info' → neutral. Every item is a reason to look, not proof.
+const LEVEL = { info: 'info', warn: 'warn', fail: 'bad', strong: 'bad' } as const;
+const evidenceText = (e: Record<string, number>) =>
+  Object.entries(e).map(([k, v]) => `${k} ${Number.isInteger(v) ? v : v.toFixed(3)}`).join(' · ');
+
+/** Integrity verdict warn/fail, or any strong forensic flag (e.g. C2PA says AI-generated), earns the top banner. */
+function needsBanner(s: SavedSession): 'warn' | 'bad' | null {
+  if (s.integrity?.verdict === 'fail' || s.forensics?.flags.some((x) => x.severity === 'strong')) return 'bad';
+  return s.integrity?.verdict === 'warn' ? 'warn' : null;
+}
+
+function Authenticity({ s }: { s: SavedSession }) {
+  if (s.source === 'camera') return <div className="insight good"><div className="ic"><IconCheck /></div><div><b>Recorded live on this device</b><p>Frames came straight from this device's camera during the session, so no upload checks apply.</p></div></div>;
+  if (s.source !== 'video') return null;
+  const { integrity: ig, forensics: fx } = s;
+  if (!ig && !fx) return <div className="insight info"><div className="ic"><IconAlert /></div><div><b>No authenticity report</b><p>This clip was analysed before authenticity checks were added.</p></div></div>;
+  const md = fx?.metadata;
+  const aiC2pa = fx?.flags.some((x) => x.code === 'c2pa-ai-generated');
+  const flags = [
+    ...(ig?.flags ?? []).map((x) => ({ ...x, src: 'Motion physics', ev: evidenceText(x.evidence) })),
+    ...(fx?.flags ?? []).map((x) => ({ ...x, src: 'File metadata', ev: x.evidence })),
+  ];
+  return (
+    <section className="glass panel">
+      {ig && (
+        <div className="row between" style={{ marginBottom: 10 }}>
+          <b>Motion plausibility</b>
+          <span className="tag" style={{ color: ig.verdict === 'ok' ? 'var(--good)' : ig.verdict === 'warn' ? 'var(--ok)' : 'var(--bad)' }}>
+            {ig.verdict === 'ok' ? 'No concerns found' : ig.verdict === 'warn' ? 'Worth a look' : 'Strong concerns'} · {ig.score}/100
+          </span>
+        </div>
+      )}
+      <div className="kv" style={{ marginBottom: 12 }}>
+        <div><span>Frame rate</span><b className="num">{md?.nominalFps ? `${f(md.nominalFps, 2)} fps` : '—'}</b><small>{md?.vfr ? 'variable frame rate' : md?.nominalFps ? 'constant' : 'not in container'}{ig?.metrics.fps ? ` · analysed ${f(ig.metrics.fps, 1)} fps` : ''}</small></div>
+        <div><span>Encoder</span><b style={{ fontSize: '.9rem' }}>{md?.encoderStrings.length ? md.encoderStrings.slice(0, 3).join(', ') : 'none written'}</b><small>{fx?.format.toUpperCase() ?? '—'}{md?.majorBrand ? ` · brand ${md.majorBrand}` : ''}</small></div>
+        <div><span>C2PA content credentials</span><b>{!md ? '—' : aiC2pa ? 'Says AI-generated' : md.c2pa ? 'Present' : 'None'}</b><small>{md?.c2pa ? 'signature not verified here' : 'most phone clips have none'}</small></div>
+        <div><span>Created</span><b className="num" style={{ fontSize: '.9rem' }}>{md?.creationTime ? new Date(md.creationTime).toLocaleString() : '—'}</b><small>container claim, easily edited</small></div>
+      </div>
+      <div className="list">
+        {flags.length ? flags.map((x, k) => (
+          <div key={k} className={`insight ${LEVEL[x.severity]}`}>
+            <div className="ic">{x.severity === 'info' ? <IconCheck /> : x.severity === 'warn' ? <IconAlert /> : <IconStop />}</div>
+            <div><b>{x.message}</b><p className="faint" style={{ fontSize: '.8rem' }}>{x.src} · {x.code}{x.ev ? ` · ${x.ev}` : ''}</p></div>
+          </div>
+        )) : <div className="insight good"><div className="ic"><IconCheck /></div><div><b>No flags raised</b><p>Nothing unusual in the motion physics or file metadata.</p></div></div>}
+      </div>
+      <p className="faint" style={{ fontSize: '.78rem', marginTop: 12, lineHeight: 1.5 }}>
+        These are warnings, not verdicts. Metadata can be stripped or forged, and tracking glitches, camera movement or
+        re-encoding by a messaging app can trip the motion checks on a genuine clip. A coach should review flagged clips.
+      </p>
+    </section>
+  );
+}
+
 export default function Results() {
   const { id = '' } = useParams();
   const nav = useNavigate();
   const saved = getSession(id);
   if (!saved) return <main className="page"><div className="empty"><div className="big"><IconFolder /></div>Session not found.<br /><br /><Link className="btn" to="/app">Back to training</Link></div></main>;
   const r = saved.report;
+  const banner = needsBanner(saved);
   const ex = exerciseById(r.exerciseId);
   const rp = r.reps;
 
@@ -84,6 +139,14 @@ export default function Results() {
           <button className="btn icon glass press" onClick={exportJson} aria-label="Export JSON"><IconShare /></button>
         </div>
       </div>
+
+      {banner && (
+        <div className={`insight ${banner}`} role="alert" style={{ marginTop: 14 }}>
+          <div className="ic">{banner === 'bad' ? <IconStop /> : <IconAlert />}</div>
+          <div><b>{banner === 'bad' ? 'This clip needs checking before the results are trusted' : 'Some checks on this clip look unusual'}</b>
+            <p>See Authenticity below for each reason. These are warnings, not proof the clip was altered.</p></div>
+        </div>
+      )}
 
       <section className="glass result-hero" onPointerMove={glow}>
         <div className={`grade ${r.grade}`}>{r.grade}</div>
@@ -189,8 +252,15 @@ export default function Results() {
         </section>
       </>)}
 
+      {(saved.source === 'video' || saved.source === 'camera') && (<>
+        <h2 className="section-title">Authenticity</h2>
+        <Authenticity s={saved} />
+      </>)}
+
       <p className="faint" style={{ fontSize: '.78rem', marginTop: 24, lineHeight: 1.5 }}>
-        Method: 2D joint angles from on-device BlazePose landmarks (x scaled by frame aspect), One Euro filtered; reps by Schmitt trigger with a
+        Method: 2D joint angles from on-device BlazePose landmarks (x scaled by frame aspect), {saved.integrity || saved.forensics
+          ? 'zero-phase 6 Hz Butterworth filtered (uploaded clip, every native frame; angle noise is measured after this filter)'
+          : 'One Euro filtered'}; reps by Schmitt trigger with a
         minimum rep time; jump height h = g·t²/8 from toe-off to contact. Angle noise is the SD of raw angles about a 5-frame moving average.
         Single-camera measurements are screening estimates, not clinical measurements.
       </p>

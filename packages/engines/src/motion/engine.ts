@@ -281,10 +281,13 @@ export class MotionSession {
   /** Zones judged at the last event, shown briefly on the skeleton. */
   private eventZones: (Zone | null)[] = []; private eventZonesT = -1e9;
   private weightKg: number | null;
+  private smooth: boolean;
 
-  constructor(def: ExerciseDef, opts: { weightKg?: number } = {}) {
+  /** `smoothing: 'none'` skips the causal One Euro filter, for frames already zero-phase filtered offline (filtfiltLandmarks). */
+  constructor(def: ExerciseDef, opts: { weightKg?: number; smoothing?: 'one-euro' | 'none' } = {}) {
     this.def = def;
     this.weightKg = opts.weightKg ?? null;
+    this.smooth = opts.smoothing !== 'none';
     this.acc = def.checks.map(() => ({ good: 0, ok: 0, bad: 0, sum: 0, n: 0 }));
     this.excluded = def.checks.map(() => 0);
   }
@@ -298,6 +301,7 @@ export class MotionSession {
     this.frames++;
 
     const pts: P[] = frame.landmarks.map((lm, i) => {
+      if (!this.smooth) return { x: lm.x * aspect, y: lm.y, v: lm.visibility ?? 1 };
       let f = this.filters.get(i);
       if (!f) { f = [new OneEuro(), new OneEuro()]; this.filters.set(i, f); }
       return { x: f[0]!.filter(lm.x * aspect, t), y: f[1]!.filter(lm.y, t), v: lm.visibility ?? 1 };
