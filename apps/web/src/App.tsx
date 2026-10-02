@@ -12,6 +12,7 @@ const Session = lazy(() => import('./app/Session'));
 const Results = lazy(() => import('./app/Results'));
 const History = lazy(() => import('./app/History'));
 const Profile = lazy(() => import('./app/Profile'));
+const Progress = lazy(() => import('./app/Progress'));
 
 applyTheme(getTheme());
 
@@ -34,6 +35,7 @@ export default function App() {
             <Route path="/" element={<Landing />} />
             <Route element={<Shell />}>
               <Route path="/app" element={<Home />} />
+              <Route path="/progress" element={<Progress />} />
               <Route path="/history" element={<History />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/results/:id" element={<Results />} />

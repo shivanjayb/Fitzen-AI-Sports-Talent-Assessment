@@ -1,8 +1,12 @@
-import { Link, useNavigate, useParams } from 'react-router-dom';
-import { exerciseById, type SessionReport } from '@fitzen/engines';
-import { deleteSession, getSession, glow, type SavedSession } from './store';
+import { useState } from 'react';
+import { createPortal } from 'react-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { exerciseById, mentalReport, readiness, summarizeFuture, type MetricProjection, type ReadinessInput, type SessionReport } from '@fitzen/engines';
+import { deleteSession, getHistory, getProfile, getSession, glow, measureOf, normOf, saveReadiness, toAthlete, type SavedSession } from './store';
 import { IconAlert, IconBack, IconCheck, IconFolder, IconShare, IconStop } from './icons';
 
+const ORD = new Intl.PluralRules('en', { type: 'ordinal' });
+const ord = (x: number) => { const n = Math.round(x); return `${n}${({ one: 'st', two: 'nd', few: 'rd' } as Record<string, string>)[ORD.select(n)] ?? 'th'}`; };
 const f = (x: number | undefined, d = 1) => (x === undefined || !Number.isFinite(x) ? '—' : x.toFixed(d));
 const Z = { good: 'var(--good)', ok: 'var(--ok)', bad: 'var(--bad)' };
 
@@ -107,9 +111,121 @@ function Authenticity({ s }: { s: SavedSession }) {
   );
 }
 
+const HOOPER: Array<[keyof ReadinessInput, string, string, string]> = [
+  ['sleepQuality', 'How did you sleep last night?', 'Very well', 'Very badly'],
+  ['stress', 'How stressed do you feel?', 'Not at all', 'Very'],
+  ['fatigue', 'How tired is your body?', 'Fresh', 'Exhausted'],
+  ['soreness', 'How sore are your muscles?', 'Not sore', 'Very sore'],
+];
+const MOODS = ['Low', 'Meh', 'Okay', 'Good', 'Great'];
+
+/** Hooper & Mackinnon (1995) four items, 1–7, plus a 1–5 mood. Skippable. */
+function CheckIn({ onDone }: { onDone: (r: ReadinessInput | null) => void }) {
+  const [v, setV] = useState<Partial<ReadinessInput>>({});
+  const done = HOOPER.every(([k]) => v[k]) && v.mood;
+  const pick = (k: keyof ReadinessInput, n: number, big?: boolean) => (
+    <button key={n} className={`chip ${v[k] === n ? 'on' : ''}`} style={{ minHeight: 48, justifyContent: 'center', padding: big ? '0 6px' : 0 }} onClick={() => setV({ ...v, [k]: n })} aria-pressed={v[k] === n}>{big ? MOODS[n - 1] : n}</button>
+  );
+  return createPortal(<>
+    <div className="scrim" onClick={() => onDone(null)} />
+    <div className="sheet glass" role="dialog" aria-modal="true" aria-label="How do you feel?">
+      <h2 style={{ margin: '8px 0 2px', fontSize: '1.4rem' }}>Quick check-in</h2>
+      <p className="muted" style={{ marginTop: 0, fontSize: '.88rem' }}>Five taps. Helps Fitzen read your result and plan recovery.</p>
+      {HOOPER.map(([k, q, lo, hi]) => (
+        <div key={k} style={{ margin: '14px 0' }}>
+          <b style={{ fontSize: '.95rem' }}>{q}</b>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 6, marginTop: 8 }}>{[1, 2, 3, 4, 5, 6, 7].map((n) => pick(k, n))}</div>
+          <div className="row between faint" style={{ fontSize: '.74rem', marginTop: 4 }}><span>1 · {lo}</span><span>{hi} · 7</span></div>
+        </div>
+      ))}
+      <b style={{ fontSize: '.95rem' }}>Your mood right now</b>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6, marginTop: 8 }}>{[1, 2, 3, 4, 5].map((n) => pick('mood', n, true))}</div>
+      <div className="row" style={{ gap: 10, marginTop: 18 }}>
+        <button className="btn primary press" disabled={!done} onClick={() => onDone(v as ReadinessInput)}>Save</button>
+        <button className="btn press" onClick={() => onDone(null)}>Skip</button>
+      </div>
+    </div>
+  </>, document.body);
+}
+
+/** Two scenario bands (current habits vs following the plan) from week 0 to the last projected week. */
+export function GrowthChart({ m }: { m: MetricProjection }) {
+  const W = 640, H = 200, pad = 34;
+  const pts = [{ week: 0, current: { low: m.baseline, high: m.baseline }, plan: { low: m.baseline, high: m.baseline } }, ...m.points];
+  const all = pts.flatMap((p) => [p.current.low, p.current.high, p.plan.low, p.plan.high]);
+  const lo = Math.min(...all) - 1, hi = Math.max(...all) + 1, wMax = pts[pts.length - 1]!.week || 1;
+  const X = (w: number) => pad + (w / wMax) * (W - pad - 12);
+  const Y = (v: number) => 10 + (1 - (v - lo) / (hi - lo || 1)) * (H - pad - 10);
+  const band = (k: 'current' | 'plan') => `M${pts.map((p) => `${X(p.week)},${Y(p[k].high)}`).join('L')}L${[...pts].reverse().map((p) => `${X(p.week)},${Y(p[k].low)}`).join('L')}Z`;
+  return (
+    <svg className="chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Projected jump height ranges">
+      <path d={band('plan')} fill="var(--good)" opacity=".28" stroke="var(--good)" strokeWidth="1.5" />
+      <path d={band('current')} fill="var(--accent-2)" opacity=".3" stroke="var(--accent-2)" strokeWidth="1.5" />
+      {[lo + 1, (lo + hi) / 2, hi - 1].map((v) => <text key={v} x={2} y={Y(v) + 3}>{Math.round(v)}</text>)}
+      {pts.map((p) => <text key={p.week} x={X(p.week)} y={H - 8} textAnchor="middle">{p.week ? `${p.week} wk` : 'now'}</text>)}
+    </svg>
+  );
+}
+
+function Future({ s, onCheckIn }: { s: SavedSession; onCheckIn: () => void }) {
+  const a = toAthlete(getProfile());
+  const r = s.report;
+  const hist = getHistory().map((x) => x.report).reverse();
+  const ready = s.readiness ? readiness(s.readiness) : null;
+  const mind = mentalReport(r, ready, hist);
+  const m = measureOf(r), norm = normOf(r, a);
+  const fut = a ? summarizeFuture(a, r, hist, ready) : null;
+  const who = a ? `${a.sex === 'male' ? 'boys' : 'girls'} aged ${a.ageYears}` : '';
+  return (<>
+    <h2 className="section-title">Mind & performance</h2>
+    <section className="glass panel">
+      {ready && <div className="row between" style={{ marginBottom: 8 }}><b>Readiness</b><span className="tag">{ready.level} · Hooper {ready.hooper}/28</span></div>}
+      <p style={{ marginTop: 0 }}>{mind.summary}</p>
+      {mind.signals.map((x) => <p key={x} className="muted" style={{ margin: '4px 0', fontSize: '.9rem' }}>• {x}</p>)}
+      <div className="list" style={{ marginTop: 10 }}>{mind.tips.map((t) => <div key={t} className="insight info"><div className="ic"><IconCheck /></div><div><p style={{ margin: 0 }}>{t}</p></div></div>)}</div>
+      {mind.safety && <div className="insight warn" role="alert" style={{ marginTop: 10 }}><div className="ic"><IconAlert /></div><div><b>You are not alone</b><p>{mind.safety}</p></div></div>}
+      {!s.readiness && <button className="btn glass press no-print" style={{ marginTop: 12 }} onClick={onCheckIn}>Add how you felt</button>}
+      <p className="faint" style={{ fontSize: '.76rem', marginBottom: 0 }}>Readiness uses the Hooper index (Hooper & Mackinnon 1995); the level cut-offs are a Fitzen convention. A training tool, not a mental-health assessment.</p>
+    </section>
+
+    <h2 className="section-title">Where you stand</h2>
+    <section className="glass panel">
+      {!a ? <p className="muted" style={{ margin: 0 }}>Add age, sex, height and weight in <Link to="/profile">Profile</Link> to compare with published norms.</p>
+        : norm ? (<>
+          <div className="row between"><b>{m ? `${f(m.value, m.unit === 'reps' ? 0 : 1)} ${m.unit}` : ''}</b><span className="tag" style={{ color: 'var(--accent)' }}>{norm.band}</span></div>
+          {norm.percentile !== null && <div className="bar" style={{ marginTop: 10 }}><i style={{ width: `${norm.percentile}%`, background: 'var(--accent)' }} /></div>}
+          <p style={{ marginBottom: 4 }}>{norm.percentile !== null ? `About the ${ord(norm.percentile)} percentile` : `Band: ${norm.band}`} vs {who} — {norm.reference}{norm.n ? `, n = ${norm.n}` : ''}.</p>
+          {norm.note && <p className="faint" style={{ fontSize: '.8rem', margin: 0 }}>{norm.note}</p>}
+          <p className="faint" style={{ fontSize: '.76rem', marginBottom: 0 }}>A comparison with a published reference sample, not a ranking of real Fitzen users. Band names are Fitzen quintiles. Indian (Khelo India / Fit India) tables are not built in yet.</p>
+        </>) : <p className="muted" style={{ margin: 0 }}>No verified norm table for this test and age yet (built in: vertical/countermovement/squat jump from 13 y, push-ups 15–29 y). Indian Khelo India / Fit India tables are not built in yet.</p>}
+    </section>
+
+    <h2 className="section-title">Your future <small>estimates</small></h2>
+    {!fut ? <section className="glass panel"><p className="muted" style={{ margin: 0 }}>Complete your <Link to="/profile">Profile</Link> to get a personal plan and projection.</p></section> : (<>
+      {fut.projection.metrics.map((pm) => (
+        <section key={pm.exerciseId} className="glass panel" style={{ marginBottom: 10 }}>
+          <div className="row between"><b>Jump height (cm), estimated range</b>
+            <div className="zone-legend"><span><i style={{ background: 'var(--accent-2)' }} />Current habits</span><span><i style={{ background: 'var(--good)' }} />Follow the plan</span></div></div>
+          <GrowthChart m={pm} />
+          <p className="faint" style={{ fontSize: '.76rem', margin: 0 }}>{pm.basis}.</p>
+        </section>
+      ))}
+      <div className="list">
+        {fut.actions.map((x) => <div key={x.title} className={`insight ${x.priority >= 80 ? 'bad' : x.priority >= 60 ? 'warn' : 'info'}`}><div className="ic"><IconCheck /></div><div><b>{x.title} <span className="tag">{x.area}</span></b><p>{x.detail}</p></div></div>)}
+      </div>
+      {fut.futureScope.length > 0 && <section className="glass panel" style={{ marginTop: 10 }}><b>Future scope</b>{fut.futureScope.map((x) => <p key={x} style={{ margin: '6px 0', fontSize: '.92rem' }}>{x}</p>)}</section>}
+      <details className="faint" style={{ fontSize: '.78rem', marginTop: 10 }}><summary>How this is estimated</summary><ul>{[...fut.projection.drivers, ...fut.projection.assumptions].map((x) => <li key={x}>{x}</li>)}</ul></details>
+      <p className="faint" style={{ fontSize: '.78rem' }}>{fut.disclaimer}</p>
+    </>)}
+  </>);
+}
+
 export default function Results() {
   const { id = '' } = useParams();
   const nav = useNavigate();
+  const loc = useLocation();
+  const [, bump] = useState(0);
+  const [asking, setAsking] = useState(Boolean((loc.state as { checkin?: boolean } | null)?.checkin));
   const saved = getSession(id);
   if (!saved) return <main className="page"><div className="empty"><div className="big"><IconFolder /></div>Session not found.<br /><br /><Link className="btn" to="/app">Back to training</Link></div></main>;
   const r = saved.report;
@@ -194,6 +310,9 @@ export default function Results() {
           </div>
         )) : <div className="insight good"><div className="ic"><IconCheck /></div><div><b>Nothing to fix</b><p>All measured joints stayed in range.</p></div></div>}
       </div>
+
+      <Future s={saved} onCheckIn={() => setAsking(true)} />
+      {asking && !saved.readiness && <CheckIn onDone={(v) => { if (v) saveReadiness(id, v); setAsking(false); nav('.', { replace: true, state: null }); bump((n) => n + 1); }} />}
 
       <div className="two-col" style={{ marginTop: 14 }}>
         <section className="glass panel">

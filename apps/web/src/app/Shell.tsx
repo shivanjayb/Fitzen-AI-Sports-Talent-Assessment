@@ -1,9 +1,10 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { IconHistory, IconTrain, IconUser } from './icons';
+import { IconHistory, IconTrain, IconTrophy, IconUser } from './icons';
 
 const TABS = [
   { to: '/app', label: 'Train', icon: <IconTrain /> },
+  { to: '/progress', label: 'Progress', icon: <IconTrophy /> },
   { to: '/history', label: 'History', icon: <IconHistory /> },
   { to: '/profile', label: 'Profile', icon: <IconUser /> },
 ];

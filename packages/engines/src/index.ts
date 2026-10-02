@@ -52,3 +52,11 @@ export * from './motion/forensics.js';
 export * from './motion/catalog/index.js';
 export * from './motion/integrity.js';
 export * from './motion/filtfilt.js';
+
+// Athlete profile: body & diet, norms, readiness, projection, future summary
+export * from './athlete/types.js';
+export * from './athlete/body.js';
+export * from './athlete/norms.js';
+export * from './athlete/readiness.js';
+export * from './athlete/projection.js';
+export * from './athlete/summary.js';

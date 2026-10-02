@@ -116,7 +116,7 @@ export default function Session() {
     const sid = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
     saveSession({ id: sid, report, source: src, ...extra });
     session.current = null;
-    nav(`/results/${sid}`, { replace: true });
+    nav(`/results/${sid}`, { replace: true, state: { checkin: true } });
   }, [nav, src, def, profile.weightKg, profile.heightCm]);
 
   const beginActive = useCallback(() => {

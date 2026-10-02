@@ -224,6 +224,8 @@ export interface SessionReport {
   };
   hold?: { totalSec: number; bestSec: number; targetSec: number; stability: Record<string, number> };
   events?: EventRecord[];
+  /** Movements (reps, hold windows, attempts) that didn't match the selected exercise; not counted. */
+  mismatched: Array<{ tMs: number; reason: string }>;
   angles: Record<string, AngleStat>;
   checks: CheckStat[];
   symmetry: Record<string, number>;
@@ -240,7 +242,7 @@ export interface SessionReport {
 // ---------------------------------------------------------------------------
 
 interface CheckAcc { good: number; ok: number; bad: number; sum: number; n: number }
-interface Frame { t: number; a: Record<string, number>; raw: Record<string, number>; pts: P[]; rp: P[]; fs: Set<string> }
+interface Frame { t: number; a: Record<string, number>; raw: Record<string, number>; pts: P[]; rp: P[]; fs: Set<string>; sh: Set<string> }
 
 const W: Record<Zone, number> = { good: 1, ok: 0.6, bad: 0 };
 
@@ -260,6 +262,10 @@ const PROBES: Probe[] = ['knee', 'hip', 'elbow', 'shoulder'];
  */
 const STILL = 20;
 const MOVED: Record<Probe, number> = { knee: 50, hip: 50, elbow: 60, shoulder: 100 };
+/** Throws and jumps legitimately add leg drive and arm swing, so only a clearly different whole-body pattern trips them. */
+const MOVED_EVENT: Record<Probe, number> = { knee: 75, hip: 75, elbow: 90, shoulder: 140 };
+/** Hold window length for the movement check. */
+const HOLD_WINDOW_MS = 3000;
 /** Trunk inclination change that means a different body position (standing ↔ lying/bent over). */
 const TRUNK_SHIFT = 40;
 /** Extra ROM on a moving joint beyond the reference that means a different lift (front raise ≈ 90° vs overhead ≈ 160°). */
@@ -272,7 +278,7 @@ function referenceSignature(def: ExerciseDef): RepSignature | null {
   if (refCache.has(def.id)) return refCache.get(def.id)!;
   const s = new MotionSession(def, { checkMovement: false });
   for (const f of simulateExercise(def, { reps: 3, seed: 1 })) s.push(f);
-  const sigs = s.signatures().slice(0, 2); // the demo's last rep is deliberately shallow
+  const sigs = def.mode === 'reps' ? s.signatures().slice(0, 2) : s.signatures(); // the demo's last rep is deliberately shallow
   const med = (xs: number[]) => [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)] ?? 0;
   const ref = sigs.length ? {
     rom: Object.fromEntries(PROBES.map((p) => [p, med(sigs.map((g) => g.rom[p]))])) as Record<Probe, number>,
@@ -287,8 +293,10 @@ function referenceSignature(def: ExerciseDef): RepSignature | null {
 export function movementMismatch(def: ExerciseDef, sig: RepSignature, ref: RepSignature | null): string | null {
   if (!ref) return null;
   const name = def.name;
+  const moved = def.mode === 'event' ? MOVED_EVENT : MOVED;
   for (const p of PROBES) {
-    if (ref.rom[p] < STILL && sig.rom[p] > MOVED[p]) return `Your ${p}s are moving a lot — that doesn't look like ${name}`;
+    if (ref.rom[p] < STILL && sig.rom[p] > moved[p]) return `Your ${p}s are moving a lot — that doesn't look like ${name}`;
+    if (def.mode !== 'reps') continue;
     // A joint that should move, moving through far more range than this exercise ever uses (e.g. overhead press in a front raise).
     if (ref.rom[p] >= STILL && sig.rom[p] > ref.rom[p] + OVERSHOOT) return `That range of motion is far beyond ${name} — looks like a different exercise`;
   }
@@ -342,6 +350,7 @@ export class MotionSession {
 
   // hold
   private holdMs = 0; private holdRun = 0; private bestHold = 0; private lastTrackedT = NaN;
+  private holdWinStart = NaN; private holdWinMs = 0; private holdWinHeld = 0; private holdWinFrames = 0; private bestBeforeWin = 0; private heldTs = new Set<number>(); private unheldStrikes = 0; private holdEntries = 0; private wasHolding = false;
 
   // events
   private events: EventRecord[] = [];
@@ -405,7 +414,7 @@ export class MotionSession {
         if (r.left !== undefined && r.right !== undefined) (this.sym[a.id] ??= []).push(Math.abs(r.left - r.right));
       }
       if (this.def.checks.some((c) => fs.has(c.angle))) this.fsFrames++;
-      this.history.push({ t, a: values, raw, pts, rp: rawPts, fs });
+      this.history.push({ t, a: values, raw, pts, rp: rawPts, fs, sh: this.lastShort });
       this.lastTrackedT = t;
     } else if (t - this.lastTrackedT > 300) this.holdRun = 0; // tracking lost > 300 ms breaks the continuous hold
 
@@ -457,6 +466,7 @@ export class MotionSession {
       else if (holding) { this.holdMs += dt; this.holdRun += dt; this.bestHold = Math.max(this.bestHold, this.holdRun); phase = 'hold'; }
       else { this.holdRun = 0; phase = 'start'; }
       if (this.def.hold) progress = Math.min(1, this.holdRun / (this.def.hold.targetSec * 1000));
+      this.stepHoldWindow(t, phase === 'hold', dt);
     }
 
     if (tracking && this.def.mode === 'event') this.stepEvent(t, values, pts);
@@ -661,6 +671,75 @@ export class MotionSession {
     for (const g of Object.keys(SEGMENTS) as SegKey[]) if (this.lastShort.has(`${this.side}:${g}`)) this.shortCount[g] = (this.shortCount[g] ?? 0) + 1;
   }
 
+  /** Movement signature over a span of tracked frames (hold windows, pre-event windows). */
+  private windowSig(frames: Frame[]): RepSignature {
+    const m = this.sideMap(this.side);
+    const lo: Record<Probe, number> = { knee: Infinity, hip: Infinity, elbow: Infinity, shoulder: Infinity };
+    const hi: Record<Probe, number> = { knee: -Infinity, hip: -Infinity, elbow: -Infinity, shoulder: -Infinity };
+    let trunk = 0;
+    const short: Partial<Record<SegKey, number>> = {};
+    for (const f of frames) {
+      const p = f.pts;
+      for (const q of PROBES) {
+        const [i, j, k] = JOINTS[q](m);
+        const a = jointAngle(p[i]!, p[j]!, p[k]!);
+        if (Number.isFinite(a)) { lo[q] = Math.min(lo[q], a); hi[q] = Math.max(hi[q], a); }
+      }
+      trunk += vsVertical(p[m.hip]!, p[m.shoulder]!);
+      for (const g of Object.keys(SEGMENTS) as SegKey[]) if (f.sh.has(`${this.side}:${g}`)) short[g] = (short[g] ?? 0) + 1;
+    }
+    const n = Math.max(1, frames.length);
+    return {
+      rom: Object.fromEntries(PROBES.map((q) => [q, Number.isFinite(hi[q] - lo[q]) ? hi[q] - lo[q] : 0])) as Record<Probe, number>,
+      trunk: trunk / n,
+      outOfPlane: Object.fromEntries((Object.keys(SEGMENTS) as SegKey[]).map((g) => [g, (short[g] ?? 0) / n])) as Record<SegKey, number>,
+    };
+  }
+
+  /** Flag a movement that doesn't match the exercise: record it and alert for ~4 s. */
+  private flagMismatch(t: number, why: string): void {
+    this.mismatched.push({ tMs: t - this.startMs, reason: why });
+    this.cue = why; this.cueT = t + 1500;
+  }
+
+  /**
+   * Hold check every HOLD_WINDOW_MS of tracked frames. Windows held ≥ 90 % build the reference; any window that
+   * doesn't match (other joints working, or a different body position while not holding) is flagged, and hold time
+   * credited inside it is taken back.
+   */
+  private stepHoldWindow(t: number, holding: boolean, dt: number): void {
+    if (Number.isNaN(this.holdWinStart)) { this.holdWinStart = t; this.holdWinMs = 0; this.holdWinHeld = 0; this.holdWinFrames = 0; }
+    this.holdWinFrames++; if (holding) { this.holdWinHeld++; this.holdWinMs += dt; this.heldTs.add(t); }
+    if (holding && !this.wasHolding) this.holdEntries++;
+    this.wasHolding = holding;
+    if (t - this.holdWinStart < HOLD_WINDOW_MS) return;
+    const inWin = this.history.filter((f) => f.t >= this.holdWinStart);
+    const heldFrac = this.holdWinHeld / Math.max(1, this.holdWinFrames);
+    // While holding, judge only the held frames: getting into or out of position is not a different exercise.
+    const sig = this.windowSig(heldFrac >= 0.5 ? inWin.filter((f) => this.heldTs.has(f.t)) : inWin);
+    if (heldFrac >= 0.9) this.sigs.push(sig);
+    if (this.checkMovement) {
+      const ref = referenceSignature(this.def);
+      // Not holding: only a clearly different body position counts as a wrong exercise (getting into position is fine).
+      // Not holding: a clearly different body position, or ~6 s of continuous non-matching movement (two windows);
+      // a single window is usually just getting into position.
+      const moving = heldFrac < 0.5 ? movementMismatch(this.def, sig, ref) : null;
+      this.unheldStrikes = moving ? this.unheldStrikes + 1 : 0;
+      // Dropping out of and back into position repeatedly while joints move = doing reps, not holding.
+      const cycling = this.holdEntries >= 2 ? movementMismatch(this.def, this.windowSig(inWin), ref) : null;
+      const posture = ref && this.def.camera === 'side' && Math.abs(sig.trunk - ref.trunk) > TRUNK_SHIFT ? `Body position doesn't match ${this.def.name}` : null;
+      const why = cycling
+        ?? (heldFrac >= 0.5 ? movementMismatch(this.def, sig, ref) : posture ?? (this.unheldStrikes >= 2 ? moving : null));
+      if (why) {
+        this.holdMs = Math.max(0, this.holdMs - this.holdWinMs);
+        this.holdRun = 0; this.bestHold = Math.min(this.bestHold, this.bestBeforeWin);
+        this.flagMismatch(t, why);
+      }
+    }
+    this.bestBeforeWin = this.bestHold;
+    this.holdWinStart = t; this.holdWinMs = 0; this.holdWinHeld = 0; this.holdWinFrames = 0; this.heldTs.clear(); this.holdEntries = 0;
+  }
+
   /** Signatures of every completed rep (used to build an exercise's reference from its demo athlete). */
   signatures(): RepSignature[] { return this.sigs; }
 
@@ -682,8 +761,7 @@ export class MotionSession {
       const why = movementMismatch(this.def, sig, referenceSignature(this.def));
       if (why) {
         // A different movement: don't count it, and tell the athlete right away.
-        this.mismatched.push({ tMs: t - this.startMs, reason: why });
-        this.cue = why; this.cueT = t + 1500; // hold the alert ~4 s
+        this.flagMismatch(t, why);
         return;
       }
     }
@@ -875,6 +953,10 @@ export class MotionSession {
       faults,
       atEvent: at,
     };
+    const sig = this.windowSig(win);
+    this.sigs.push(sig);
+    const why = this.checkMovement ? movementMismatch(this.def, sig, referenceSignature(this.def)) : null;
+    if (why) { this.flagMismatch(tAbs, why); return rec; } // not recorded as an attempt
     this.events = [...this.events, rec];
     return rec;
   }
@@ -990,6 +1072,7 @@ export class MotionSession {
       .map((f) => ({ t: (f.t - this.startMs) / 1000, v: Math.round(f.a[driver]! * 10) / 10 }));
 
     const report: SessionReport = {
+      mismatched: this.mismatched,
       exerciseId: def.id,
       name: def.name,
       mode: def.mode,
@@ -1026,13 +1109,14 @@ export function buildInsights(def: ExerciseDef, r: SessionReport): CoachInsight[
 
   if (r.trackedPct < 70) out.push({ level: 'warn', title: 'Camera could not see you clearly', detail: `Body was tracked in ${Math.round(r.trackedPct)} % of frames. Place the camera ${def.camera === 'side' ? 'side-on' : 'facing you'} at hip height, 2–3 m away, with your whole body and good light.` });
 
+  const mm = r.mismatched ?? [];
+  if (mm.length) out.push({ level: 'bad', title: `${mm.length} ${r.mode === 'reps' ? 'movement' : r.mode === 'hold' ? 'stretch' : 'attempt'}${mm.length > 1 ? 's' : ''} didn't match ${def.name} and ${mm.length > 1 ? 'were' : 'was'} not counted`, detail: `${mm[0]!.reason}. Stick to one exercise per session, or pick the exercise you're actually doing.` });
   if (r.foreshortenedPct > 20) out.push({ level: 'warn', title: `Limbs were turned away from the camera in ${Math.round(r.foreshortenedPct)} % of frames`, detail: `Those readings were greyed out and left out of the score: a 2D angle is only valid when the limb moves parallel to the screen. ${def.camera === 'side' ? 'Film exactly side-on, camera perpendicular to the direction you face' : 'Face the camera squarely and keep the movement in that plane'}, 2–3 m away at hip height.` });
 
   const rp = r.reps;
   if (rp) {
     if (rp.count === 0) out.push({ level: 'warn', title: 'No reps detected', detail: `Move through the full range — the counter needs the ${rp.driverLabel.toLowerCase()} to pass ${def.reps!.enter}° and return past ${def.reps!.exit}°.` });
     if (rp.partial > 0) out.push({ level: rp.partial / Math.max(1, rp.count) > 0.3 ? 'bad' : 'warn', title: `${rp.partial} of ${rp.count} reps were short of full range`, detail: `Target ${rp.driverLabel.toLowerCase()} ${def.reps!.start === 'high' ? '≤' : '≥'} ${rp.target}°. Reduce the load or slow down until every rep reaches it — partial reps build less strength through the full range.` });
-    if (rp.mismatched?.length) out.push({ level: 'bad', title: `${rp.mismatched.length} movement${rp.mismatched.length > 1 ? 's' : ''} didn't match ${def.name} and ${rp.mismatched.length > 1 ? 'were' : 'was'} not counted`, detail: `${rp.mismatched[0]!.reason}. Stick to one exercise per session, or pick the exercise you're actually doing.` });
     if (rp.rejected > 0) out.push({ level: 'warn', title: `${rp.rejected} movements were too fast to count`, detail: 'Bouncing reps under 0.6 s were discarded. Control every rep.' });
     if (rp.count >= 3 && rp.avgEccentricSec < 1) out.push({ level: 'warn', title: 'Lowering phase is rushed', detail: `Average eccentric ${f1(rp.avgEccentricSec)} s. A 2–3 s controlled lowering increases time under tension and reduces injury risk.` });
     if (rp.count >= 4 && rp.velocityLossPct > 20) out.push({ level: 'warn', title: `Concentric velocity fell ${Math.round(rp.velocityLossPct)} % across the set`, detail: 'Velocity loss above 20 % signals accumulating fatigue. For strength, stop the set here and rest 2–3 min; for endurance, this is your working limit.' });
