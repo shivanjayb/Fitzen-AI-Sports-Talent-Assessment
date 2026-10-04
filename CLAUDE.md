@@ -1,6 +1,14 @@
 # START HERE (any session, any Claude account)
 Fitzen: read `docs/PROJECT_STATE.md` first. It has the project summary, architecture, history, current state, hard rules and the prioritised roadmap. After any milestone, add a line to its Log and update "Current state" / "What's next", then commit and push.
 
+# Shared work log (every account, every session)
+Several Claude accounts work on this project. They share context only through `docs/PROJECT_STATE.md` (Log section at the end):
+- **Before starting:** read the last ~15 Log lines to see what other accounts did and anything left unfinished.
+- **After every change or task (even small), before finishing:** append one line, then commit and push it with the change:
+  `- YYYY-MM-DD [account: <signed-in email, or "unknown">] <what changed> (<commit>). Next/left: <what remains, or "none">`
+- **If stopping mid-task** (token limit, interruption): log what was in progress, which files are touched and the exact next step, then commit and push.
+- Also update "Current state" and "What's next" in that file when they change.
+
 # Tools: free to use
 You may use any installed skill, plugin, MCP connector, subagent/workflow orchestration or Artifact whenever it helps the task, without asking first. Exceptions that still need a yes in chat: sending messages or email for the user, publishing something publicly, spending money, deploying to production, force-pushing or rewriting git history, and anything touching credentials.
 
