@@ -16,3 +16,12 @@ Always work in ponytail mode (`/ponytail:ponytail`, level **ultra**: YAGNI extre
 - Root-cause fixes in the shared function, not per-caller patches. Never skip validation, security, error handling or accessibility.
 - Keep replies short: code first, then at most three lines on what was skipped. Mark deliberate shortcuts with a `ponytail:` comment.
 - Save tokens: query the graphify graph instead of bulk-reading files, read only the lines you need.
+
+# gstack by default (every project)
+Use the matching gstack skill by default instead of an ad-hoc approach, without being asked:
+- Bug or "why is X broken" → `/investigate`. Code review before commit → `/review`. Security → `/cso`.
+- Testing the running app → `/qa` (fix) or `/qa-only` (report). Web browsing/screenshots → `/browse`.
+- New feature or plan → `/office-hours` or `/autoplan` (CEO/eng/design reviews). UI design → `/design-review`, `/design-consultation`.
+- Shipping → `/ship`, then `/land-and-deploy`, `/canary`. Docs after shipping → `/document-release`. Perf → `/benchmark`.
+- Risky/destructive work → `/careful` or `/guard`. Weekly summary → `/retro`.
+Combine with ponytail ultra (shortest diff) and graphify (query first, update after).
