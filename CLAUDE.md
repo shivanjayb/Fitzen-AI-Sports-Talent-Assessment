@@ -3,7 +3,7 @@ Fitzen: read `docs/PROJECT_STATE.md` first. It has the project summary, architec
 
 # Shared work log (every account, every session)
 Several Claude accounts work on this project. They share context only through `docs/PROJECT_STATE.md` (Log section at the end):
-- **Before starting:** read the last ~15 Log lines to see what other accounts did and anything left unfinished.
+- **Before starting:** run `git pull --rebase` (another account may have pushed), then read the last ~15 Log lines to see what other accounts did and anything left unfinished.
 - **After every change or task (even small), before finishing:** append one line, then commit and push it with the change:
   `- YYYY-MM-DD [account: <signed-in email, or "unknown">] <what changed> (<commit>). Next/left: <what remains, or "none">`
 - **If stopping mid-task** (token limit, interruption): log what was in progress, which files are touched and the exact next step, then commit and push.
