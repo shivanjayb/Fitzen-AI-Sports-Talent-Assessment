@@ -1,3 +1,9 @@
+# START HERE (any session, any Claude account)
+Fitzen: read `docs/PROJECT_STATE.md` first. It has the project summary, architecture, history, current state, hard rules and the prioritised roadmap. After any milestone, add a line to its Log and update "Current state" / "What's next", then commit and push.
+
+# Tools: free to use
+You may use any installed skill, plugin, MCP connector, subagent/workflow orchestration or Artifact whenever it helps the task, without asking first. Exceptions that still need a yes in chat: sending messages or email for the user, publishing something publicly, spending money, deploying to production, force-pushing or rewriting git history, and anything touching credentials.
+
 ## graphify
 
 This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
