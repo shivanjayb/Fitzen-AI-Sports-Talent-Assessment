@@ -78,6 +78,25 @@ No camera? Each exercise has Watch demo (synthetic athlete) and Analyse video. V
 9. UI/UX polish pass (mobile first).
 10. Paperwork: IEEE paper, copyright consistency.
 
+## Public beta checklist
+
+Recommended scope: a **local-only beta** (no accounts, nothing leaves the device), so the DPDP consent work waits for the accounts release.
+
+Must have:
+1. Real-camera calibration on 10–20 real athletes (wrong-exercise, integrity, colour bands), phone and laptop.
+2. A "screening estimate, not medical advice" notice on Results, plus a privacy page (video stays on device, what localStorage holds, how to delete it).
+3. Stop deploying `api/` (the web app doesn't use it), or move the JWT secret to an env var with no fallback.
+4. Security headers in `vercel.json`: CSP that allows only jsdelivr and storage.googleapis.com for MediaPipe, plus camera permission policy.
+5. PWA: manifest, icons, service worker that caches the app and the MediaPipe wasm/model, so it works offline after the first load.
+6. Cross-device QA: Android Chrome, iOS Safari, desktop; slow phones on the lite model; camera denied; low light; large video upload.
+7. Error reporting (Sentry or similar, no PII) and a feedback link.
+8. Accessibility and mobile polish pass on all screens.
+9. Release gate: tests, typecheck and build green; preview deploy checked; production deploy only with the owner's approval.
+
+Should have: Hindi UI, Indian norms (Khelo India / Fit India), coach report export (PDF/share), live liveness prompt.
+
+After beta (accounts release): Supabase key, auth, DPDP + parental consent, sync, real leaderboards, signed assessments, scout dashboard.
+
 ## Log
 
 Append one line after every change, from any account: `- YYYY-MM-DD [account: email] what changed (commit). Next/left: ...`. Read the last lines before starting work.
@@ -86,3 +105,4 @@ Append one line after every change, from any account: `- YYYY-MM-DD [account: em
 - 2026-10-05: user allowed OpenPose (licence caveat noted) and real leaderboards (with DPDP consent rules).
 - 2026-10-05 [account: shivanjayprakashbajpai@gmail.com] Added the shared work-log rule to CLAUDE.md so every account logs its changes here (see commit). Next/left: roadmap item 1, real-camera calibration.
 - 2026-10-05 [account: shivanjayprakashbajpai@gmail.com] Decided not to add OpenPose: no browser/on-device build (would force video uploads, breaking the on-device rule), CMU licence excludes sports use, and the main 2D error is out-of-plane bias, not the keypoint model. If the detector is ever swapped, benchmark RTMPose (Apache-2.0, runs in browser via ONNX Runtime Web) against MediaPipe on ground truth first (no code change). Next/left: roadmap item 1, real-camera calibration.
+- 2026-10-05 [account: shivanjayprakashbajpai@gmail.com] Added the public beta checklist (local-only beta scope) to this file. Next/left: checklist item 1, real-camera calibration.
