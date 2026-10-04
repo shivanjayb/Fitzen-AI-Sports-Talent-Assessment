@@ -41,8 +41,8 @@ No camera? Each exercise has Watch demo (synthetic athlete) and Analyse video. V
 
 - Commit and push every verified change without asking, as `git -c user.name="Shivanjay Bajpai" -c user.email="shivanjayprakashbajpai@gmail.com"`, with no Co-Authored-By or AI attribution.
 - Never write to the live Supabase project. Never commit secrets.
-- No OpenPose (licence bans sports use). Don't copy UrbanFit or VertMeasure code (no licence).
-- Video stays on the device. No public leaderboards of minors (DPDP Act). No fake users, stats or endorsements: rankings are percentiles against published norms and say so.
+- OpenPose is allowed (user decision, 2026-10-05). Its CMU licence is non-commercial research only and excludes sports/commercial use, so keep it optional/academic and never ship it in a commercial build without a licence from CMU. Don't copy UrbanFit or VertMeasure code (no licence).
+- Video stays on the device. Leaderboards are allowed (user decision, 2026-10-05): city/state/India rankings of real users once accounts exist. Under the DPDP Act, minors need verifiable parental consent before appearing; use opt-in and display names/initials, never full names or exact locations of minors. No fake users, stats or endorsements.
 - Single-camera numbers are screening estimates; never claim clinical accuracy until validated.
 
 ## History (what has been done)
@@ -70,7 +70,7 @@ No camera? Each exercise has Watch demo (synthetic athlete) and Analyse video. V
 1. Real-camera testing and threshold calibration (wrong-exercise, integrity, colour bands).
 2. Ground-truth validation: jump mat/force plate, goniometer or lab dataset; publish Bland-Altman/RMSE/ICC in `VALIDATION.md`.
 3. Indian norms (Khelo India / Fit India tables).
-4. Accounts + sync: new Supabase key, DPDP consent, parental consent, private-by-default leaderboards (city/state/India).
+4. Accounts + sync: new Supabase key, DPDP consent, parental consent, real leaderboards (city/state/India) with opt-in and parental consent for minors.
 5. Live anti-cheat: wire AKCR signing + liveness prompts into the live flow.
 6. Scout/coach dashboard with report export.
 7. PWA, HTTPS hosting, offline model, Hindi/regional languages.
@@ -83,3 +83,4 @@ No camera? Each exercise has Watch demo (synthetic athlete) and Analyse video. V
 Append one line per milestone: `YYYY-MM-DD: what changed (commit)`.
 
 - 2026-10-05: created this handoff file; CLAUDE.md now points here.
+- 2026-10-05: user allowed OpenPose (licence caveat noted) and real leaderboards (with DPDP consent rules).
