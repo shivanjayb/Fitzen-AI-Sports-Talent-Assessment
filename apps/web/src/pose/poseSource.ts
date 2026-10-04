@@ -15,7 +15,7 @@
  * sync pipeline is exercisable with no camera and no network.
  */
 
-import { simulateJump, simulatePushupSession, simulateSquatSession, type PoseFrame } from '@fitzen/engines';
+import type { PoseFrame } from '@fitzen/engines';
 
 
 export interface PoseSourceCallbacks {
@@ -277,74 +277,5 @@ export class VideoFilePoseSource implements PoseSource {
       URL.revokeObjectURL(this.objectUrl);
       this.objectUrl = null;
     }
-  }
-}
-
-export interface SimulationOptions {
-
-  jumpHeightM?: number;
-  athleteHeightCm: number;
-  fps?: number;
-  exerciseType?: 'vertical_jump' | 'pushup' | 'squat';
-}
-
-export class SimulationPoseSource implements PoseSource {
-  readonly kind = 'simulation' as const;
-  private callbacks: PoseSourceCallbacks;
-  private options: SimulationOptions;
-  private timer = 0;
-  private stopped = false;
-
-  constructor(callbacks: PoseSourceCallbacks, options: SimulationOptions) {
-    this.callbacks = callbacks;
-    this.options = options;
-  }
-
-  async start(): Promise<void> {
-    this.stopped = false;
-    const fps = this.options.fps ?? 30;
-    const type = this.options.exerciseType ?? 'squat';
-
-    let frames: PoseFrame[] = [];
-    if (type === 'pushup') {
-      frames = simulatePushupSession({ targetReps: 5, fps, includeFormError: true });
-    } else if (type === 'squat') {
-      frames = simulateSquatSession({ targetReps: 5, fps, includeFormError: true });
-    } else {
-      const jumpHeight = this.options.jumpHeightM ?? 0.34 + Math.random() * 0.18;
-      frames = simulateJump({
-        jumpHeightM: jumpHeight,
-        athleteHeightCm: this.options.athleteHeightCm,
-        fps,
-        asymmetry: Math.random() * 0.25,
-        seed: Math.floor(Math.random() * 100000),
-        noise: 0.004,
-      });
-    }
-
-    this.callbacks.onStatus('Guided demo running');
-
-    const startWall = performance.now();
-    let index = 0;
-    const tick = () => {
-      if (this.stopped) return;
-      const elapsed = performance.now() - startWall;
-      while (index < frames.length && frames[index]!.timestampMs <= elapsed) {
-        const frame = frames[index]!;
-        this.callbacks.onFrame({ ...frame, timestampMs: startWall + frame.timestampMs });
-        index++;
-      }
-      if (index >= frames.length) {
-        this.callbacks.onStatus('Demo complete');
-        return;
-      }
-      this.timer = window.setTimeout(tick, 1000 / fps);
-    };
-    tick();
-  }
-
-  stop(): void {
-    this.stopped = true;
-    clearTimeout(this.timer);
   }
 }
