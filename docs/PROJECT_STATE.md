@@ -85,3 +85,4 @@ Append one line after every change, from any account: `- YYYY-MM-DD [account: em
 - 2026-10-05: created this handoff file; CLAUDE.md now points here.
 - 2026-10-05: user allowed OpenPose (licence caveat noted) and real leaderboards (with DPDP consent rules).
 - 2026-10-05 [account: shivanjayprakashbajpai@gmail.com] Added the shared work-log rule to CLAUDE.md so every account logs its changes here (see commit). Next/left: roadmap item 1, real-camera calibration.
+- 2026-10-05 [account: shivanjayprakashbajpai@gmail.com] Decided not to add OpenPose: no browser/on-device build (would force video uploads, breaking the on-device rule), CMU licence excludes sports use, and the main 2D error is out-of-plane bias, not the keypoint model. If the detector is ever swapped, benchmark RTMPose (Apache-2.0, runs in browser via ONNX Runtime Web) against MediaPipe on ground truth first (no code change). Next/left: roadmap item 1, real-camera calibration.
