@@ -29,3 +29,14 @@ Combine with ponytail ultra (shortest diff) and graphify (query first, update af
 # agentic-awesome-skills (use whenever one fits)
 `~/.claude/skills` holds the agentic-awesome-skills catalog (~2,400 skills). When a task matches a skill there (e.g. `react-best-practices`, `typescript-expert`, `computer-vision-expert`, `vitest-skill`, `seo-audit`, `readme`, `api-design-principles`), use it, after gstack (which wins on overlap) and alongside ponytail ultra.
 Safety, because the catalog is unaudited: read the skill's SKILL.md before following it; never run its scripts that download/execute remote code, touch credentials or tokens, or send data off the machine; skip offensive/pentest skills unless the user asks for security testing.
+
+# Default skill stack by task
+- **Coding (React/TS/Vercel):** vercel-labs agent-skills: `vercel-react-best-practices`, `vercel-composition-patterns`, `vercel-react-view-transitions`, `web-design-guidelines`, `writing-guidelines`, `vercel-optimize`. Don't use `vercel-cli-with-tokens` or `deploy-to-vercel` without asking (they handle credentials or deploy).
+- **Big multi-step or parallel work:** Claude orchestration via the Workflow tool (load the `workflow-authoring` skill first) or Agent subagents for independent pieces. Keep it small: one agent per independent area.
+- **Any UI/UX change:** use these together:
+  - `impeccable`, guided by `apps/web/PRODUCT.md` and `DESIGN.md` (critique, polish, audit, animate).
+  - `ui-ux-pro-max` for styles, palettes and UX rules.
+  - Emil Kowalski's skills (github.com/emilkowalski/skills): `emil-design-eng`, `improve-animations`, `review-animations`, `find-animation-opportunities`, `animation-vocabulary`.
+  - taste-skill: `design-taste-frontend`, `high-end-visual-design`, `minimalist-ui`, `redesign-existing-projects`, `gpt-taste`.
+  - awesome-design-md: reference brand systems in `/Users/shiv/my_projects/awesome-design-md/design-md/` (e.g. apple, linear).
+  - Then check with `web-design-guidelines` and gstack `/design-review`, and verify in the built-in browser pane.
