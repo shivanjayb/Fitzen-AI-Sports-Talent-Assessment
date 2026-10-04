@@ -156,16 +156,6 @@ export function computePotential(f: PotentialFeatures): PotentialResult {
   // Maturity headroom: undeveloped athletes have more ceiling to gain.
   const maturityHeadroom = clamp((1 - maturationFraction) * 100, 0, 100);
 
-  const components = {
-    explosiveness,
-    power,
-    movementQuality,
-    coordination,
-    consistency,
-    anthropometric,
-    maturityHeadroom,
-  };
-
   // --- Current performance -------------------------------------------------
   const currentPerformance = Math.round(
     clamp(

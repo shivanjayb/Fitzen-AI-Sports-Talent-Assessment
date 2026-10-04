@@ -23,7 +23,6 @@ import {
   estimatorAgreement,
   flightTimeSigmaSeconds,
   fuseEstimates,
-  GRAVITY,
   heightFromFlightTime,
   heightSigmaFromFlightTime,
   withCi95,
@@ -515,4 +514,3 @@ export function analyzeJump(
   };
 }
 
-export { GRAVITY };

@@ -170,7 +170,6 @@ export async function reverifyAssessment(
 ): Promise<{ integrity: Integrity; reasons: string[]; auditValid: boolean } | null> {
   const row = await db.getAssessment(id);
   if (!row) return null;
-  const record = rowToRecord(row);
   const envRaw = row.envelope_json;
   const envelope = typeof envRaw === 'string' ? JSON.parse(envRaw) : envRaw as AssessmentEnvelope;
   const report = await detectTampering(

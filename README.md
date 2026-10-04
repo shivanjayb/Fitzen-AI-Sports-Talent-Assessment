@@ -25,7 +25,7 @@ exercise has **Watch demo**, which runs a synthetic athlete through the real eng
 which takes an uploaded clip.
 
 ```bash
-npm test             # engines + API + web
+npm test             # engines + API
 npm run build        # production build → dist/
 ```
 
@@ -78,7 +78,7 @@ Design notes: `apps/web/PRODUCT.md` and `apps/web/DESIGN.md`. Credits for adapte
 
 ## Status
 
-- **Working:** web app, 90 exercises, demo and video modes, and reports. Tests: 57 engine and 21 API.
+- **Working:** web app, 90 exercises, demo and video modes, and reports. Tests: 132 engine and 21 API.
 - **Not yet verified:** live camera accuracy on real athletes.
 - **Paused:** email sign-in and cloud sync. The server code remains; the web app runs fully offline for now.
 - **Known limits:** unilateral poses assume a fixed leg (tree pose and flamingo stand on the left leg;

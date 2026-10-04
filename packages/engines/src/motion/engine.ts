@@ -469,7 +469,7 @@ export class MotionSession {
       this.stepHoldWindow(t, phase === 'hold', dt);
     }
 
-    if (tracking && this.def.mode === 'event') this.stepEvent(t, values, pts);
+    if (tracking && this.def.mode === 'event') this.stepEvent(t, pts);
 
     // Colour map
     const jointZones: Record<number, Zone> = {};
@@ -806,7 +806,7 @@ export class MotionSession {
   }
 
   // Events — throws (peak wrist speed), jumps (toe flight), apex (hip high point).
-  private stepEvent(t: number, v: Record<string, number>, p: P[]): void {
+  private stepEvent(t: number, p: P[]): void {
     const ev = this.def.event!;
     const h = this.history;
     const n = h.length;

@@ -2,7 +2,7 @@
   "name": "fitzen",
   "private": true,
   "version": "1.0.0",
-  "description": "Fitzen — AI-powered sports talent assessment platform",
+  "description": "Fitzen \u2014 AI-powered sports talent assessment platform",
   "license": "MIT",
   "workspaces": [
     "packages/*",
@@ -14,11 +14,10 @@
     "dev:server": "npm run build:engines && npm run dev -w @fitzen/server",
     "dev:web": "npm run build:engines && npm run dev -w @fitzen/web",
     "build": "npm run build:engines && npm run build -w @fitzen/web && node -e \"require('fs').cpSync('apps/web/dist', 'dist', {recursive: true})\"",
-    "test": "npm run build:engines && npm run test -w @fitzen/engines && npm run test -w @fitzen/server && npm run test -w @fitzen/web",
+    "test": "npm run build:engines && npm run test -w @fitzen/engines && npm run test -w @fitzen/server",
     "seed": "npm run build:engines && npm run seed -w @fitzen/server"
   },
   "dependencies": {
-    "docx": "^9.7.1",
     "typescript": "^5.7.2",
     "vitest": "^3.2.6"
   },

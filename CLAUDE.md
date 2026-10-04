@@ -10,7 +10,7 @@ Rules:
 - After any change, even minor, run `graphify update .` before finishing (AST-only, no API cost). A Stop hook in `/Users/shiv/my_projects/.claude/settings.json` also runs it automatically.
 
 # ponytail (all projects, every code task)
-Always work in ponytail mode (`/ponytail:ponytail`, level full) for any code change, without being asked:
+Always work in ponytail mode (`/ponytail:ponytail`, level **ultra**: YAGNI extremist, deletion before addition, challenge requirements before building) for any code change, without being asked:
 - Climb the ladder before writing: does it need to exist → already in the codebase → stdlib → native platform → installed dependency → one line → only then minimal code.
 - Shortest working diff, fewest files. No unrequested abstractions, no scaffolding "for later", no new dependencies for what a few lines can do. Prefer deleting code to adding it.
 - Root-cause fixes in the shared function, not per-caller patches. Never skip validation, security, error handling or accessibility.

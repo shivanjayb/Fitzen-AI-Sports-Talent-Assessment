@@ -60,14 +60,6 @@ export function requireEnum<T extends string>(
   return v as T;
 }
 
-export function requireObjectField(obj: Record<string, unknown>, key: string): Record<string, unknown> {
-  const v = obj[key];
-  if (typeof v !== 'object' || v === null || Array.isArray(v)) {
-    throw new HttpError(400, `Field "${key}" must be an object`);
-  }
-  return v as Record<string, unknown>;
-}
-
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function requireEmail(obj: Record<string, unknown>, key: string): string {
