@@ -3,7 +3,8 @@ import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { exerciseById, mentalReport, readiness, summarizeFuture, type MetricProjection, type ReadinessInput, type SessionReport } from '@fitzen/engines';
 import { deleteSession, getHistory, getProfile, getSession, glow, measureOf, normOf, saveReadiness, toAthlete, type SavedSession } from './store';
-import { IconAlert, IconBack, IconCheck, IconFolder, IconShare, IconStop } from './icons';
+import { IconAlert, IconBack, IconCheck, IconFolder, IconShare, IconSparkle, IconStop } from './icons';
+import { openAssistant } from './openAssistant';
 
 const ORD = new Intl.PluralRules('en', { type: 'ordinal' });
 const ord = (x: number) => { const n = Math.round(x); return `${n}${({ one: 'st', two: 'nd', few: 'rd' } as Record<string, string>)[ORD.select(n)] ?? 'th'}`; };
@@ -271,6 +272,15 @@ export default function Results() {
           <h1 className="large-title" style={{ fontSize: '2rem' }}>{r.name}</h1>
           <div style={{ fontSize: '1.1rem', fontWeight: 700 }}>{headline}</div>
           <div className="muted" style={{ fontSize: '.9rem' }}>Form score <b style={{ color: 'var(--text)' }}>{r.formScore}</b>/100</div>
+        </div>
+      </section>
+
+      <section className="glass panel no-print" style={{ marginTop: 14 }}>
+        <b className="row" style={{ gap: 8, color: 'var(--accent)' }}><IconSparkle /> <span style={{ color: 'var(--text)' }}>AI scouting report</span></b>
+        <p className="muted" style={{ margin: '6px 0 12px', fontSize: '.9rem' }}>A coach-style read of this session: why you lagged and a step-by-step plan, from these numbers only.</p>
+        <div className="row" style={{ flexWrap: 'wrap' }}>
+          <button className="btn primary press" onClick={() => openAssistant({ kind: 'result', sessionId: id }, 'Give me a professional scouting report on this session and how to improve')}>Generate report</button>
+          <button className="btn glass press" onClick={() => openAssistant({ kind: 'result', sessionId: id })}>Ask a question</button>
         </div>
       </section>
 

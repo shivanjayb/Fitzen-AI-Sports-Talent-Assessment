@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { assessDiet, maturityOffset, type DietPattern } from '@fitzen/engines';
-import { getProfile, INDIAN_STATES, saveProfile, toAthlete, type Profile as P } from './store';
+import { getHistory, getProfile, INDIAN_STATES, saveProfile, toAthlete, uploadResult, type Profile as P } from './store';
+import { getAccount, isMinor, supabase, useUser, type Account as Acct } from '../lib/supabase';
 
 function Stepper({ label, value, set, min = 0, max = 10, step = 1, unit = '' }: { label: string; value: number; set: (v: number) => void; min?: number; max?: number; step?: number; unit?: string }) {
   return (
@@ -110,7 +111,145 @@ export default function Profile() {
           <div className="segmented glass">{[true, false].map((v) => <button key={String(v)} className={p.voice === v ? 'on' : ''} onClick={() => setP({ ...p, voice: v })}>{v ? 'On' : 'Off'}</button>)}</div>
         </div>
       </section>
-      <p className="faint" style={{ fontSize: '.78rem', marginTop: 20 }}>Sign-in and cloud sync are paused in this build; sessions are kept locally.</p>
+      <Account p={p} />
     </main>
   );
+}
+
+type Draft = Omit<Acct, 'id' | 'parent_consent_at' | 'birth_year'> & { birth_year: string };
+const BACKFILLED = 'fitzen.backfilled';
+
+/** Optional account: only needed for leaderboards and groups. */
+function Account({ p }: { p: P }) {
+  const user = useUser();
+  const [acct, setAcct] = useState<Acct | null | undefined>(undefined); // undefined = loading
+  const [d, setD] = useState<Draft | null>(null);
+  const [email, setEmail] = useState('');
+  const [msg, setMsg] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [backfilled, setBackfilled] = useState(() => { try { return !!localStorage.getItem(BACKFILLED); } catch { return false; } });
+
+  useEffect(() => {
+    let live = true;
+    void getAccount().then((a) => {
+      if (!live) return;
+      setAcct(a);
+      setD(a ? { ...a, birth_year: String(a.birth_year) } : {
+        display_name: p.name, birth_year: p.age ? String(new Date().getFullYear() - p.age) : '', sex: p.sex,
+        city: p.city, state: p.state, country: 'India', public_boards: false, parent_email: '',
+      });
+    });
+    return () => { live = false; };
+  }, [user?.id]); // prefill once per sign-in, not on every local edit
+
+  const run = async (f: () => Promise<string>) => {
+    setBusy(true); setMsg('');
+    try { setMsg(await f()); } catch (e) { setMsg((e as { message?: string })?.message || 'Something went wrong. Check your connection and try again.'); }
+    setBusy(false);
+  };
+
+  if (!supabase) return (<>
+    <h2 className="section-title">Account</h2>
+    <section className="glass panel"><p className="muted" style={{ margin: 0 }}>Accounts aren't switched on yet. Everything works without one; your sessions stay on this device.</p></section>
+  </>);
+
+  const status = msg && <p role="status" aria-live="polite" className="muted" style={{ margin: 0, fontSize: '.88rem' }}>{msg}</p>;
+
+  if (!user) return (<>
+    <h2 className="section-title">Account <small>optional</small></h2>
+    <form className="glass panel" style={{ display: 'grid', gap: 12 }} onSubmit={(e) => { e.preventDefault(); void run(async () => {
+      const { error } = await supabase!.auth.signInWithOtp({ email: email.trim(), options: { emailRedirectTo: location.origin + '/profile' } });
+      if (error) throw error;
+      return `Check ${email.trim()} for a sign-in link. You can open it on this phone or another one.`;
+    }); }}>
+      <p style={{ margin: 0 }}>Sign in to join leaderboards and groups. No password: we email you a link.</p>
+      <label className="field"><span>Email</span><input type="email" required autoComplete="email" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} /></label>
+      <button className="btn primary" disabled={busy}>{busy ? 'Sending…' : 'Email me a sign-in link'}</button>
+      {status}
+    </form>
+  </>);
+
+  if (acct === undefined || !d) return (<><h2 className="section-title">Account</h2><div className="spinner" aria-label="Loading account" /></>);
+
+  const by = Number(d.birth_year);
+  const minor = by > 1900 && isMinor(by);
+  const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setD({ ...d, [k]: v });
+  const savedParent = acct?.parent_email && acct.parent_email.toLowerCase() === (d.parent_email ?? '').trim().toLowerCase();
+
+  const save = () => run(async () => {
+    const parent = d.parent_email?.trim() || null;
+    if (minor && !parent) return 'Under 18: add a parent or guardian email first.';
+    if (parent && parent.toLowerCase() === user.email?.toLowerCase()) return 'The parent email must be different from your own.';
+    const row = { display_name: d.display_name.trim(), birth_year: by, sex: d.sex, city: d.city?.trim() || null, state: d.state || null,
+      country: d.country.trim() || 'India', public_boards: d.public_boards, parent_email: parent };
+    // Insert first time, update after: an upsert would try to update `id`, which the schema forbids.
+    const q = acct ? supabase!.from('profiles').update(row).eq('id', user.id) : supabase!.from('profiles').insert(row);
+    const { data, error } = await q.select().single();
+    if (error) throw error;
+    setAcct(data as Acct);
+    return 'Saved.';
+  });
+
+  return (<>
+    <h2 className="section-title" id="account">Account <small>{user.email}</small></h2>
+    <section className="glass panel" style={{ display: 'grid', gap: 14 }}>
+      {!acct && <p style={{ margin: 0 }}>Signed in. Check these details, then save to join leaderboards and groups.</p>}
+      <label className="field"><span>Name shown to others</span><input required maxLength={40} value={d.display_name} onChange={(e) => set('display_name', e.target.value)} /></label>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
+        <label className="field"><span>Birth year</span><input type="number" inputMode="numeric" min={1920} max={new Date().getFullYear()} value={d.birth_year} onChange={(e) => set('birth_year', e.target.value)} /></label>
+        <label className="field"><span>Country</span><input maxLength={60} value={d.country} onChange={(e) => set('country', e.target.value)} /></label>
+        <label className="field"><span>Village / city</span><input maxLength={60} value={d.city ?? ''} onChange={(e) => set('city', e.target.value)} /></label>
+        <label className="field"><span>State</span><select value={d.state ?? ''} onChange={(e) => set('state', e.target.value)}><option value="">Choose…</option>{INDIAN_STATES.map((x) => <option key={x}>{x}</option>)}</select></label>
+      </div>
+      <label className="row between" style={{ alignItems: 'flex-start', gap: 14 }}>
+        <span><b>Show me on public leaderboards</b>
+          <span className="faint" style={{ display: 'block', fontSize: '.8rem', marginTop: 2 }}>Off: only your groups see your scores. On: people in your city, state, country and the world can see your name{minor ? ' (as initials, because you are under 18)' : ''} and your best scores.</span></span>
+        <input type="checkbox" role="switch" checked={d.public_boards} onChange={(e) => set('public_boards', e.target.checked)} style={{ width: 24, height: 24, flex: 'none' }} />
+      </label>
+      {minor && (
+        <div style={{ display: 'grid', gap: 10 }}>
+          <label className="field"><span>Parent or guardian email (required under 18)</span><input type="email" required value={d.parent_email ?? ''} onChange={(e) => set('parent_email', e.target.value)} /></label>
+          <p className="faint" style={{ margin: 0, fontSize: '.8rem' }}>
+            {acct?.parent_consent_at ? `A parent confirmed on ${new Date(acct.parent_consent_at).toLocaleDateString()}. You can appear on public boards as initials.`
+              : 'Under Indian law (DPDP Act) a parent must confirm before you appear on public boards. Until then only your groups see you.'}
+          </p>
+          {!acct?.parent_consent_at && (
+            <button className="btn glass press" disabled={busy || !savedParent} onClick={() => run(async () => {
+              const { error } = await supabase!.auth.signInWithOtp({ email: acct!.parent_email!, options: { shouldCreateUser: true, emailRedirectTo: `${location.origin}/consent?child=${user.id}` } });
+              if (error) throw error;
+              return `Consent link sent to ${acct!.parent_email}. Ask your parent to open it.`;
+            })}>{savedParent ? 'Send consent link to parent' : 'Save the parent email first'}</button>
+          )}
+        </div>
+      )}
+      <button className="btn primary" disabled={busy || !d.display_name.trim() || !(by >= 1920)} onClick={save}>{acct ? 'Save changes' : 'Create my account'}</button>
+      {status}
+      <p className="faint" style={{ margin: 0, fontSize: '.8rem' }}>What we upload: for each camera or video session, only the exercise, your best number, your form score and the date. Never video, never your camera feed. Demo runs are not uploaded.</p>
+    </section>
+    {acct && (
+      <section className="glass panel" style={{ display: 'grid', gap: 10, marginTop: 10 }}>
+        {!backfilled && (
+          <button className="btn glass press" disabled={busy} onClick={() => run(async () => {
+            // ponytail: sessions saved since sign-in get uploaded again; harmless because boards rank each user's best. Track ids if history views come.
+            const res = await Promise.all(getHistory().map(uploadResult));
+            try { localStorage.setItem(BACKFILLED, '1'); } catch { /* private mode */ }
+            setBackfilled(true);
+            return `Uploaded ${res.filter(Boolean).length} past session${res.filter(Boolean).length === 1 ? '' : 's'} (demo runs and failed video checks are skipped).`;
+          })}>Upload my past sessions</button>
+        )}
+        <div className="row" style={{ flexWrap: 'wrap' }}>
+          <button className="btn glass press" disabled={busy} onClick={() => void supabase!.auth.signOut()}>Sign out</button>
+          <button className="btn danger" disabled={busy} onClick={() => {
+            if (!confirm('Delete your account data? Your uploaded scores, groups you own and memberships are removed. Sessions on this phone stay.')) return;
+            void run(async () => {
+              const { error } = await supabase!.from('profiles').delete().eq('id', user.id);
+              if (error) throw error;
+              setAcct(null);
+              return 'Account data deleted.';
+            });
+          }}>Delete account data</button>
+        </div>
+      </section>
+    )}
+  </>);
 }

@@ -19,3 +19,5 @@ export const IconStop = () => <svg {...P}><circle cx="12" cy="12" r="9" /><path 
 export const IconBulb = () => <svg {...P}><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z" /></svg>;
 export const IconFolder = () => <svg {...P}><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg>;
 export const IconTrophy = () => <svg {...P}><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0zM7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4" /></svg>;
+export const IconPodium = () => <svg {...P}><path d="M9 21V9h6v12M3 21v-7h6M15 21v-5h6v5M2 21h20" /></svg>;
+export const IconSparkle = () => <svg {...P}><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 16l.7 2.3L22 19l-2.3.7L19 22l-.7-2.3L16 19l2.3-.7z" /></svg>;

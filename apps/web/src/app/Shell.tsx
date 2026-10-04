@@ -1,10 +1,12 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { IconHistory, IconTrain, IconTrophy, IconUser } from './icons';
+import { IconHistory, IconPodium, IconTrain, IconTrophy, IconUser } from './icons';
+import Assistant from './Assistant';
 
 const TABS = [
   { to: '/app', label: 'Train', icon: <IconTrain /> },
   { to: '/progress', label: 'Progress', icon: <IconTrophy /> },
+  { to: '/compete', label: 'Compete', icon: <IconPodium /> },
   { to: '/history', label: 'History', icon: <IconHistory /> },
   { to: '/profile', label: 'Profile', icon: <IconUser /> },
 ];
@@ -33,6 +35,7 @@ export default function Shell() {
           </NavLink>
         ))}
       </nav>
+      <Assistant />
     </div>
   );
 }

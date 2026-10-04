@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { bestJumpCm, evaluateBadges, exerciseById, projectGrowth, type AthleteStats } from '@fitzen/engines';
 import { getHistory, getProfile, measureOf, normOf, toAthlete, type SavedSession } from './store';
 import { GrowthChart } from './Results';
-import { IconFlag } from './icons';
+import { IconFlag, IconPodium } from './icons';
 
 const day = (s: SavedSession) => new Date(s.report.startedAt).toDateString();
 const PUSH = /push-up/, SQUAT = /squat/;
@@ -101,12 +101,10 @@ export default function Progress() {
       </section>
 
       <h2 className="section-title">Leaderboards</h2>
-      <section className="glass panel">
-        <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
-          {[p.city || 'Your city', p.state || 'Your state', 'India'].map((x) => <span key={x} className="tag">{x}</span>)}
-        </div>
-        <p style={{ marginBottom: 0 }}>Live city, state and national rankings unlock when accounts and sync are switched on. Fitzen keeps your sessions on this phone today, so there is no one to rank against yet, and we won't show made-up players.</p>
-      </section>
+      <Link to="/compete" className="glass press list-item">
+        <div style={{ flex: 1 }}><b>Compete</b><div className="muted" style={{ fontSize: '.85rem' }}>Rank against your group, {p.city || 'your city'}, {p.state || 'your state'} and India. Needs a free account.</div></div>
+        <IconPodium />
+      </Link>
 
       {proj && proj.metrics.length > 0 && (<>
         <h2 className="section-title">Expected growth <small>estimates</small></h2>

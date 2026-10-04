@@ -1,8 +1,9 @@
 /**
- * Local-only persistence: profile + session history live on this device.
- * No account, no network (email auth removed for now — see App.tsx).
+ * Persistence: profile + session history live on this device. When signed in (lib/supabase.ts), each camera/video
+ * session's headline number is also uploaded for leaderboards; video never leaves the device.
  */
 import { bestJumpCm, percentileFor, type AthleteProfile, type ForensicsReport, type IntegrityReport, type NormResult, type ReadinessInput, type SessionReport } from '@fitzen/engines';
+import { supabase } from '../lib/supabase';
 
 export interface Profile {
   name: string; weightKg: number | null; heightCm: number | null; age: number | null;
@@ -43,6 +44,22 @@ export const getHistory = (): SavedSession[] => read<SavedSession[]>(HISTORY, []
 export const getSession = (id: string) => getHistory().find((s) => s.id === id);
 export function saveSession(s: SavedSession): void {
   write(HISTORY, [s, ...getHistory().filter((x) => x.id !== s.id)].slice(0, MAX));
+  void uploadResult(s);
+}
+
+/** Upload one session's headline number, form score, exercise and date (never video) to the leaderboards.
+ *  Skips demo runs, failed integrity checks and signed-out users; never throws, so offline never breaks saving. */
+export async function uploadResult(s: SavedSession): Promise<boolean> {
+  const m = measureOf(s.report);
+  if (!supabase || s.source === 'demo' || s.integrity?.verdict === 'fail' || !m) return false;
+  try {
+    if (!(await supabase.auth.getSession()).data.session) return false;
+    const { error } = await supabase.from('results').insert({
+      exercise_id: s.report.exerciseId, metric: m.metric, value: m.value, form_score: Math.round(s.report.formScore),
+      source: s.source, created_at: s.report.startedAt,
+    });
+    return !error; // e.g. no profile yet (foreign key) or an implausible value (check constraint)
+  } catch { return false; }
 }
 export function deleteSession(id: string): void { write(HISTORY, getHistory().filter((s) => s.id !== id)); }
 export function saveReadiness(id: string, r: ReadinessInput): void {

@@ -6,13 +6,14 @@ import Home from './app/Home';
 import Landing from './app/Landing';
 import { applyTheme, getTheme } from './app/Profile';
 
-// Email/password auth is removed for now (the old Auth/Dashboard pages remain in
-// src/pages for when it returns). Everything below runs locally with no account.
+// Sessions stay on this device. Optional accounts (Supabase magic link, src/lib/supabase.ts) add leaderboards and groups.
 const Session = lazy(() => import('./app/Session'));
 const Results = lazy(() => import('./app/Results'));
 const History = lazy(() => import('./app/History'));
 const Profile = lazy(() => import('./app/Profile'));
 const Progress = lazy(() => import('./app/Progress'));
+const Compete = lazy(() => import('./app/Compete'));
+const Consent = lazy(() => import('./app/Consent'));
 
 applyTheme(getTheme());
 
@@ -36,11 +37,13 @@ export default function App() {
             <Route element={<Shell />}>
               <Route path="/app" element={<Home />} />
               <Route path="/progress" element={<Progress />} />
+              <Route path="/compete" element={<Compete />} />
               <Route path="/history" element={<History />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/results/:id" element={<Results />} />
             </Route>
             <Route path="/train/:id" element={<Session />} />
+            <Route path="/consent" element={<Consent />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>

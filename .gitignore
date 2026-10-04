@@ -17,3 +17,4 @@ graphify-out/
 **/.impeccable/review/
 .playwright-mcp/
 .claude/settings.json
+!.env.example

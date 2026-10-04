@@ -2,7 +2,8 @@ import { Link } from 'react-router-dom';
 import { exerciseById } from '@fitzen/engines';
 import { getHistory, glow } from './store';
 import Pictogram from './Pictogram';
-import { IconFlag } from './icons';
+import { IconFlag, IconSparkle } from './icons';
+import { openAssistant } from './openAssistant';
 
 export default function History() {
   const h = getHistory();
@@ -15,6 +16,7 @@ export default function History() {
     <main className="page">
       <p className="subtitle">Stored on this device</p>
       <h1 className="large-title">History</h1>
+      {h.length > 0 && <button className="btn glass press" style={{ marginTop: 12 }} onClick={() => openAssistant({ kind: 'progress' })}><IconSparkle /> Ask AI about my progress</button>}
       {!h.length && <div className="empty"><div className="big"><IconFlag /></div>No sessions yet.<br /><br /><Link to="/app" className="btn primary">Start training</Link></div>}
       {[...byDay].map(([day, list]) => (
         <section key={day}>
