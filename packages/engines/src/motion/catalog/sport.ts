@@ -23,7 +23,7 @@ export const SPORT: ExerciseDef[] = [
       'Hands just behind the line, shoulder-width, arms straight.',
       'On "set", raise hips slightly above shoulders and hold.',
     ],
-    met: 6.0,
+    met: 3.8, // static set hold: Compendium 2024 02022 calisthenics, moderate
     angles: [
       { id: 'frontKnee', label: 'Front knee', kind: 'joint', joint: 'knee', side: 'left' },
       { id: 'rearKnee', label: 'Rear knee', kind: 'joint', joint: 'knee', side: 'right' },
@@ -35,12 +35,12 @@ export const SPORT: ExerciseDef[] = [
       {
         angle: 'frontKnee', when: 'hold', good: [85, 100], ok: [78, 110],
         cue: 'Front knee near ninety degrees',
-        why: 'A ~90° front knee in the set position is associated with higher block velocity (Mero 1988; Slawinski 2010).',
+        why: 'Faster sprinter groups hold the front knee at ~91–99° in "set", though set angles correlate only weakly with block power (Bezodis 2019 review).',
       },
       {
         angle: 'rearKnee', when: 'hold', good: [90, 140], ok: [80, 150],
         cue: 'Rear knee between ninety and one-forty',
-        why: 'A more flexed rear knee (90° vs 115°/135°) gave higher block velocity (Milanese 2014); ~130° is common with medium spacing (Bezodis 2019).',
+        why: 'A 90° rear knee gave higher block velocity than 115°/135° (Milanese 2014, Biol Sport); faster groups in cross-sectional data used ~117–136° (Bezodis 2019).',
       },
       {
         angle: 'trunk', when: 'hold', good: [95, 112], ok: [88, 122],
@@ -73,12 +73,13 @@ export const SPORT: ExerciseDef[] = [
     muscles: ['hip flexors', 'quadriceps', 'calves', 'core'],
     summary: 'Fast alternating knee drives to hip height with an upright trunk.',
     setup: [
+      'One rep = left + right leg; counted on the leg nearer the camera.',
       'Camera side-on at hip height, 3 m away, whole body in frame.',
       'Stand tall, arms bent about 90°.',
       'Drive each thigh up to hip height, staying on the balls of your feet.',
       'Reps count the leg nearest the camera only.',
     ],
-    met: 8.0,
+    met: 7.5, // Compendium 2024 02020 calisthenics, vigorous
     angles: [
       { id: 'thigh', label: 'Thigh from vertical', kind: 'segment', segment: 'thigh', ref: 'vertical' },
       { id: 'knee', label: 'Knee', kind: 'joint', joint: 'knee' },
@@ -122,12 +123,13 @@ export const SPORT: ExerciseDef[] = [
     muscles: ['hip flexors', 'calves', 'glutes', 'hamstrings'],
     summary: 'Rhythmic skip with a high knee, dorsiflexed foot and active down-strike.',
     setup: [
+      'One rep = left + right leg; counted on the leg nearer the camera.',
       'Camera side-on at hip height, 4 m away; skip across the frame.',
       'Lift the knee to hip height with toes pulled up.',
       'Strike the ground under your hips, then switch legs.',
       'Reps count the leg nearest the camera only.',
     ],
-    met: 8.0,
+    met: 7.5, // Compendium 2024 02020 calisthenics, vigorous
     angles: [
       { id: 'thigh', label: 'Thigh from vertical', kind: 'segment', segment: 'thigh', ref: 'vertical' },
       { id: 'knee', label: 'Knee', kind: 'joint', joint: 'knee' },
@@ -170,12 +172,13 @@ export const SPORT: ExerciseDef[] = [
     muscles: ['hamstrings', 'quadriceps', 'calves'],
     summary: 'Quick alternating heel pulls toward the glutes with knees pointing down.',
     setup: [
+      'One rep = left + right leg; counted on the leg nearer the camera.',
       'Camera side-on at hip height, 3 m away, whole body in frame.',
       'Jog in place on the balls of your feet.',
       'Snap each heel up to your glutes, knee pointing at the floor.',
       'Reps count the leg nearest the camera only.',
     ],
-    met: 8.0,
+    met: 7.5, // Compendium 2024 02020 calisthenics, vigorous
     angles: [
       { id: 'knee', label: 'Knee', kind: 'joint', joint: 'knee' },
       { id: 'thigh', label: 'Thigh from vertical', kind: 'segment', segment: 'thigh', ref: 'vertical' },
@@ -214,10 +217,11 @@ export const SPORT: ExerciseDef[] = [
     setup: [
       'Camera side-on at hip height, 3 m away, head-to-toe plus space above.',
       'Stand tall, feet hip-width.',
-      'Dip fast to a comfortable depth, swing arms and jump straight up.',
+      'Hands on hips (standard CMJ), or swing arms — but pick one and keep it every test.',
+      'Dip fast to a comfortable depth and jump straight up.',
       'Land in the same spot.',
     ],
-    met: 8.0,
+    met: 6.0, // Compendium 2024 15733 track & field jumps (single maximal attempts with rest)
     angles: [
       { id: 'knee', label: 'Knee', kind: 'joint', joint: 'knee' },
       { id: 'hip', label: 'Hip', kind: 'joint', joint: 'hip' },
@@ -228,7 +232,7 @@ export const SPORT: ExerciseDef[] = [
       {
         angle: 'knee', when: 'bottom', good: [70, 110], ok: [65, 130],
         cue: 'Dip to about quarter-to-half squat',
-        why: 'Deeper countermovements raise jump height while shallower dips raise peak force and power (Gheller 2015). Keep depth consistent for testing.',
+        why: 'Dips past 90° knee flexion gave the highest jumps, shallower ones the highest peak power (Gheller 2015, Hum Mov Sci). Keep depth consistent for testing.',
       },
       {
         angle: 'trunk', when: 'bottom', good: [20, 50], ok: [10, 60],
@@ -269,7 +273,7 @@ export const SPORT: ExerciseDef[] = [
       'Hands on hips, squat to 90° knees and pause 2 s.',
       'Jump straight up without dipping further.',
     ],
-    met: 8.0,
+    met: 6.0, // Compendium 2024 15733 track & field jumps (single maximal attempts with rest)
     angles: [
       { id: 'knee', label: 'Knee', kind: 'joint', joint: 'knee' },
       { id: 'hip', label: 'Hip', kind: 'joint', joint: 'hip' },
@@ -315,14 +319,14 @@ export const SPORT: ExerciseDef[] = [
     difficulty: 2,
     equipment: [],
     muscles: ['glutes', 'quadriceps', 'hamstrings', 'calves'],
-    summary: 'Two-foot horizontal jump for distance with a strong arm swing.',
+    summary: 'Two-foot horizontal jump: scores take-off form and angle. Distance needs a tape — flight time cannot give it.',
     setup: [
       'Camera side-on at hip height, 5 m away; jump across the frame.',
       'Toes behind the line, feet hip-width.',
       'Swing arms back, dip, then drive arms forward and jump out.',
-      'Stick the landing on both feet.',
+      'Stick the landing on both feet; mark your heels and tape the distance.',
     ],
-    met: 8.0,
+    met: 6.0, // Compendium 2024 15733 track & field jumps (single maximal attempts with rest)
     angles: [
       { id: 'knee', label: 'Knee', kind: 'joint', joint: 'knee' },
       { id: 'hip', label: 'Hip', kind: 'joint', joint: 'hip' },
@@ -353,10 +357,10 @@ export const SPORT: ExerciseDef[] = [
       {
         angle: 'shoulder', when: 'release', good: [120, 180], ok: [90, 180],
         cue: 'Swing arms forward and up',
-        why: 'An arm swing adds ~20% to standing jump distance (Ashby & Heegaard 2002).',
+        why: 'Free arms gave 21% longer standing jumps than restricted arms (Ashby & Heegaard 2002, J Biomech).',
       },
     ],
-    event: { trigger: 'jump', releaseAngle: { good: [19, 32], ok: [12, 42] } }, // optimum ~19–27°, untrained preference ~34° (Wakai & Linthorne 2005)
+    event: { trigger: 'jump', releaseAngle: { good: [19, 32], ok: [12, 42] } }, // hip-velocity take-off angle: optimum 19–27°, jumpers' preferred 31–39° (Wakai & Linthorne 2005, Hum Mov Sci). No height is reported for horizontal jumps (engine.ts); distance is not measured.
   },
   {
     id: 'box-jump',
@@ -375,7 +379,7 @@ export const SPORT: ExerciseDef[] = [
       'Dip, swing arms and jump, landing softly on the box.',
       'Step down; do not jump down.',
     ],
-    met: 8.0,
+    met: 6.0, // Compendium 2024 15733 track & field jumps (single maximal attempts with rest)
     angles: [
       { id: 'knee', label: 'Knee', kind: 'joint', joint: 'knee' },
       { id: 'hip', label: 'Hip', kind: 'joint', joint: 'hip' },
@@ -406,10 +410,11 @@ export const SPORT: ExerciseDef[] = [
       {
         angle: 'shoulder', when: 'release', good: [110, 180], ok: [80, 180],
         cue: 'Swing arms up hard',
-        why: 'An arm swing increases vertical jump height by roughly 10%.',
+        why: 'An arm swing raises take-off velocity (Ashby & Heegaard 2002 showed +12.7% in standing jumps).',
         weight: 0.5,
       },
     ],
+    // Landing on the box is detected as a new stable toe level (engine.ts); no height is reported because take-off and landing levels differ.
     event: { trigger: 'jump' },
   },
   {
@@ -428,7 +433,7 @@ export const SPORT: ExerciseDef[] = [
       'Balance on one leg, then bound sideways onto the other.',
       'Stick each landing for a moment, then bound back.',
     ],
-    met: 8.0,
+    met: 7.5, // Compendium 2024 02020 calisthenics, vigorous
     angles: [
       { id: 'feet', label: 'Foot spread', kind: 'spread', what: 'feet' },
       { id: 'shoulders', label: 'Shoulder tilt', kind: 'segment', segment: 'shoulders', ref: 'horizontal' },
@@ -477,7 +482,7 @@ export const SPORT: ExerciseDef[] = [
       'Run in or step into the throw across the frame.',
       'Plant the left leg, stay tall, throw over the top.',
     ],
-    met: 6.0,
+    met: 6.0, // Compendium 2024 15733 (javelin)
     angles: [
       { id: 'blockKnee', label: 'Block (left) knee', kind: 'joint', joint: 'knee', side: 'left' },
       { id: 'shoulder', label: 'Throwing shoulder', kind: 'joint', joint: 'shoulder', side: 'right' },
@@ -488,7 +493,7 @@ export const SPORT: ExerciseDef[] = [
       {
         angle: 'blockKnee', when: 'release', good: [160, 180], ok: [145, 180],
         cue: 'Brace the block leg straight',
-        why: 'Elite throwers keep the block knee ≥160° at release, converting run-up speed into release speed (Bartlett 1996).',
+        why: 'Support-knee flexion at release was one of two predictors of distance at the 2017 World Championships (Krzyszkowski & Kipp 2021, J Sports Sci).',
         weight: 1.5,
       },
       {
@@ -507,7 +512,9 @@ export const SPORT: ExerciseDef[] = [
         why: 'Collapsing forward at release shortens the pull and lowers release height.',
       },
     ],
-    event: { trigger: 'wristPeak', releaseAngle: { good: [32, 38], ok: [26, 44] } },
+    // Release angle unscored: up to 70% of javelin release speed comes in the last 0.1 s (Morriss & Bartlett 1996) at
+    // ~25–30 m/s (Viitasalo 2003), i.e. 3 frames at 30 fps. Unscored: wrist direction over the 3-frame window is quantised by ~ω/(2·fps) of arm rotation, too coarse at phone frame rates for this hand speed.
+    event: { trigger: 'wristPeak' },
   },
   {
     id: 'shot-put',
@@ -525,7 +532,7 @@ export const SPORT: ExerciseDef[] = [
       'Shot on the neck, elbow high, facing across the frame.',
       'Drive legs, extend and punch the shot out at release.',
     ],
-    met: 4.0,
+    met: 4.0, // Compendium 2024 15732 (shot, discus)
     angles: [
       { id: 'elbow', label: 'Putting elbow', kind: 'joint', joint: 'elbow', side: 'right' },
       { id: 'shoulder', label: 'Putting shoulder', kind: 'joint', joint: 'shoulder', side: 'right' },
@@ -555,7 +562,7 @@ export const SPORT: ExerciseDef[] = [
         why: 'A tall finish keeps release height up and the push directed upward-forward.',
       },
     ],
-    event: { trigger: 'wristPeak', releaseAngle: { good: [31, 40], ok: [26, 45] } }, // world-class 26–45°, mean ~37°; optimum is athlete-specific (Linthorne 2001)
+    event: { trigger: 'wristPeak', releaseAngle: { good: [31, 40], ok: [26, 45] } }, // optimum is athlete-specific (Linthorne 2001, J Sports Sci); elite throws cluster ~37–38° (arXiv:1007.3689). Linear push → measurable.
   },
   {
     id: 'discus-release',
@@ -573,7 +580,7 @@ export const SPORT: ExerciseDef[] = [
       'Use a standing throw or turn, releasing across the frame.',
       'Keep the throwing arm long and at shoulder height.',
     ],
-    met: 4.0,
+    met: 4.0, // Compendium 2024 15732
     angles: [
       { id: 'shoulder', label: 'Throwing shoulder', kind: 'joint', joint: 'shoulder', side: 'right' },
       { id: 'elbow', label: 'Throwing elbow', kind: 'joint', joint: 'elbow', side: 'right' },
@@ -602,7 +609,9 @@ export const SPORT: ExerciseDef[] = [
         why: 'Bending over at release lowers release height and angle.',
       },
     ],
-    event: { trigger: 'wristPeak', releaseAngle: { good: [35, 40], ok: [30, 45] } },
+    // Release angle unscored: the hand sweeps a fast arc mostly out of the image plane at release. Unscored: wrist direction over the 3-frame window is quantised by ~ω/(2·fps) of arm rotation, too coarse at phone frame rates for this hand speed.
+    // For reference, individual optimal discus release angles span 35–44° (Leigh 2010, J Biomech).
+    event: { trigger: 'wristPeak' },
   },
   {
     id: 'fast-bowling-delivery',
@@ -620,7 +629,7 @@ export const SPORT: ExerciseDef[] = [
       'Run in and bowl across the frame.',
       'Land the front foot, brace the knee and bowl over the top.',
     ],
-    met: 4.8,
+    met: 4.8, // Compendium 2024 15150
     angles: [
       { id: 'frontKnee', label: 'Front (left) knee', kind: 'joint', joint: 'knee', side: 'left' },
       { id: 'elbow', label: 'Bowling elbow', kind: 'joint', joint: 'elbow', side: 'right' },
@@ -631,13 +640,13 @@ export const SPORT: ExerciseDef[] = [
       {
         angle: 'frontKnee', when: 'release', good: [165, 180], ok: [150, 180],
         cue: 'Brace the front knee straight',
-        why: 'A braced front knee at ball release is linked to higher ball speed (Portus 2004; Worthington 2013).',
+        why: 'The fastest bowlers keep a straighter front knee through front-foot contact (Worthington 2013, J Appl Biomech).',
         weight: 1.5,
       },
       {
         angle: 'elbow', when: 'release', good: [165, 180], ok: [155, 180],
         cue: 'Keep the bowling arm straight',
-        why: 'A straight arm at release is typical. Legality depends on ≤15° elbow extension from arm-horizontal to release (ICC Reg. 2.1), which a single 2D frame cannot assess.',
+        why: 'A straight arm at release is typical. Legality is ≤15° elbow extension from arm-horizontal to release (ICC illegal-action rule), which a single 2D frame cannot assess.',
         weight: 1.5,
       },
       {
@@ -648,7 +657,7 @@ export const SPORT: ExerciseDef[] = [
       {
         angle: 'trunk', when: 'release', good: [10, 35], ok: [0, 45],
         cue: 'Drive chest over the front leg',
-        why: 'Forward trunk flexion at release contributes to ball speed.',
+        why: 'Faster bowlers show more upper-trunk flexion up to ball release (Worthington 2013).',
       },
     ],
     event: { trigger: 'wristPeak' },
@@ -669,7 +678,7 @@ export const SPORT: ExerciseDef[] = [
       'Shoot toward the edge of the frame.',
       'Jump straight up and release near the top.',
     ],
-    met: 4.5,
+    met: 5.0, // Compendium 2024 15070 shooting baskets
     angles: [
       { id: 'elbow', label: 'Shooting elbow', kind: 'joint', joint: 'elbow' },
       { id: 'shoulder', label: 'Shooting shoulder', kind: 'joint', joint: 'shoulder' },
@@ -685,12 +694,12 @@ export const SPORT: ExerciseDef[] = [
       {
         angle: 'shoulder', when: 'release', good: [130, 170], ok: [110, 180],
         cue: 'Release high above your head',
-        why: 'A high release point reduces the chance of being blocked and flattens less.',
+        why: 'A high release point is harder to block and needs a less steep arc.',
       },
       {
         angle: 'knee', when: 'release', good: [160, 180], ok: [145, 180],
         cue: 'Release at the top, legs extended',
-        why: 'Releasing at peak jump height with legs extended improves shot consistency (Okazaki 2015).',
+        why: 'Releasing near the top of the jump with legs extended keeps release height repeatable.',
       },
       {
         angle: 'trunk', when: 'release', good: [0, 12], ok: [0, 20],
@@ -698,7 +707,9 @@ export const SPORT: ExerciseDef[] = [
         why: 'Leaning or drifting in the air changes release conditions shot to shot.',
       },
     ],
-    event: { trigger: 'wristPeak', releaseAngle: { good: [45, 55], ok: [38, 62] } },
+    // Release angle unscored: the ball's launch angle (~52° optimal for free throws, Tran & Silverberg 2008, J Sports Sci)
+    // comes from wrist flexion and fingers; the wrist landmark's own velocity points much steeper, so it is not a proxy.
+    event: { trigger: 'wristPeak' },
   },
   {
     id: 'overhead-smash',
@@ -716,7 +727,7 @@ export const SPORT: ExerciseDef[] = [
       'Start side-on, racket up behind the head.',
       'Reach and strike at the highest point in front of you.',
     ],
-    met: 7.0,
+    met: 7.0, // Compendium 2024 15020 badminton, competitive
     angles: [
       { id: 'elbow', label: 'Hitting elbow', kind: 'joint', joint: 'elbow' },
       { id: 'shoulder', label: 'Hitting shoulder', kind: 'joint', joint: 'shoulder' },
@@ -764,7 +775,7 @@ export const SPORT: ExerciseDef[] = [
       'Guard up, feet staggered, knees soft.',
       'Punch straight out at shoulder height and snap back.',
     ],
-    met: 5.5,
+    met: 5.8, // Compendium 2024 15110 boxing, punching bag
     angles: [
       { id: 'elbow', label: 'Punching elbow', kind: 'joint', joint: 'elbow' },
       { id: 'shoulder', label: 'Punching shoulder', kind: 'joint', joint: 'shoulder' },
@@ -815,7 +826,7 @@ export const SPORT: ExerciseDef[] = [
       'Extend explosively, pull under, catch above parallel.',
       'Return the bar to the floor between reps.',
     ],
-    met: 6.0,
+    met: 6.0, // Compendium 2024 02050 weight lifting / power lifting, vigorous
     angles: [
       { id: 'hip', label: 'Hip', kind: 'joint', joint: 'hip' },
       { id: 'knee', label: 'Knee', kind: 'joint', joint: 'knee' },
@@ -862,7 +873,7 @@ export const SPORT: ExerciseDef[] = [
       'Extend, pull under and catch with elbows high.',
       'Lower the bar back to the hang between reps.',
     ],
-    met: 6.0,
+    met: 6.0, // Compendium 2024 02050 weight lifting / power lifting, vigorous
     angles: [
       { id: 'elbow', label: 'Elbow', kind: 'joint', joint: 'elbow' },
       { id: 'upperArm', label: 'Elbow height (upper arm)', kind: 'segment', segment: 'upperArm', ref: 'vertical' },
@@ -918,7 +929,7 @@ export const SPORT: ExerciseDef[] = [
       'Extend, pull under and catch in an overhead squat.',
       'Stand up with the bar locked overhead, then lower it.',
     ],
-    met: 6.0,
+    met: 6.0, // Compendium 2024 02050 weight lifting / power lifting, vigorous
     angles: [
       { id: 'shoulder', label: 'Shoulder (arm elevation)', kind: 'joint', joint: 'shoulder' },
       { id: 'elbow', label: 'Elbow', kind: 'joint', joint: 'elbow' },
@@ -934,7 +945,7 @@ export const SPORT: ExerciseDef[] = [
       {
         angle: 'elbow', when: 'bottom', good: [165, 180], ok: [155, 180],
         cue: 'Lock the elbows hard',
-        why: 'Soft elbows in the catch are a common cause of missed snatches and a press-out no-lift.',
+        why: 'Extending the arms after reaching the catch is a press-out no-lift (IWF TCRR 2.5.1.4).',
         weight: 1.5,
       },
       {
@@ -973,7 +984,7 @@ export const SPORT: ExerciseDef[] = [
       'Dip straight down, drive up, push under to locked arms.',
       'Stand tall, then return the bar to the rack.',
     ],
-    met: 6.0,
+    met: 6.0, // Compendium 2024 02050 weight lifting / power lifting, vigorous
     angles: [
       { id: 'shoulder', label: 'Shoulder (arm elevation)', kind: 'joint', joint: 'shoulder' },
       { id: 'elbow', label: 'Elbow', kind: 'joint', joint: 'elbow' },
@@ -990,7 +1001,7 @@ export const SPORT: ExerciseDef[] = [
       {
         angle: 'elbow', when: 'bottom', good: [165, 180], ok: [155, 180],
         cue: 'Lock out the elbows',
-        why: 'Locked elbows in the receipt are required for a valid jerk and a stable bar.',
+        why: 'Incomplete arm extension at completion is a no-lift (IWF TCRR 2.6.1); locked elbows also stabilise the bar.',
         weight: 1.5,
       },
       {
@@ -1030,7 +1041,7 @@ export const SPORT: ExerciseDef[] = [
       'Dip, drive, split feet and punch the bar to locked arms.',
       'Recover front foot then back foot, then return the bar.',
     ],
-    met: 6.0,
+    met: 6.0, // Compendium 2024 02050 weight lifting / power lifting, vigorous
     angles: [
       { id: 'shoulder', label: 'Shoulder (arm elevation)', kind: 'joint', joint: 'shoulder' },
       { id: 'elbow', label: 'Elbow', kind: 'joint', joint: 'elbow' },
@@ -1046,7 +1057,7 @@ export const SPORT: ExerciseDef[] = [
       {
         angle: 'elbow', when: 'bottom', good: [165, 180], ok: [155, 180],
         cue: 'Lock the elbows on arrival',
-        why: 'Pressing out soft elbows is a no-lift and destabilises the bar.',
+        why: 'Continuing arm extension after reaching the split is a press-out no-lift (IWF TCRR 2.5.1.4).',
         weight: 1.5,
       },
       {
@@ -1083,7 +1094,7 @@ export const SPORT: ExerciseDef[] = [
       'Jerk the bar and freeze in the split.',
       'Hold: arms locked, front shin vertical, back knee soft.',
     ],
-    met: 6.0,
+    met: 6.0, // Compendium 2024 02050 weight lifting / power lifting, vigorous
     angles: [
       { id: 'frontKnee', label: 'Front knee', kind: 'joint', joint: 'knee' },
       { id: 'frontShin', label: 'Front shin from vertical', kind: 'segment', segment: 'shin', ref: 'vertical' },

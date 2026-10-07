@@ -1,5 +1,7 @@
 import type { ExerciseDef } from '../types.js';
 
+// MET: 2024 Adult Compendium (Herrmann 2024 J Sport Health Sci, doi:10.1016/j.jshs.2023.10.010; codes at pacompendium.com).
+
 export const CALISTHENICS: ExerciseDef[] = [
   {
     id: 'push-up',
@@ -17,7 +19,7 @@ export const CALISTHENICS: ExerciseDef[] = [
       'Hands under shoulders, legs straight, body in one line.',
       'Keep your whole body in frame from head to feet.',
     ],
-    met: 3.8,
+    met: 3.8, // 02022 calisthenics, moderate
     angles: [
       { id: 'elbow', label: 'Elbow', kind: 'joint', joint: 'elbow' },
       { id: 'bodyLine', label: 'Body line', kind: 'joint', joint: 'bodyLine' },
@@ -46,7 +48,7 @@ export const CALISTHENICS: ExerciseDef[] = [
       'Kneel on a mat with hands under shoulders.',
       'Lean forward so shoulders, hips and knees form a line.',
     ],
-    met: 2.8,
+    met: 2.8, // 02024 calisthenics, light
     angles: [
       { id: 'elbow', label: 'Elbow', kind: 'joint', joint: 'elbow' },
       { id: 'hip', label: 'Hip', kind: 'joint', joint: 'hip' },
@@ -80,7 +82,7 @@ export const CALISTHENICS: ExerciseDef[] = [
       { id: 'knee', label: 'Knee', kind: 'joint', joint: 'knee' },
     ],
     checks: [
-      { angle: 'elbow', when: 'bottom', good: [50, 100], ok: [45, 120], cue: 'Lower until chest nears your hands', why: 'Deep elbow flexion is what makes the narrow grip a triceps-dominant press.', weight: 2 },
+      { angle: 'elbow', when: 'bottom', good: [50, 100], ok: [45, 120], cue: 'Lower until chest nears your hands', why: 'A narrow hand base raises triceps and pectoralis EMG over a wide base (Cogley 2005 JSCR, doi:10.1519/15094.1); it only counts through full depth.', weight: 2 },
       { angle: 'bodyLine', when: 'active', good: [165, 180], ok: [155, 180], cue: 'Brace your core, keep hips in line', why: 'A sagging or piked trunk reduces load on the pressing muscles and stresses the low back.', weight: 2 },
       { angle: 'knee', when: 'any', good: [160, 180], ok: [150, 180], cue: 'Keep your legs straight', why: 'Straight legs keep the full body lever and tension.' },
     ],
@@ -131,18 +133,18 @@ export const CALISTHENICS: ExerciseDef[] = [
       'Grip the bar overhand, slightly wider than shoulders.',
       'Start from a full dead hang.',
     ],
-    met: 8.0,
+    met: 7.5, // 02020 calisthenics incl. pull-ups, vigorous
     angles: [
       { id: 'elbow', label: 'Elbow', kind: 'joint', joint: 'elbow', side: 'both' },
       { id: 'shoulders', label: 'Shoulder tilt', kind: 'segment', segment: 'shoulders', ref: 'horizontal' },
       { id: 'hips', label: 'Hip tilt', kind: 'segment', segment: 'hips', ref: 'horizontal' },
     ],
     checks: [
-      { angle: 'elbow', when: 'bottom', good: [20, 60], ok: [20, 75], cue: 'Pull your chin over the bar', why: 'Chin-over-bar is the standard full-range criterion used in fitness testing.', weight: 2 },
+      { angle: 'elbow', when: 'bottom', good: [20, 90], ok: [20, 105], cue: 'Pull your chin over the bar', why: 'Dead hang to chin-over-bar spans ~93° of elbow motion in the pull-up (Youdas 2010 JSCR, doi:10.1519/JSC.0b013e3181f1598c), i.e. top ≈ 90° included.', weight: 2 },
       { angle: 'shoulders', when: 'active', good: [0, 6], ok: [0, 12], cue: 'Pull evenly with both arms', why: 'Shoulder tilt indicates one side is doing more of the work.' },
       { angle: 'hips', when: 'active', good: [0, 6], ok: [0, 12], cue: 'Keep hips square, no twisting', why: 'Hip rotation or swinging is a compensation for insufficient pulling strength.' },
     ],
-    reps: { driver: 'elbow', start: 'high', enter: 140, exit: 155, target: 60, minRepMs: 1000 },
+    reps: { driver: 'elbow', start: 'high', enter: 140, exit: 155, target: 90, minRepMs: 1000 },
   },
   {
     id: 'chin-up',
@@ -160,18 +162,18 @@ export const CALISTHENICS: ExerciseDef[] = [
       'Grip the bar underhand at shoulder width.',
       'Start from a full dead hang.',
     ],
-    met: 8.0,
+    met: 7.5, // 02020
     angles: [
       { id: 'elbow', label: 'Elbow', kind: 'joint', joint: 'elbow' },
       { id: 'hip', label: 'Hip', kind: 'joint', joint: 'hip' },
       { id: 'trunk', label: 'Trunk lean', kind: 'segment', segment: 'trunk', ref: 'vertical' },
     ],
     checks: [
-      { angle: 'elbow', when: 'bottom', good: [20, 60], ok: [20, 75], cue: 'Pull your chin over the bar', why: 'Chin-over-bar is the standard full-range criterion for vertical pulls.', weight: 2 },
+      { angle: 'elbow', when: 'bottom', good: [20, 85], ok: [20, 100], cue: 'Pull your chin over the bar', why: 'Dead hang to chin-over-bar spans ~101° of elbow motion in the chin-up (Youdas 2010 JSCR, doi:10.1519/JSC.0b013e3181f1598c), i.e. top ≈ 80° included.', weight: 2 },
       { angle: 'hip', when: 'active', good: [150, 180], ok: [130, 180], cue: 'No kipping, keep legs still', why: 'Hip flexion swings generate momentum that reduces work done by the pulling muscles.' },
       { angle: 'trunk', when: 'active', good: [0, 20], ok: [0, 35], cue: 'Stay tall, avoid leaning back', why: 'Excessive lean turns the pull into a row and hides a short range of motion.' },
     ],
-    reps: { driver: 'elbow', start: 'high', enter: 140, exit: 155, target: 60, minRepMs: 1000 },
+    reps: { driver: 'elbow', start: 'high', enter: 140, exit: 155, target: 85, minRepMs: 1000 },
   },
   {
     id: 'parallel-bar-dip',
@@ -189,7 +191,7 @@ export const CALISTHENICS: ExerciseDef[] = [
       'Support yourself on locked arms between the bars.',
       'Keep your whole body in frame.',
     ],
-    met: 8.0,
+    met: 7.5, // 02020
     angles: [
       { id: 'elbow', label: 'Elbow', kind: 'joint', joint: 'elbow' },
       { id: 'upperArm', label: 'Upper arm', kind: 'segment', segment: 'upperArm', ref: 'vertical' },
@@ -278,7 +280,7 @@ export const CALISTHENICS: ExerciseDef[] = [
       'Feet shoulder width, arms free to swing.',
       'Clear the space around you.',
     ],
-    met: 8.0,
+    met: 7.5, // 02020
     angles: [
       { id: 'knee', label: 'Knee', kind: 'joint', joint: 'knee' },
       { id: 'hip', label: 'Hip', kind: 'joint', joint: 'hip' },
@@ -338,7 +340,7 @@ export const CALISTHENICS: ExerciseDef[] = [
       'Leave room to kick back into a plank.',
       'Make sure standing and plank both fit in frame.',
     ],
-    met: 8.0,
+    met: 7.5, // 02020 lists burpees
     angles: [
       { id: 'trunk', label: 'Trunk', kind: 'segment', segment: 'trunk', ref: 'vertical' },
       { id: 'bodyLine', label: 'Body line', kind: 'joint', joint: 'bodyLine' },
@@ -365,11 +367,12 @@ export const CALISTHENICS: ExerciseDef[] = [
     muscles: ['core', 'hip flexors', 'shoulders', 'quads'],
     summary: 'Alternate driving each knee toward the chest from a high plank while keeping the hips level.',
     setup: [
+      'One rep = left + right leg; counted on the leg nearer the camera.',
       'Place the camera at floor height, 2–3 m to your side.',
       'Start in a high plank, hands under shoulders.',
       'Keep your whole body in frame.',
     ],
-    met: 8.0,
+    met: 7.5, // 02020
     angles: [
       { id: 'hip', label: 'Hip', kind: 'joint', joint: 'hip' },
       { id: 'trunk', label: 'Trunk', kind: 'segment', segment: 'trunk', ref: 'vertical' },
@@ -398,7 +401,7 @@ export const CALISTHENICS: ExerciseDef[] = [
       'Lie on your back, knees bent, feet flat.',
       'Hands across chest or lightly behind ears.',
     ],
-    met: 3.8,
+    met: 2.8, // 02024 lists crunches, plank
     angles: [
       { id: 'trunk', label: 'Trunk', kind: 'segment', segment: 'trunk', ref: 'vertical' },
       { id: 'knee', label: 'Knee', kind: 'joint', joint: 'knee' },
@@ -455,7 +458,7 @@ export const CALISTHENICS: ExerciseDef[] = [
       'Forearms on the floor, elbows under shoulders.',
       'Legs straight, body in one line.',
     ],
-    met: 3.8,
+    met: 2.8, // 02024
     angles: [
       { id: 'bodyLine', label: 'Body line', kind: 'joint', joint: 'bodyLine' },
       { id: 'knee', label: 'Knee', kind: 'joint', joint: 'knee' },
@@ -486,7 +489,7 @@ export const CALISTHENICS: ExerciseDef[] = [
       'Lie on your side, elbow under shoulder, feet stacked.',
       'Lift hips so the body faces the camera in one line.',
     ],
-    met: 3.8,
+    met: 2.8, // 02024
     angles: [
       { id: 'bodyLine', label: 'Body line', kind: 'joint', joint: 'bodyLine', side: 'both' },
       { id: 'hip', label: 'Hip', kind: 'joint', joint: 'hip', side: 'both' },

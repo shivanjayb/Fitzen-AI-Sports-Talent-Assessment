@@ -135,3 +135,28 @@ describe('motion engine', () => {
     });
   });
 });
+
+describe('jump landings', () => {
+  const run = (id: string, map: (f: PoseFrame[]) => PoseFrame[] = (f) => f) => {
+    const s = new MotionSession(exerciseById(id)!, { checkMovement: false });
+    for (const f of map(simulateExercise(exerciseById(id)!, { reps: 3, seed: 1 }))) s.push(f);
+    return s.finish().events ?? [];
+  };
+  it('reports height for a vertical jump, none for a horizontal broad jump', () => {
+    expect(run('countermovement-jump').every((e) => e.jumpHeightCm! > 10)).toBe(true);
+    const broad = run('standing-broad-jump');
+    expect(broad.length).toBeGreaterThan(0);
+    expect(broad.every((e) => e.jumpHeightCm === undefined)).toBe(true);
+  });
+  it('records a jump that lands on a box (higher than take-off), without a height', () => {
+    const toe = (f: PoseFrame) => Math.max(f.landmarks[31]!.y, f.landmarks[32]!.y);
+    const onBox = (fr: PoseFrame[]) => {
+      const ground = toe(fr[0]!);
+      const k = fr.findIndex((f) => toe(f) < ground - 0.03); // first airborne frame
+      return fr.map((f, i) => (i < k + 8 ? f : { ...f, landmarks: f.landmarks.map((l) => ({ ...l, y: l.y - 0.12 })) }));
+    };
+    const ev = run('box-jump', onBox);
+    expect(ev.length).toBeGreaterThan(0);
+    expect(ev[0]!.jumpHeightCm).toBeUndefined();
+  });
+});

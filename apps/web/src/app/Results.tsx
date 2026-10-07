@@ -390,7 +390,7 @@ export default function Results() {
         Method: 2D joint angles from on-device BlazePose landmarks (x scaled by frame aspect), {saved.integrity || saved.forensics
           ? 'zero-phase 6 Hz Butterworth filtered (uploaded clip, every native frame; angle noise is measured after this filter)'
           : 'One Euro filtered'}; reps by Schmitt trigger with a
-        minimum rep time; jump height h = g·t²/8 from toe-off to contact. Angle noise is the SD of raw angles about a 5-frame moving average.
+        minimum rep time; jump height h = g·t²/8 from toe-off to contact (vertical jumps landing at take-off level only). Angle noise is the SD of raw angles about a 5-point quadratic (Savitzky–Golay) fit, white-noise corrected.
         Single-camera measurements are screening estimates, not clinical measurements.
       </p>
 

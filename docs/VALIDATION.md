@@ -479,3 +479,39 @@ JSON where the licence allows it.
   1. The flamingo test reports hold seconds, but SAI scores falls in 60 s (§4).
   2. Sit-and-reach reports a hip angle, but SAI scores cm reach (§7).
   3. The broad jump computes a vertical-jump height from flight time, which is not meaningful (§5).
+
+## 11. Measured accuracy on synthetic ground truth (2026-10-07)
+
+Harness: `packages/engines/src/motion/validation/accuracy.test.ts` (run `npx vitest run accuracy` for the full table). Clips come from the synthetic athlete (`puppet.ts`), so the true angles, reps, holds, flight times and release angles are known exactly. Live = One Euro filter; offline (uploaded video) = zero-phase Butterworth (`filtfilt.ts`) + no causal filter. σ = white landmark noise in frame-height units. 16:9 at 30 fps unless stated.
+
+| Metric | Condition | Live | Offline (upload) |
+|---|---|---|---|
+| Rep count (3 exercises × 6 reps) | 24–120 fps, 16:9 and 9:16, σ ≤ 0.01, ≤ 10 % dropped frames, ±2 ms jitter | exact | exact |
+| Driver angle RMSE / max (back squat) | clean | 2.4° / 4.9° (filter lag) | 0.00° |
+| | σ = 0.002 | 2.6° / 6.3° | 0.86° / 2.7° |
+| | σ = 0.005, 5 % drops | 3.2° / 8.3° | 2.1° / 6.1° |
+| Jump height (24 jumps, flight 0.35–0.65 s) | clean, 24 / 30 fps | 0.00 cm | bias −0.12 / −0.15, RMSE 0.19 / 0.21 cm |
+| | σ = 0.002, 30 fps | RMSE 0.44 cm | RMSE 0.40 cm |
+| | σ = 0.005, 30 fps | RMSE 1.5 cm | RMSE 1.0 cm |
+| | σ = 0.005, 120 fps | RMSE 0.85 cm | RMSE 0.49 cm |
+| Release angle (27 throws) | clean, 24 / 30 / 120 fps | 0.28° / 0.23° / 0.01° | 0.19° / 0.10° / 0.00° |
+| | σ = 0.002 / 0.005, 30 fps | 1.6° / 6.6° | 0.7° / 4.5° |
+| Hold time (plank, wall sit; ~64 s) | σ ≤ 0.005, landscape | ≤ 0.11 s | ≤ 0.11 s |
+
+For comparison, counting airborne frames (the My Jump-style method) has a quantisation error with SD = 1/(fps·√6) in flight time: measured 2.17 / 1.58 / 0.83 / 0.38 cm RMSE at 24 / 30 / 60 / 120 fps, matching the analytic 2.09 / 1.67 / 0.83 / 0.42 cm. Fitzen's parabola fit to the airborne toe track removes most of it.
+
+Bugs found and fixed by this harness: limb-foreshortening reference inflated by noise (holds under-counted ~45 %), release angle taken from the whole frame (8.8° → 0.1° RMSE), holds surviving gaps with no pose frames, `fps` off by one, and a −0.8 cm offline jump bias (jump clips now filtered at 10 Hz instead of 6 Hz).
+
+**What this does not show.** These are upper bounds on how good the maths can be, not field accuracy. Synthetic tests cannot reproduce out-of-plane perspective bias, real MediaPipe errors (biased per joint and correlated over time), motion blur, rolling shutter or non-rigid take-off/landing postures. Published markerless-vs-marker sagittal angle differences are ~5–14° RMS (e.g. Thiele 2024, snatch: 13.6°), so field accuracy must be measured on real athletes (section 9, roadmap item 2). No figure here is "100 %"; none should be claimed.
+
+Known weak spots: the foreshortening gate still mis-greys at σ = 0.005 in portrait with a small athlete; live throws at 120 fps with noise produce false releases (uploads unaffected); at σ = 0.01 a jump is occasionally missed or doubled.
+
+## 12. Exercise catalog research audit (2026-10-07)
+
+All 90 definitions were checked against published biomechanics, official protocols (AYUSH Common Yoga Protocol, IWF TCRR 2025, ICC, Fit India 5–18 protocol, SAI circulars) and the 2024 Compendium of Physical Activities (Herrmann et al., J Sport Health Sci, doi:10.1016/j.jshs.2023.10.010). Sources are cited in each exercise's `why` text and MET comments; only sources that were actually opened are cited (about 50 across the catalog).
+
+Main corrections: pull-up/chin-up targets (Youdas 2010: ~93°/101° elbow motion to chin-over-bar, old target marked most real reps partial); squat torso-lean band (Larsen 2021); bridge, cobra, triangle, deep squat and overhead reach bands (AYUSH CYP, Hemmerich 2006, Gill 2020); sprint-start knee angles (Bezodis 2019); many MET values that were not real Compendium entries (e.g. kettlebell swing 6.0 → 9.8, upper-body lifts 5.0 → 3.5, static yoga 2.5/4.0 → 2.3/2.8).
+
+Engine changes from the audit: `side: 'flexed' | 'extended'` (Warrior I/II work whichever leg leads); box jumps landing on a raised surface are recorded; no flight-time "height" is reported for horizontal jumps or box landings.
+
+Not measurable from one phone, and now labelled as such in the app: javelin, discus and basketball release angle (scoring removed; hand moves several degrees between frames, mostly out of plane); broad jump and medicine-ball distance (needs a tape); sit-and-reach in cm (Fitzen scores the trunk–hip angle); Flamingo falls in 60 s (Fitzen reports time held); SAI vertical jump is jump-and-reach, so flight-time height is not comparable with SAI norm tables; 50 m dash and 600 m run; cricket elbow legality; knee hyperextension; lying and seated poses track weakly. Alternating drills (mountain climbers, high knees, A-skips, butt kicks) count one rep per left + right cycle on the leg nearer the camera. Bands tighter than ±10° are inside markerless measurement noise and need real-athlete calibration.

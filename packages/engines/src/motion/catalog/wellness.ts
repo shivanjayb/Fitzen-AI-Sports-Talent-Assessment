@@ -22,7 +22,7 @@ export const WELLNESS: ExerciseDef[] = [
       'Lie on your back, knees bent about 90°, feet flat and held.',
       'Cross arms on chest; curl up until elbows touch thighs.',
     ],
-    met: 8.0,
+    met: 7.5, // Compendium 2024 02020 (sit-ups, vigorous)
     angles: [
       { id: 'hip', label: 'Hip angle', kind: 'joint', joint: 'hip', side: 'auto' },
       { id: 'knee', label: 'Knee angle', kind: 'joint', joint: 'knee', side: 'auto' },
@@ -72,7 +72,7 @@ export const WELLNESS: ExerciseDef[] = [
       'Arms straight by your sides, fingertips on the strip.',
       'Curl up slowly, sliding fingers forward, then lower.',
     ],
-    met: 3.8,
+    met: 2.8, // Compendium 2024 02024 (light calisthenics)
     angles: [
       { id: 'trunk', label: 'Trunk inclination', kind: 'segment', segment: 'trunk', ref: 'vertical', side: 'auto' },
       { id: 'knee', label: 'Knee angle', kind: 'joint', joint: 'knee', side: 'auto' },
@@ -124,7 +124,7 @@ export const WELLNESS: ExerciseDef[] = [
     difficulty: 1,
     equipment: ['sit-and-reach box'],
     muscles: ['hamstrings', 'erector spinae', 'gluteus maximus'],
-    summary: 'Seated forward reach with straight legs, measuring hamstring and lower-back flexibility.',
+    summary: 'Seated forward reach with straight legs, measuring hamstring and lower-back flexibility. Official score is in cm; Fitzen scores the trunk–hip angle instead.',
     setup: [
       'Place the camera at hip height, side-on, 2 m away.',
       'Sit with legs straight, soles flat against the box.',
@@ -176,7 +176,7 @@ export const WELLNESS: ExerciseDef[] = [
     difficulty: 2,
     equipment: [],
     muscles: ['ankle stabilisers', 'gluteus medius', 'core'],
-    summary: 'Single-leg stance holding the other foot behind, measuring static balance.',
+    summary: 'Single-leg stance holding the other foot behind, measuring static balance. Official score is falls in 60 s (Fit India Fitness Protocol 5–18 y); Fitzen reports time held.',
     setup: [
       'Place the camera at chest height, facing you, 3 m away.',
       'Stand on your preferred leg.',
@@ -227,13 +227,13 @@ export const WELLNESS: ExerciseDef[] = [
     difficulty: 2,
     equipment: [],
     muscles: ['pectoralis major', 'triceps', 'anterior deltoid', 'core'],
-    summary: 'Maximum full push-ups with a rigid body line, per the SAI Khelo India battery.',
+    summary: 'Maximum full push-ups with a rigid body line, per the SAI Khelo India battery. Girls\' protocol is knee-down: use Knee Push-Up.',
     setup: [
       'Place the camera at floor level, side-on, 2–3 m away.',
       'Hands under shoulders, body straight from head to heels.',
       'Lower until elbows reach 90°, then press to lockout.',
     ],
-    met: 8.0,
+    met: 7.5, // Compendium 2024 02020
     angles: [
       { id: 'elbow', label: 'Elbow angle', kind: 'joint', joint: 'elbow', side: 'auto' },
       { id: 'bodyLine', label: 'Body line', kind: 'joint', joint: 'bodyLine', side: 'auto' },
@@ -287,7 +287,7 @@ export const WELLNESS: ExerciseDef[] = [
     difficulty: 2,
     equipment: ['medicine ball (1 kg / 2 kg)', 'wall', 'tape measure'],
     muscles: ['pectoralis major', 'triceps', 'anterior deltoid'],
-    summary: 'Seated two-hand chest pass with back to the wall, measuring upper-body power.',
+    summary: 'Seated two-hand chest pass with back to the wall, measuring upper-body power. Measure distance with a tape; Fitzen scores release form and angle.',
     setup: [
       'Place the camera at chest height, side-on, 3 m away.',
       'Sit with back against a wall, legs straight.',
@@ -348,7 +348,7 @@ export const WELLNESS: ExerciseDef[] = [
     difficulty: 2,
     equipment: ['wall with measuring scale'],
     muscles: ['quadriceps', 'gluteus maximus', 'calves'],
-    summary: 'Countermovement jump-and-reach from standing, measuring lower-body explosive power.',
+    summary: 'Countermovement jump-and-reach from standing, measuring lower-body explosive power. Fitzen gives flight-time height, not reach height, so it is not comparable with SAI norm tables.',
     setup: [
       'Place the camera at hip height, side-on, 3 m away.',
       'Stand tall with feet hip-width apart.',
@@ -425,7 +425,7 @@ export const WELLNESS: ExerciseDef[] = [
     difficulty: 2,
     equipment: ['tape measure', 'non-slip surface'],
     muscles: ['quadriceps', 'gluteus maximus', 'hamstrings', 'calves'],
-    summary: 'Two-foot standing long jump for distance, measuring horizontal explosive power.',
+    summary: 'Two-foot standing long jump for distance, measuring horizontal explosive power. Measure distance with a tape; Fitzen scores take-off form and angle.',
     setup: [
       'Place the camera at hip height, side-on, 4 m away.',
       'Stand behind the line, feet shoulder-width apart.',
@@ -499,10 +499,10 @@ export const WELLNESS: ExerciseDef[] = [
     setup: [
       'Place the camera at chest height, facing you, 3 m away.',
       'Stand on one leg (do both sides).',
-      'Place the other sole on the inner standing thigh or calf.',
+      'Place the other sole on the inner thigh or calf, never the knee.',
       'Palms together at chest or overhead.',
     ],
-    met: 2.5,
+    met: 2.3, // Compendium 2024 02150 Yoga, Hatha
     angles: [
       { id: 'trunk', label: 'Trunk lean', kind: 'segment', segment: 'trunk', ref: 'vertical', side: 'both' },
       { id: 'hips', label: 'Pelvic tilt', kind: 'segment', segment: 'hips', ref: 'horizontal' },
@@ -516,7 +516,7 @@ export const WELLNESS: ExerciseDef[] = [
         good: [0, 9],
         ok: [0, 14],
         cue: 'Grow tall through the crown',
-        why: 'Trunk lean shifts the centre of mass outside the base of support.',
+        why: 'Trunk lean shifts the centre of mass outside the base of support (AYUSH Common Yoga Protocol: hold 10–30 s).',
       },
       {
         angle: 'hips',
@@ -553,10 +553,11 @@ export const WELLNESS: ExerciseDef[] = [
       'Keep the right leg straight.',
       'Raise arms to shoulder height, reaching sideways.',
     ],
-    met: 2.5,
+    met: 2.3, // Compendium 2024 02150 Yoga, Hatha
     angles: [
-      { id: 'frontKnee', label: 'Front (left) knee', kind: 'joint', joint: 'knee', side: 'left' },
-      { id: 'backKnee', label: 'Back (right) knee', kind: 'joint', joint: 'knee', side: 'right' },
+      // Bent knee = front leg, straight knee = back leg, whichever side leads.
+      { id: 'frontKnee', label: 'Front knee', kind: 'joint', joint: 'knee', side: 'flexed' },
+      { id: 'backKnee', label: 'Back knee', kind: 'joint', joint: 'knee', side: 'extended' },
       { id: 'shoulder', label: 'Arm elevation', kind: 'joint', joint: 'shoulder', side: 'both' },
       { id: 'elbow', label: 'Elbow angle', kind: 'joint', joint: 'elbow', side: 'both' },
       { id: 'trunk', label: 'Trunk lean', kind: 'segment', segment: 'trunk', ref: 'vertical', side: 'both' },
@@ -567,10 +568,10 @@ export const WELLNESS: ExerciseDef[] = [
       {
         angle: 'frontKnee',
         when: 'hold',
-        good: [85, 110],
-        ok: [75, 130],
+        good: [85, 120],
+        ok: [75, 140],
         cue: 'Bend front knee toward 90°',
-        why: 'A near-right-angle front knee builds quadriceps strength without shear overload.',
+        why: 'Manuals cue 90°; experienced practitioners averaged 68 ± 20° flexion (~112° here) in motion capture (Whissell et al. 2021).',
         weight: 2,
       },
       {
@@ -627,15 +628,15 @@ export const WELLNESS: ExerciseDef[] = [
     muscles: ['quadriceps', 'gluteus maximus', 'hip flexors', 'deltoids'],
     summary: 'Front-facing lunge with arms overhead and an upright torso.',
     setup: [
-      'Place the camera at hip height, left side to camera, 3 m away.',
-      'Step the left foot forward and bend that knee.',
-      'Keep the right leg straight behind you.',
+      'Place the camera at hip height, side-on, 3 m away.',
+      'Step forward with the leg nearer the camera; bend that knee.',
+      'Keep the back leg straight behind you (repeat facing the other way).',
       'Raise both arms overhead.',
     ],
-    met: 2.5,
+    met: 2.3, // Compendium 2024 02150 Yoga, Hatha
     angles: [
-      { id: 'frontKnee', label: 'Front (left) knee', kind: 'joint', joint: 'knee', side: 'left' },
-      { id: 'backKnee', label: 'Back (right) knee', kind: 'joint', joint: 'knee', side: 'right' },
+      // Bent knee = front leg, whichever side leads. ponytail: no back-knee check: the demo puppet can't draw split legs.
+      { id: 'frontKnee', label: 'Front knee', kind: 'joint', joint: 'knee', side: 'flexed' },
       { id: 'trunk', label: 'Trunk inclination', kind: 'segment', segment: 'trunk', ref: 'vertical', side: 'auto' },
       { id: 'shoulder', label: 'Arm elevation', kind: 'joint', joint: 'shoulder', side: 'auto' },
       { id: 'elbow', label: 'Elbow angle', kind: 'joint', joint: 'elbow', side: 'auto' },
@@ -650,14 +651,6 @@ export const WELLNESS: ExerciseDef[] = [
         cue: 'Sink front knee toward 90°',
         why: 'A deep front knee develops quadriceps and gluteal strength.',
         weight: 2,
-      },
-      {
-        angle: 'backKnee',
-        when: 'hold',
-        good: [160, 180],
-        ok: [145, 180],
-        cue: 'Press back heel, straighten leg',
-        why: 'An extended back leg stretches the hip flexors of that side.',
       },
       {
         angle: 'trunk',
@@ -702,7 +695,7 @@ export const WELLNESS: ExerciseDef[] = [
       'Sit hips back as if onto a chair.',
       'Raise arms overhead alongside the ears.',
     ],
-    met: 4.0,
+    met: 2.8, // Compendium 2024 02024 light calisthenics (isometric holds like plank); 4.0 is flowing Power yoga
     angles: [
       { id: 'knee', label: 'Knee angle', kind: 'joint', joint: 'knee', side: 'auto' },
       { id: 'hip', label: 'Hip angle', kind: 'joint', joint: 'hip', side: 'auto' },
@@ -772,7 +765,7 @@ export const WELLNESS: ExerciseDef[] = [
       'Lift hips up and back into an inverted V.',
       'Press heels toward the floor.',
     ],
-    met: 2.5,
+    met: 2.3, // Compendium 2024 02150 Yoga, Hatha
     angles: [
       { id: 'hip', label: 'Hip angle', kind: 'joint', joint: 'hip', side: 'auto' },
       { id: 'knee', label: 'Knee angle', kind: 'joint', joint: 'knee', side: 'auto' },
@@ -787,7 +780,7 @@ export const WELLNESS: ExerciseDef[] = [
         good: [60, 95],
         ok: [50, 110],
         cue: 'Lift hips high and back',
-        why: 'A sharp hip angle stretches the hamstrings and takes weight off the wrists.',
+        why: 'Motion capture of the inverted-V pose shows ~67° hip flexion plus spinal flexion with near-straight knees (Mullerpatan et al. 2019).',
         weight: 2,
       },
       {
@@ -833,7 +826,7 @@ export const WELLNESS: ExerciseDef[] = [
       'Hands under shoulders, elbows close to ribs.',
       'Press up to lift the chest.',
     ],
-    met: 2.5,
+    met: 2.3, // Compendium 2024 02150 Yoga, Hatha
     angles: [
       { id: 'trunk', label: 'Trunk inclination', kind: 'segment', segment: 'trunk', ref: 'vertical', side: 'auto' },
       { id: 'knee', label: 'Knee angle', kind: 'joint', joint: 'knee', side: 'auto' },
@@ -846,8 +839,8 @@ export const WELLNESS: ExerciseDef[] = [
         when: 'hold',
         good: [40, 70],
         ok: [30, 80],
-        cue: 'Lift your chest higher',
-        why: 'A 20–50° trunk lift provides meaningful spinal extension.',
+        cue: 'Lift chest to navel height',
+        why: 'AYUSH Common Yoga Protocol: lift chin and chest up to the navel region, legs firm so the lumbar spine is not strained.',
         weight: 2,
       },
       {
@@ -861,10 +854,10 @@ export const WELLNESS: ExerciseDef[] = [
       {
         angle: 'upperArm',
         when: 'hold',
-        good: [155, 180],
-        ok: [140, 180],
-        cue: 'Stack shoulders over wrists',
-        why: 'Vertical upper arms (reading ~180°, hanging below the shoulder) keep the shoulders out of a loaded, shrugged position.',
+        good: [135, 180],
+        ok: [120, 180],
+        cue: 'Elbows in, shoulders away from ears',
+        why: 'AYUSH protocol keeps palms beside the chest with elbows bent, so the upper arm hangs near vertical (~180°) or tilts back a little.',
       },
     ],
   },
@@ -885,7 +878,7 @@ export const WELLNESS: ExerciseDef[] = [
       'Reach sideways, lowering one hand to shin or floor.',
       'Extend the other arm straight up.',
     ],
-    met: 2.5,
+    met: 2.3, // Compendium 2024 02150 Yoga, Hatha
     angles: [
       { id: 'knee', label: 'Knee angle', kind: 'joint', joint: 'knee', side: 'both' },
       { id: 'trunk', label: 'Trunk side-bend', kind: 'segment', segment: 'trunk', ref: 'vertical', side: 'auto' },
@@ -905,10 +898,10 @@ export const WELLNESS: ExerciseDef[] = [
       {
         angle: 'trunk',
         when: 'hold',
-        good: [45, 80],
-        ok: [30, 90],
-        cue: 'Reach further sideways',
-        why: 'Greater lateral trunk flexion stretches the obliques and side body.',
+        good: [40, 80],
+        ok: [25, 90],
+        cue: 'Bend sideways, hand toward shin',
+        why: 'AYUSH protocol: bend sideways toward the foot, or reach the knee instead; do not overdo the lateral stretch.',
         weight: 2,
       },
       {
@@ -946,7 +939,7 @@ export const WELLNESS: ExerciseDef[] = [
       'Straighten legs toward a V shape.',
       'Reach arms forward parallel to the floor.',
     ],
-    met: 4.0,
+    met: 2.8, // Compendium 2024 02024 light calisthenics (isometric holds like plank)
     angles: [
       { id: 'hip', label: 'Hip angle', kind: 'joint', joint: 'hip', side: 'auto' },
       { id: 'trunk', label: 'Trunk inclination', kind: 'segment', segment: 'trunk', ref: 'vertical', side: 'auto' },
@@ -1016,7 +1009,7 @@ export const WELLNESS: ExerciseDef[] = [
       'Press through heels and lift the hips.',
       'Hold a straight line from shoulders to knees.',
     ],
-    met: 2.5,
+    met: 2.3, // Compendium 2024 02150 Yoga, Hatha
     angles: [
       { id: 'hip', label: 'Hip angle', kind: 'joint', joint: 'hip', side: 'auto' },
       { id: 'knee', label: 'Knee angle', kind: 'joint', joint: 'knee', side: 'auto' },
@@ -1036,18 +1029,18 @@ export const WELLNESS: ExerciseDef[] = [
       {
         angle: 'knee',
         when: 'hold',
-        good: [55, 80],
-        ok: [45, 95],
-        cue: 'Place feet under your knees',
-        why: 'With hips lifted in line and shins vertical, the sloped thigh puts the knee near 65°.',
+        good: [45, 80],
+        ok: [35, 95],
+        cue: 'Walk heels in toward your hips',
+        why: 'Feet under the knees reads ~65°; the AYUSH protocol brings heels near the buttocks, closing it further.',
       },
       {
         angle: 'shin',
         when: 'hold',
-        good: [0, 15],
-        ok: [0, 25],
-        cue: 'Keep shins vertical',
-        why: 'Vertical shins stop the load drifting into the quadriceps or hamstrings.',
+        good: [0, 25],
+        ok: [0, 35],
+        cue: 'Heels near hips, under the knees',
+        why: 'Near-vertical shins keep load on the glutes; feet far away shift it to the hamstrings.',
       },
     ],
   },
@@ -1116,7 +1109,7 @@ export const WELLNESS: ExerciseDef[] = [
         good: [0.3, 0.8],
         ok: [0.15, 1.0],
         cue: 'Feet together to hip-width',
-        why: 'Tadasana uses a narrow base so alignment faults are not masked.',
+        why: 'AYUSH protocol Tadasana stands with feet about 2 inches apart, a narrow base that does not mask alignment faults.',
       },
     ],
   },
@@ -1151,10 +1144,10 @@ export const WELLNESS: ExerciseDef[] = [
       {
         angle: 'knee',
         when: 'hold',
-        good: [35, 70],
-        ok: [25, 90],
+        good: [25, 60],
+        ok: [20, 80],
         cue: 'Sink lower into the squat',
-        why: 'Full knee flexion is the goal of a deep squat mobility hold.',
+        why: 'Full squatting takes ~150°+ knee flexion (Hemmerich et al. 2006: 157 ± 6° heels-up); 80°+ here is only a parallel squat.',
         weight: 2,
       },
       {
@@ -1210,10 +1203,10 @@ export const WELLNESS: ExerciseDef[] = [
       {
         angle: 'shoulder',
         when: 'hold',
-        good: [165, 180],
-        ok: [150, 180],
+        good: [160, 180],
+        ok: [145, 180],
         cue: 'Reach arms back by your ears',
-        why: 'Normal shoulder flexion is about 170–180°; less suggests lat or capsule tightness.',
+        why: 'AAOS norm is 180°; adults under 50 average ~160–170° active flexion (Gill et al. 2020).',
         weight: 2,
       },
       {
@@ -1251,7 +1244,7 @@ export const WELLNESS: ExerciseDef[] = [
       'Push hips back, torso tips forward, back flat.',
       'Squeeze glutes to return upright.',
     ],
-    met: 3.8,
+    met: 2.8, // Compendium 2024 02024 calisthenics, light effort (unloaded drill)
     angles: [
       { id: 'hip', label: 'Hip angle', kind: 'joint', joint: 'hip', side: 'auto' },
       { id: 'knee', label: 'Knee angle', kind: 'joint', joint: 'knee', side: 'auto' },
@@ -1324,7 +1317,7 @@ export const WELLNESS: ExerciseDef[] = [
         good: [20, 60],
         ok: [10, 80],
         cue: 'Fold deeper from the hips',
-        why: 'A smaller trunk-to-thigh angle reflects greater hamstring extensibility.',
+        why: 'Hand-to-foot pose combines ~83° hip and ~57° spinal flexion (Mullerpatan et al. 2019); avoid with back or disc problems (AYUSH).',
         weight: 2,
       },
       {
@@ -1376,7 +1369,7 @@ export const WELLNESS: ExerciseDef[] = [
         good: [35, 60],
         ok: [28, 65],
         cue: 'Drive knee further forward',
-        why: 'Shin inclination of about 35° or more is regarded as normal dorsiflexion.',
+        why: 'Tibial inclination is the standard lunge-test dorsiflexion measure (Bennell et al. 1998, inter-rater ICC 0.97).',
         weight: 2,
       },
       {

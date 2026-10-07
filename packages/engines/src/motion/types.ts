@@ -29,7 +29,8 @@ export type SegmentName =
   | 'shoulders' // left→right shoulder (tilt, front view)
   | 'hips'; // left→right hip (tilt, front view)
 
-export type Side = 'auto' | 'left' | 'right' | 'both';
+/** flexed / extended: the more / less bent of the two sides each frame (lunging leg vs straight leg, whichever side leads). */
+export type Side = 'auto' | 'left' | 'right' | 'both' | 'flexed' | 'extended';
 
 export type AngleDef =
   | {
@@ -37,7 +38,7 @@ export type AngleDef =
       label: string;
       kind: 'joint';
       joint: JointName;
-      /** auto = more visible side (facing camera); both = mean of L/R + asymmetry. */
+      /** auto = more visible side (facing camera); both = mean of L/R + asymmetry; flexed/extended = min/max of L/R. */
       side?: Side;
     }
   | {
@@ -96,7 +97,7 @@ export interface RepRule {
   target: number;
   /** Reps faster than this are rejected as bounces / noise. Default 600 ms. */
   minRepMs?: number;
-  /** Unilateral exercises: count each side separately (lunges, step-ups). */
+  /** Alternating-leg drill (high knees, mountain climbers): one rep = one left + right cycle, counted on the leg nearer the camera. */
   alternating?: boolean;
 }
 

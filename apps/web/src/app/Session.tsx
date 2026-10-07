@@ -109,7 +109,9 @@ export default function Session() {
       // (no One Euro lag) and check the RAW landmarks for physical plausibility.
       const raw = source.current.frames;
       const offline = new MotionSession(def, { weightKg: profile.weightKg ?? undefined, smoothing: 'none' });
-      for (const f of filtfiltLandmarks(raw)) offline.push(f, aspect);
+      // Jumps: 10 Hz, not 6. A 6 Hz filter rounds the toe's take-off/landing corners and shortens the fitted flight
+      // (−0.8 cm bias on synthetic jumps; −0.2 cm at 10 Hz, see accuracy.test.ts). Winter: impacts need a higher cutoff.
+      for (const f of filtfiltLandmarks(raw, def.event?.trigger === 'jump' ? 10 : 6)) offline.push(f, aspect);
       report = offline.finish();
       extra = { integrity: analyseIntegrity(raw, { aspect, statureCm: profile.heightCm ?? undefined, mode: def.mode }), forensics: forensics.current };
     }

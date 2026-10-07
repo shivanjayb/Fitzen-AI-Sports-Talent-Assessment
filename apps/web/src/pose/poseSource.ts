@@ -221,21 +221,25 @@ export class VideoFilePoseSource implements PoseSource {
         let done = false;
         const finish = (v: number | null) => { if (!done) { done = true; video.removeEventListener('seeked', onSeeked); resolve(v); } };
         // After 'seeked' the new frame is composited and rvfc fires with its mediaTime. If it does not fire within
-        // 250 ms (e.g. the seek landed on the frame already shown), fall back to currentTime, i.e. the seek target.
+        // 250 ms (e.g. the seek landed on the frame already shown, or a background tab), fall back to the start of the
+        // native frame containing currentTime (the mid-frame seek target): the same PTS rvfc reports for a clip starting
+        // at 0, so mixing the two never adds a half-frame step to dt.
+        const grid = () => Math.floor(video.currentTime * native) / native;
         const onSeeked = () => {
-          if (!rvfc) { finish(video.currentTime); return; }
+          if (!rvfc) { finish(grid()); return; }
           video.requestVideoFrameCallback((_now, meta) => finish(meta.mediaTime));
-          window.setTimeout(() => finish(video.currentTime), 250);
+          window.setTimeout(() => finish(grid()), 250);
         };
         video.addEventListener('seeked', onSeeked);
-        window.setTimeout(() => finish(video.readyState >= 2 ? video.currentTime : null), 2000);
+        window.setTimeout(() => finish(video.readyState >= 2 ? grid() : null), 2000);
         video.currentTime = Math.min(t, Math.max(0, duration - 0.001));
       });
 
     let lastPct = -1;
     let lastMs = -Infinity;
-    // Seek to the middle of each frame interval so the decoder lands unambiguously on one frame.
-    for (let t = step / 2; t < duration; t += step) {
+    // Seek to the middle of a native frame so the decoder lands unambiguously on it. (Not step/2: when decimating by an
+    // even factor that is exactly a frame boundary, and the decoder may show either neighbour.)
+    for (let t = 0.5 / native; t < duration; t += step) {
       if (this.stopped || !this.landmarker) return;
       const mediaTime = await seekTo(t);
       if (mediaTime === null || video.videoWidth === 0) continue;

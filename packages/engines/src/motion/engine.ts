@@ -326,7 +326,7 @@ export class MotionSession {
   private acc: CheckAcc[];
   private sym: Record<string, number[]> = {};
   // foreshortening gate: session max 2D length per `${side}:${segment}`, excluded readings per check
-  private segRef = new Map<string, number>();
+  private segRef = new Map<string, number>(); private segSm = new Map<string, number>();
   private excluded: number[];
   private fsFrames = 0;
 
@@ -403,7 +403,7 @@ export class MotionSession {
     let fs = new Set<string>();
     if (tracking) {
       this.tracked++;
-      fs = this.foreshortened(pts);
+      fs = this.foreshortened(pts, t);
       for (const a of this.def.angles) {
         const r = this.measure(a, pts);
         const rr = this.measure(a, rawPts);
@@ -415,6 +415,7 @@ export class MotionSession {
       }
       if (this.def.checks.some((c) => fs.has(c.angle))) this.fsFrames++;
       this.history.push({ t, a: values, raw, pts, rp: rawPts, fs, sh: this.lastShort });
+      if (t - this.lastTrackedT > 300) this.holdRun = 0; // no tracked pose for > 300 ms (frames missing, e.g. no detection) breaks the hold
       this.lastTrackedT = t;
     } else if (t - this.lastTrackedT > 300) this.holdRun = 0; // tracking lost > 300 ms breaks the continuous hold
 
@@ -545,13 +546,19 @@ export class MotionSession {
    * ponytail: session max assumes a fixed camera distance and trusts one clean side-on frame; use a decaying p95 if
    * athletes walk toward the camera.
    */
-  private foreshortened(p: P[]): Set<string> {
+  private foreshortened(p: P[], t: number): Set<string> {
     const short = new Set<string>();
+    // Lengths are smoothed (EMA, τ = 0.25 s) before the max and the comparison. A raw max is an extreme-value statistic
+    // of landmark noise: at σ = 0.5 % of frame height the session max of a forearm sits ~20 % above its true length and
+    // the gate then greys out (and pauses holds on) perfectly in-plane limbs.
+    const a = 1 - Math.exp(-Math.max(0, t - this.lastTrackedT) / 250); // NaN on the first frame → falls back to len
     for (const side of ['left', 'right'] as const) {
       for (const seg of Object.keys(SEGMENTS) as SegKey[]) {
         const [i, j] = SEGMENTS[seg](this.sideMap(side));
-        const len = Math.hypot(p[i]!.x - p[j]!.x, p[i]!.y - p[j]!.y);
         const key = `${side}:${seg}`;
+        const raw = Math.hypot(p[i]!.x - p[j]!.x, p[i]!.y - p[j]!.y), prev = this.segSm.get(key);
+        const len = prev === undefined || Number.isNaN(a) ? raw : prev + a * (raw - prev);
+        this.segSm.set(key, len);
         const ref = Math.max(this.segRef.get(key) ?? 0, len);
         this.segRef.set(key, ref);
         if (len < FILTER.minSegmentRatio * ref) short.add(key);
@@ -564,7 +571,7 @@ export class MotionSession {
       const segs: SegKey[] =
         a.kind === 'joint' ? JOINT_SEGS[a.joint] :
         a.kind === 'segment' && a.segment !== 'shoulders' && a.segment !== 'hips' ? [a.segment] : [];
-      const sides = 'side' in a && a.side === 'both' ? ['left', 'right'] : 'side' in a && (a.side === 'left' || a.side === 'right') ? [a.side] : [this.side];
+      const sides = 'side' in a && (a.side === 'both' || a.side === 'flexed' || a.side === 'extended') ? ['left', 'right'] : 'side' in a && (a.side === 'left' || a.side === 'right') ? [a.side] : [this.side];
       if (segs.some((g) => sides.some((sd) => short.has(`${sd}:${g}`)))) out.add(a.id);
     }
     return out;
@@ -573,7 +580,7 @@ export class MotionSession {
   /** Landmark chains an angle touches (for colouring). */
   private chains(a: AngleDef): number[][] {
     const sides: Array<'left' | 'right'> =
-      'side' in a && a.side === 'both' ? ['left', 'right'] :
+      'side' in a && (a.side === 'both' || a.side === 'flexed' || a.side === 'extended') ? ['left', 'right'] :
       'side' in a && (a.side === 'left' || a.side === 'right') ? [a.side] : [this.side];
     if (a.kind === 'joint') return sides.map((s) => JOINTS[a.joint](this.sideMap(s)));
     if (a.kind === 'segment') {
@@ -602,6 +609,8 @@ export class MotionSession {
     const side = 'side' in a ? a.side ?? 'auto' : 'auto';
     if (a.kind === 'spread' || (a.kind === 'segment' && (a.segment === 'shoulders' || a.segment === 'hips'))) return { value: one('left') };
     if (side === 'both') { const l = one('left'), r = one('right'); return { value: (l + r) / 2, left: l, right: r }; }
+    // ponytail: colours and foreshortening-gates both legs; pick the chosen side's chain if that greys out too much.
+    if (side === 'flexed' || side === 'extended') { const l = one('left'), r = one('right'); return { value: side === 'flexed' ? Math.min(l, r) : Math.max(l, r) }; }
     return { value: one(side === 'auto' ? this.side : side) };
   }
 
@@ -830,12 +839,21 @@ export class MotionSession {
       if (this.speedPeak > 2.5 && sp < 0.55 * this.speedPeak && t - this.lastEventT > 1200) {
         const k = this.speedPeakFrame;
         const w = this.speedPeakWrist; // the wrist that peaked, not whichever is faster at confirmation
-        const pa = h[Math.max(0, k - 1)]!.rp[w]!, pb = h[Math.min(n - 1, k + 1)]!.rp[w]!;
-        const facing = Math.sign(this.facingSum), dx = pb.x - pa.x;
-        // A release moves the hand toward the target: a wind-up or recovery swing (wrist moving backward) is not one.
+        const facing = Math.sign(this.facingSum);
+        // Central-difference wrist velocity at frame j: direction (° above horizontal, toward the facing side) and speed.
         // Facing unknown (front view) → fall back to |dx|.
-        if (!facing || facing * dx > 0) {
-          const ang = deg(Math.atan2(pa.y - pb.y, facing ? facing * dx : Math.abs(dx)));
+        const vel = (j: number) => {
+          const fa = h[Math.max(0, j - 1)]!, fb = h[Math.min(n - 1, j + 1)]!, pa = fa.rp[w]!, pb = fb.rp[w]!, dx = pb.x - pa.x;
+          return { dx, ang: deg(Math.atan2(pa.y - pb.y, facing ? facing * dx : Math.abs(dx))), sp: Math.hypot(dx, pb.y - pa.y) / Math.max(1e-6, fb.t - fa.t) };
+        };
+        const [v0, v1, v2] = [vel(k - 1), vel(k), vel(k + 1)];
+        // A release moves the hand toward the target: a wind-up or recovery swing (wrist moving backward) is not one.
+        if (!facing || facing * v1.dx > 0) {
+          // The true speed peak falls between frames: take the parabolic vertex of the speed and interpolate the direction
+          // to it. The whole-frame angle is off by up to ω/(2·fps) (≈ 20° for a 21 rad/s arm swing at 30 fps).
+          const c = v0.sp - 2 * v1.sp + v2.sp;
+          const d = c < 0 ? Math.max(-0.5, Math.min(0.5, (v0.sp - v2.sp) / (2 * c))) : 0;
+          const ang = v1.ang + d * (d > 0 ? v2.ang - v1.ang : v1.ang - v0.ang);
           this.recordEvent('release', h[k]!.t, h[k]!, ang, this.speedPeak);
         }
         this.speedPeak = 0;
@@ -869,24 +887,41 @@ export class MotionSession {
       if (air && grounded) { this.airborneSince = t; this.airSamples = []; }
       const rawUp = this.groundY - Math.max(h[n - 1]!.rp[L.foot]!.y, h[n - 1]!.rp[R.foot]!.y);
       if (air && rawUp > 0.08 * legLen) this.airSamples.push([t, rawUp]);
+      // Record an attempt. Height h = g·t²/8 (Bosco, Luhtanen & Komi 1983) only for a vertical jump that lands on the
+      // take-off level: a horizontal jump (broad jump: take-off band well below vertical) or a landing on a box breaks
+      // the symmetric-flight assumption, so those keep form/take-off scoring but get no height.
+      const vertical = (ev.releaseAngle?.good[1] ?? 90) >= 60;
+      const land = (takeoff: number, flight: number, sameLevel: boolean) => {
+        if (flight < 120 || flight > 1200 || takeoff - this.lastEventT <= 800) return;
+        const k = h.findIndex((f) => f.t >= takeoff);
+        const i0 = Math.max(0, k - 2);
+        const hp = (f: P[]) => ({ x: (f[L.hip]!.x + f[R.hip]!.x) / 2, y: (f[L.hip]!.y + f[R.hip]!.y) / 2 });
+        // Raw landmarks, as in the throw path: filter lag bends the take-off direction.
+        const a = hp(h[i0]!.rp), b = hp(h[Math.min(h.length - 1, k + 1)]!.rp);
+        const rec = this.recordEvent('jump', takeoff, h[Math.max(0, k)]!, deg(Math.atan2(a.y - b.y, Math.abs(b.x - a.x))));
+        rec.flightMs = flight;
+        if (vertical && sameLevel) rec.jumpHeightCm = (9.81 * (flight / 1000) ** 2 / 8) * 100;
+      };
       if (!air && !Number.isNaN(this.airborneSince)) {
         // The 8 % gate trims ~t_th at both ends (≈ -25 % height at 30 cm). Recover true contact instants by fitting
-        // a parabola to the raw airborne toe heights and solving up(t) = 0. Bosco, Luhtanen & Komi 1983 (h = g·t²/8).
+        // a parabola to the raw airborne toe heights and solving up(t) = 0.
         let flight = t - this.airborneSince;
         let takeoff = this.airborneSince;
         const fit = parabolaRoots(this.airSamples);
         if (fit && fit[1] - fit[0] >= flight * 0.8 && fit[1] - fit[0] <= flight + 300) { takeoff = fit[0]; flight = fit[1] - fit[0]; }
         this.airborneSince = NaN;
-        if (flight >= 120 && flight <= 1200 && takeoff - this.lastEventT > 800) {
-          const k = h.findIndex((f) => f.t >= takeoff);
-          const i0 = Math.max(0, k - 2);
-          const hp = (f: P[]) => ({ x: (f[L.hip]!.x + f[R.hip]!.x) / 2, y: (f[L.hip]!.y + f[R.hip]!.y) / 2 });
-          // Raw landmarks, as in the throw path: filter lag bends the take-off direction.
-          const a = hp(h[i0]!.rp), b = hp(h[Math.min(h.length - 1, k + 1)]!.rp);
-          const ang = deg(Math.atan2(a.y - b.y, Math.abs(b.x - a.x)));
-          const rec = this.recordEvent('jump', takeoff, h[Math.max(0, k)]!, ang);
-          rec.flightMs = flight;
-          rec.jumpHeightCm = (9.81 * (flight / 1000) ** 2 / 8) * 100;
+        land(takeoff, flight, true);
+      } else if (air && !grounded && t - this.airborneSince > 250) {
+        // Landed on a raised surface (box jump): the toes stay still above the old ground line for 200 ms. A free
+        // flight can't do that: even around the apex the toes fall g·(0.1 s)²/2 ≈ 5 cm, vs the 2 %-of-leg (≈ 2 cm) gate.
+        const recent = h.filter((f) => f.t >= t - 200);
+        const ys = recent.map((f) => Math.max(f.pts[L.foot]!.y, f.pts[R.foot]!.y));
+        if (recent.length >= 4 && Math.max(...ys) - Math.min(...ys) < 0.02 * legLen) {
+          const takeoff = this.airborneSince;
+          this.airborneSince = NaN;
+          this.groundBuf = recent.map((f, i) => [f.t, ys[i]!]);
+          this.groundY = median(ys);
+          land(takeoff, recent[0]!.t - takeoff, false);
         }
       }
       return;
@@ -1079,7 +1114,7 @@ export class MotionSession {
       startedAt: new Date(Date.now() - durMs).toISOString(),
       durationSec: dur,
       frames: this.frames,
-      fps: dur > 0 ? this.frames / dur : 0,
+      fps: dur > 0 ? (this.frames - 1) / dur : 0, // N frames span N − 1 intervals
       trackedPct: this.frames ? (100 * this.tracked) / this.frames : 0,
       foreshortenedPct: this.tracked ? (100 * this.fsFrames) / this.tracked : 0,
       reps,
