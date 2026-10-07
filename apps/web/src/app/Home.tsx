@@ -1,7 +1,8 @@
+import { t } from './language';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CATEGORIES, EXERCISES, exerciseById, type Category, type ExerciseDef } from '@fitzen/engines';
-import { getHistory, getProfile, glow } from './store';
+import { getHistory, getProfile, glow, isEligibleSession } from './store';
 import { IconFlame, IconPlay, IconSearch, IconUser } from './icons';
 import ExerciseSheet from './ExerciseSheet';
 import Pictogram from './Pictogram';
@@ -27,7 +28,7 @@ export default function Home() {
   const [cat, setCat] = useState<Category | 'all'>('all');
   const [open, setOpen] = useState<ExerciseDef | null>(null);
   const profile = getProfile();
-  const history = getHistory();
+  const history = getHistory().filter(isEligibleSession);
 
   const week = history.filter((s) => Date.now() - Date.parse(s.report.startedAt) < 7 * 864e5);
   const avg = week.length ? Math.round(week.reduce((a, s) => a + s.report.formScore, 0) / week.length) : null;
@@ -54,7 +55,7 @@ export default function Home() {
         <div>
           <Link to="/" className="home-brand" aria-label="Fitzen home" translate="no">FITZEN</Link>
           <p className="subtitle">{new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}</p>
-          <h1 className="large-title">{greet}, {profile.name.split(' ')[0]}</h1>
+          <h1 className="large-title">{t(greet)}, {profile.name.split(' ')[0]}</h1>
         </div>
         <Link to="/profile" className="btn icon glass press" aria-label="Profile"><IconUser /></Link>
       </div>
@@ -62,7 +63,7 @@ export default function Home() {
       <section className="glass hero" onPointerMove={glow}>
         <div className="row between" style={{ alignItems: 'flex-start' }}>
           <div>
-            <div style={{ fontWeight: 800, fontSize: '1.25rem', letterSpacing: '-0.02em' }}>Your movement lab</div>
+            <div style={{ fontWeight: 800, fontSize: '1.25rem', letterSpacing: '-0.02em' }}>{t('Your movement lab')}</div>
             <p className="muted" style={{ margin: '4px 0 0', fontSize: '0.9rem', maxWidth: 440 }}>
               {EXERCISES.length} exercises, measured joint-by-joint on your device. Video never leaves your phone.
             </p>
@@ -70,15 +71,20 @@ export default function Home() {
           {last && <button className="btn primary press" onClick={() => setOpen(last)}><IconPlay /> Go again</button>}
         </div>
         <div className="hero-stats">
-          <div className="hero-stat"><b className="num">{week.length}</b><span>Sessions this week</span></div>
-          <div className="hero-stat"><b className="num">{avg ?? '—'}</b><span>Avg form score</span></div>
-          <div className="hero-stat"><b className="num">{streak}<IconFlame /></b><span>Day streak</span></div>
+          <div className="hero-stat"><b className="num">{week.length}</b><span>{t('Sessions this week')}</span></div>
+          <div className="hero-stat"><b className="num">{avg ?? '—'}</b><span>{t('Avg form score')}</span></div>
+          <div className="hero-stat"><b className="num">{streak}<IconFlame /></b><span>{t('Day streak')}</span></div>
         </div>
       </section>
 
+      <section className="glass panel" style={{ marginTop: 18 }}>
+        <b>{t('Guided assessment')}</b>
+        <p className="muted">Four consistent tests: hands-on-hips jump, squat, push-up and plank. Read the protocol, check framing and record an eligible attempt.</p>
+        <div className="row" style={{ flexWrap: 'wrap' }}><Link className="btn primary" to="/guided">{t('Start guided assessment')}</Link><Link className="btn" to="/validation">{t('Coach validation')}</Link></div>
+      </section>
       <label className="glass search">
         <IconSearch />
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search squat, javelin, glutes…" aria-label="Search exercises" />
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('Search squat, javelin, glutes…')} aria-label="Search exercises" />
       </label>
 
       <div className="chips" role="tablist">

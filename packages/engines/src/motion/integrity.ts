@@ -239,10 +239,11 @@ export function analyseIntegrity(frames: PoseFrame[], opts: IntegrityOptions): I
   if (irregular > IRREGULAR_FRACTION_WARN) flag('irregular-timing', 'warn', `${(irregular * 100).toFixed(0)}% of frame intervals are off the normal rate by more than half. Timing-based results (speeds, flight time) are less trustworthy.`, { irregularFraction: irregular });
 
   let frozen = 0, run = 0, longestRun = 0, runStart = 0, longestSec = 0, teleports = 0, torsoSteps = 0;
-  const torso = frames.map((f) => dist(midOf(f, 11, 12), midOf(f, 23, 24)));
-  const torsoMax = quantile(torso, 0.95);
+  const torso = frames.map((f) => [11, 12, 23, 24].every(k => ok(f.landmarks[k])) ? dist(midOf(f, 11, 12), midOf(f, 23, 24)) : NaN);
+  const torsoMax = quantile(torso.filter(Number.isFinite), 0.95);
   for (let i = 1; i < frames.length; i++) {
     const a = frames[i - 1]!.landmarks, b = frames[i]!.landmarks;
+    if (a.length < 33 || b.length < 33) { run = 0; continue; }
     let maxD = 0;
     for (let k = 0; k < 33; k++) maxD = Math.max(maxD, Math.abs(a[k]!.x - b[k]!.x), Math.abs(a[k]!.y - b[k]!.y));
     if (maxD < FROZEN_EPS) {
@@ -356,8 +357,8 @@ export function analyseIntegrity(frames: PoseFrame[], opts: IntegrityOptions): I
     const lowest = frames.map((f) => { const ys = FEET.filter((k) => ok(f.landmarks[k])).map((k) => f.landmarks[k]!.y); return ys.length ? Math.max(...ys) : NaN; });
     const ground = median(lowest.filter(Number.isFinite));
     // Hip must rise with the feet, or a lying leg raise would count as flight.
-    const hipY = frames.map((f) => midOf(f, 23, 24).y);
-    const hipGround = median(hipY);
+    const hipY = frames.map((f) => ok(f.landmarks[23]) && ok(f.landmarks[24]) ? midOf(f, 23, 24).y : NaN);
+    const hipGround = median(hipY.filter(Number.isFinite));
     const air = lowest.map((y, i) => Number.isFinite(y) && ground - y > CLEARANCE * spanU && hipGround - hipY[i]! > CLEARANCE * spanU);
     const fits: { g: number; se: number; n: number }[] = [];
     for (let i = 0; i < frames.length; ) {

@@ -17,10 +17,10 @@ TypeScript npm-workspaces monorepo, Node ≥ 22.5.
 | Path | What |
 |---|---|
 | `packages/engines/src/motion/` | Motion engine. `types.ts` (ExerciseDef schema), `engine.ts` (MotionSession), `puppet.ts` (synthetic athlete for demo/tests), `catalog/*.ts` (90 exercises as data), `integrity.ts` + `forensics.ts` (fake-video checks), `filtfilt.ts` (zero-phase Butterworth), `validation/` (reference tests vs OneEuroFilter and Sports2D) |
-| `packages/engines/src/athlete/` | Profile maths: `body.ts` (WHO BMI z, Mirwald/Moore maturity, ICMR-NIN diet), `norms.ts` (percentiles: Gabel 2016 jumps, CSEP push-ups), `readiness.ts` (Hooper index + mood, Tele-MANAS 14416), `projection.ts` (4/8/12-week jump projection), `summary.ts` (actions + future scope) |
+| `packages/engines/src/athlete/` | Profile maths: `body.ts` (WHO BMI z, Mirwald/Moore maturity, ICMR-NIN diet), `norms.ts` (protocol-gated Gabel 2016 jump and CSEP/Fit India push-up references), `readiness.ts` (Hooper index + mood, Tele-MANAS 14416), `projection.ts` (experimental 4/8/12-week jump projection), `summary.ts` (actions + future scope) |
 | `packages/engines/src/{jump,crypto,potential,gamification}/` | Jump analyser, ECDSA signing + audit trail, potential score, 50 badges. Used by the server |
-| `apps/web/` | React 18 + Vite app. `src/app/`: Landing, Home, ExerciseSheet, Session, Results, Progress, History, Profile, Shell, store (localStorage), glass.css (dark "Liquid Glass" design). `src/pose/poseSource.ts`: camera and video-file pose sources |
-| `apps/server/` | Node API (auth, signed assessments, Supabase). Not used by the current web app; kept for accounts/sync. Deployed as `api/[...path].ts` on Vercel |
+| `apps/web/` | React 18 + Vite PWA. `src/app/`: local 90-exercise lab, guided four-test battery, Results, Progress/goals, History, coach validation CSV, Profile, partial Hindi, account/leaderboard UI, user-scoped local storage and local deterministic coach. `src/pose/poseSource.ts`: cancellation-safe camera and video-file pose sources |
+| `apps/server/` | Node API for legacy auth and signed assessments. Not used by the current web app; privileged registration requires trusted provisioning. Hosted AI is disabled. Deployed as `api/[...path].ts` on Vercel only if explicitly retained |
 | `docs/` | `VALIDATION.md` (accuracy targets, datasets), `ARCHITECTURE.md`, `API.md`, this file |
 | `graphify-out/` | Knowledge graph of the code (gitignored, rebuilt locally with `graphify update .`) |
 
@@ -31,8 +31,8 @@ Key methods: MediaPipe Pose Landmarker (lite/full/heavy) → One Euro filter (`F
 ```bash
 npm install
 npm run dev:web        # http://localhost:5174 (builds engines first)
-npm test               # engines (132) + server (21)
-cd apps/web && npx tsc --noEmit -p . && npx vite build
+npm test               # engines (202) + server (34) + web capture (12)
+npm run build           # engine typecheck/build + web typecheck/production build
 ```
 
 No camera? Each exercise has Watch demo (synthetic athlete) and Analyse video. Verify UI in the built-in browser pane, not Playwright. Launch configs live in `/Users/shiv/my_projects/.claude/launch.json` (`fitzen-repo-web` 5174, `fitzen-repo-api` 4000).
@@ -55,25 +55,27 @@ No camera? Each exercise has Watch demo (synthetic athlete) and Analyse video. V
 | 2026-10-01 | Wrong-exercise detection for reps |
 | 2026-10-03 | Wrong-exercise detection for holds/events; athlete profile (diet, BMI, maturity), post-session readiness check-in, norm percentiles, growth projection, Progress tab (streak, XP, badges, PBs, honest leaderboard card) |
 | 2026-10-05 | Ponytail ultra audit: deleted legacy push-up/squat pipeline, scratch scripts, stale docs, unused test scaffolding (~3,700 lines). Agent rules added to CLAUDE.md |
+| 2026-10-07 | Assessment hardening: tracking gaps become missing evidence; N/A reports; protocol-gated norms; guided battery; coach validation export; goals; account-isolated storage/retry/delete; PWA preparation; partial Hindi; local coach; API/SQL security hardening |
 
 ## Current state
 
-- Working and tested: web app, 90 exercises, demo + video modes, reports, profile, Progress tab, fake-video checks.
+- Working and tested locally: web app, 90 exercises, camera/demo/video paths, evidence-aware reports, guided four-test battery, profile, Progress/goals, History, coach validation CSV, fake-video checks, installable PWA shell and partial Hindi navigation/instructions.
 - Not yet verified: live camera accuracy on real athletes (all thresholds tuned on the synthetic athlete).
-- Built, not yet live: optional accounts (Supabase magic link), result upload, Compete tab (group/city/state/India/world leaderboards, groups by invite code, parent consent for under-18s), AI assistant (Gemini via `api/ai.ts`: floating help, scouting report on Results, progress and leaderboard coaching). Needs a NEW Supabase project with `supabase/migrations/002_compete.sql` and env vars from `apps/web/.env.example`. Old `apps/server` is unused by the web app.
-- Known limits: unilateral poses assume a fixed side (tree/flamingo left leg, warrior left leg forward); throws assume a right-hander; growth projection covers jump height only; norms are international (Canadian), not Indian.
+- Built, not yet live: optional Supabase magic-link accounts, scoped result sync, delete-everywhere queue, Compete tab (group/city/state/India/world leaderboards, invite groups, parent consent). A new/staging Supabase project must apply `002_compete.sql` then `003_audit_hardening.sql`; never apply migrations to the live project from an agent. Parent email matching is still not verifiable parental identity.
+- Coaching is now deterministic and on-device; hosted Gemini/Anthropic processing is disabled. `api/ai.ts` returns 503 so youth data cannot be forwarded accidentally.
+- Known limits: unilateral poses assume a fixed side (tree/flamingo left leg, warrior left leg forward); throws assume a right-hander; jump projection is experimental and jump-only; Fit India push-up bands require a matching full/modified exhaustion protocol, which the ordinary camera exercise does not yet enforce; Hindi covers the main assessment flow rather than all 90 exercise names and account screens.
 - Open question: 4 old commits (2e8c2dc..ceabd7b) carry a Claude co-author line; rewriting needs a force-push the user must approve and run.
-- Security note: `api/[...path].ts` has a hard-coded fallback JWT secret; must come from env before any real deploy.
+- Release evidence on 2026-10-07: engine 202/202, server 34/34, capture 12/12; production web build and guided/validation/Hindi browser smoke pass succeeded. Supabase migration was checked locally on fresh and legacy schemas only.
 
 ## What's next (priority order)
 
-1. Real-camera testing and threshold calibration (wrong-exercise, integrity, colour bands).
-2. Ground-truth validation: jump mat/force plate, goniometer or lab dataset; publish Bland-Altman/RMSE/ICC in `VALIDATION.md`.
-3. Indian norms (Khelo India / Fit India tables).
-4. Accounts + sync: new Supabase key, DPDP consent, parental consent, real leaderboards (city/state/India) with opt-in and parental consent for minors.
+1. Real-camera testing and threshold calibration on representative phones and athletes (tracking loss, wrong-exercise, integrity and colour bands).
+2. Collect independent ground truth with the new coach-validation flow: jump mat/force plate and goniometer/lab references; publish Bland-Altman/RMSE and only use ICC with a defined repeated-measures design.
+3. Finish protocol-matched Indian norms: run the official Fit India push-up protocol in a dedicated flow and source usable Indian references for the other tests.
+4. Stage-test accounts + sync: apply migrations 002/003 to a new Supabase project, complete verifiable parental-consent operations and exercise failure/retry/delete/account-switch cases before real leaderboards.
 5. Live anti-cheat: wire AKCR signing + liveness prompts into the live flow.
 6. Scout/coach dashboard with report export.
-7. PWA, HTTPS hosting, offline model, Hindi/regional languages.
+7. Device-test PWA/offline model preparation and finish Hindi/regional translations.
 8. Engine gaps: unilateral side detection, left-handed throws, weaker lying poses, more projected metrics.
 9. UI/UX polish pass (mobile first).
 10. Paperwork: IEEE paper, copyright consistency.
@@ -84,10 +86,10 @@ Recommended scope: a **local-only beta** (no accounts, nothing leaves the device
 
 Must have:
 1. Real-camera calibration on 10–20 real athletes (wrong-exercise, integrity, colour bands), phone and laptop.
-2. A "screening estimate, not medical advice" notice on Results, plus a privacy page (video stays on device, what localStorage holds, how to delete it).
-3. Stop deploying `api/` (the web app doesn't use it), or move the JWT secret to an env var with no fallback.
-4. Security headers in `vercel.json`: CSP that allows only jsdelivr and storage.googleapis.com for MediaPipe, plus camera permission policy.
-5. PWA: manifest, icons, service worker that caches the app and the MediaPipe wasm/model, so it works offline after the first load.
+2. Add the privacy page (video stays on device, local storage contents and deletion); the Results screening/medical limitation notice is implemented.
+3. Decide whether to stop deploying unused `api/`; its JWT now requires an environment secret and hosted AI is disabled.
+4. Recheck the implemented CSP and camera permissions policy against a preview deployment.
+5. Device-test the implemented manifest/service worker and explicit MediaPipe model preparation after first load.
 6. Cross-device QA: Android Chrome, iOS Safari, desktop; slow phones on the lite model; camera denied; low light; large video upload.
 7. Error reporting (Sentry or similar, no PII) and a feedback link.
 8. Accessibility and mobile polish pass on all screens.
@@ -109,3 +111,4 @@ Append one line after every change, from any account: `- YYYY-MM-DD [account: em
 - 2026-10-05 [account: shivanjayprakashbajpai@gmail.com] AI assistant (Gemini, server-side minor/consent gate) + accounts, leaderboards, groups, parent consent; SQL tested with PGlite (12 checks), endpoint tested with fake fetch (fdbe3b3). Next/left: user creates new Supabase project + Gemini key, run 002 migration, set env in .env.local/Vercel, then browser QA of Compete/Assistant/Consent; auth.users not deleted on account delete (needs service-key function); results are self-reported until signed assessments.
 - 2026-10-07 [account: shivanjayprakashbajpai@gmail.com] IN PROGRESS (uncommitted, this machine): accuracy/research audit of all 90 exercises (catalog/*.ts, wellness done: 11/16 fixed), video-upload math + accuracy harness (engine.ts, poseSource.ts, Session.tsx, validation/accuracy.test.ts), anti-cheat red team (integrity.ts/test; genuine-clip false positives still being fixed). Next: finish agents, run tests, write measured tables into docs/VALIDATION.md, add engine side:'flexed'|'extended' for Warrior II, commit.
 - 2026-10-07 [account: shivanjayprakashbajpai@gmail.com] Done: research audit of all 90 exercises (~50 opened sources, many bands/METs fixed, unmeasurable metrics labelled), measurement-maths fixes + synthetic ground-truth accuracy harness (1d71bf3), anti-cheat red team with 0/18 false positives (b70cf5b); tables in docs/VALIDATION.md §11-13. Next/left: real-athlete ground truth (roadmap 2) and real-clip recalibration of all thresholds; live throws at 120 fps false releases; puppet can't draw split legs/lying poses.
+- 2026-10-07 [account: shivanjayprakashbajpai@gmail.com] Hardened assessment evidence, capture cancellation, local/account storage, offline PWA, API/SQL security and protocol-gated norms; added guided battery, coach validation export, goals, local coach and partial Hindi (17c7b60). Verified 248 tests, production build and browser smoke pass. Next/left: real-camera calibration and independently measured ground-truth collection; stage-test migrations 002/003 before any accounts release.

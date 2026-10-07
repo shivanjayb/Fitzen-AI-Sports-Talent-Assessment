@@ -14,7 +14,7 @@
  *  - Drivers (novice status, headroom, protein, sleep, training days) only move the estimate INSIDE the published CI.
  *  - Age-related change is uncertain by ±50 %.
  */
-import type { SessionReport } from '../motion/engine.js';
+import { isAssessedReport, type SessionReport } from '../motion/engine.js';
 import { computePotential, type PotentialResult } from '../potential/potentialScore.js';
 import { assessDiet, maturityOffset } from './body.js';
 import { gabelMedianM, percentileFor } from './norms.js';
@@ -38,6 +38,7 @@ const progress = (w: number) => w / (w + 5) / (10 / 15);
 
 /** Best jump (cm) in a session, or null. */
 export const bestJumpCm = (r: SessionReport): number | null => {
+  if (!isAssessedReport(r)) return null;
   const hs = (r.events ?? []).map((e) => e.jumpHeightCm).filter((h): h is number => h !== undefined && h > 0);
   return hs.length ? Math.max(...hs) : null;
 };
@@ -73,9 +74,10 @@ export function projectGrowth(p: AthleteProfile, history: SessionReport[], opts:
     const q = (Number(novice) + headroom) / 2; // position inside the CI when following the plan
     const habit = (protOk + sleepOk + daysOk) / 3; // how much of the low-CI gain current habits keep
     const trainsNow = p.trainingDaysPerWeek >= 2;
+    const matchingAgeReference = id === 'countermovement-jump' && p.ageYears >= 13 && p.ageYears <= 21;
     const m0 = gabelMedianM(p.ageYears, p.sex);
     const points = weeks.map((w) => {
-      const nat = gabelMedianM(p.ageYears + w / 52, p.sex) / m0 - 1;
+      const nat = matchingAgeReference ? gabelMedianM(Math.min(21, p.ageYears + w / 52), p.sex) / m0 - 1 : 0;
       const s = progress(w);
       const natLo = base * nat * 0.5, natHi = base * nat * 1.5;
       const planLo = base * (g.lo / 100) * s, planHi = base * ((g.lo + (g.hi - g.lo) * q) / 100) * s;
@@ -86,7 +88,7 @@ export function projectGrowth(p: AthleteProfile, history: SessionReport[], opts:
         plan: { low: r1(base + natLo + planLo), high: r1(base + natHi + planHi) },
       };
     });
-    metrics.push({ metric: 'jumpHeightCm', exerciseId: id, unit: 'cm', baseline: r1(base), percentile: pct, points, basis: `Markovic 2007 ${g.label} +${g.mid} % (95 % CI ${g.lo}–${g.hi}) + age-related change (Gabel 2016)` });
+    metrics.push({ metric: 'jumpHeightCm', exerciseId: id, unit: 'cm', baseline: r1(base), percentile: pct, points, basis: `Markovic 2007 ${g.label} +${g.mid} % (95 % CI ${g.lo}–${g.hi})${matchingAgeReference ? ' + age-related change (Gabel 2016)' : '; no matching age-related reference'}` });
   }
 
   const assumptions = [
@@ -100,18 +102,20 @@ export function projectGrowth(p: AthleteProfile, history: SessionReport[], opts:
   // Talent signal via the existing potential engine (needs a jump).
   let talent: TalentSignal | null = null;
   if (last) {
-    const heights = jumpSessions.map((s) => bestJumpCm(s)!);
+    const comparable = jumpSessions.filter((s) => s.exerciseId === last.exerciseId);
+    const heights = comparable.map((s) => bestJumpCm(s)!);
     const mu = heights.reduce((a, b) => a + b, 0) / heights.length;
     const cv = heights.length > 1 ? Math.sqrt(heights.reduce((a, h) => a + (h - mu) ** 2, 0) / (heights.length - 1)) / mu : 0.1;
     const best = Math.max(...heights);
     // Sayers et al. (1999) Med Sci Sports Exerc 31:572–577: peak power W = 60.7·jump(cm) + 45.3·mass − 2055.
     const watts = 60.7 * best + 45.3 * p.weightKg - 2055;
-    const symDeg = Object.values(last.symmetry);
+    const bestSession = comparable.find((s) => bestJumpCm(s) === best)!;
+    const symDeg = Object.values(bestSession.symmetry);
     const symmetryScore = symDeg.length ? clamp(100 - 4 * (symDeg.reduce((a, b) => a + b, 0) / symDeg.length), 0, 100) : 85; // Fitzen mapping: 1° ≈ 4 points
     const potential = computePotential({
       ageYears: p.ageYears, sex: p.sex, heightCm: p.heightCm, massKg: p.weightKg,
       jumpHeightM: best / 100, relativePowerWkg: Math.max(0, watts / p.weightKg),
-      movementQuality: last.formScore, symmetryScore, jumpCv: cv, assessmentCount: jumpSessions.length,
+      movementQuality: bestSession.formScore, symmetryScore, jumpCv: cv, assessmentCount: comparable.length,
     });
     const mat = maturityOffset(p);
     const offset = mat?.offsetYears ?? potential.maturityOffsetYears;
@@ -122,7 +126,7 @@ export function projectGrowth(p: AthleteProfile, history: SessionReport[], opts:
       confidenceScore: potential.confidenceScore,
       maturityOffsetYears: offset,
       maturityMethod: mat ? `${mat.method} (± ${mat.seYears} y)` : 'Fitzen potential engine estimate',
-      summary: `Today ${potential.currentPerformance}/100, estimated potential ${potential.potentialScore}/100 (confidence ${potential.confidenceScore} %). You are ${stage}, so ${offset < 1 ? 'much of your strength is still to come' : 'results now mostly reflect training'}.`,
+      summary: `Experimental, unvalidated research signal — not a selection decision. Today ${potential.currentPerformance}/100, estimated potential ${potential.potentialScore}/100 (confidence ${potential.confidenceScore} %). You are ${stage}, so ${offset < 1 ? 'much of your strength is still to come' : 'results now mostly reflect training'}.`,
       potential,
     };
   }

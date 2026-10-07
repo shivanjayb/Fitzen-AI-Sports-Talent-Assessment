@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { IconHistory, IconPodium, IconTrain, IconTrophy, IconUser } from './icons';
 import Assistant from './Assistant';
+import { t as translate } from './language';
 
 const TABS = [
   { to: '/app', label: 'Train', icon: <IconTrain /> },
@@ -31,7 +32,7 @@ export default function Shell() {
         <span className="tab-pill" style={pill} />
         {TABS.map((t) => (
           <NavLink key={t.to} to={t.to} end={t.to === '/app'} className={({ isActive }) => (isActive ? 'active' : '')}>
-            {t.icon}{t.label}
+            {t.icon}{translate(t.label)}
           </NavLink>
         ))}
       </nav>

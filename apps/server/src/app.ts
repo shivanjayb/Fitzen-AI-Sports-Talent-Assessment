@@ -63,7 +63,7 @@ export interface FitzenApp {
 }
 
 export function createApp(config: AppConfig): FitzenApp {
-  const isTest = process.env.NODE_ENV === 'test' || config.supabaseUrl.includes('test');
+  const isTest = process.env.NODE_ENV === 'test';
   const db = openDatabase(config.supabaseUrl, config.supabaseKey, isTest);
   const router = new Router();
   router.use(authMiddleware(config.jwtSecret));
@@ -85,7 +85,8 @@ export function createApp(config: AppConfig): FitzenApp {
   // ---- Auth ----------------------------------------------------------------
   router.post('/api/auth/register', async (ctx) => {
     const body = asObject(ctx.body);
-    const role = body.role === undefined ? 'athlete' : requireEnum(body, 'role', ['athlete', 'coach', 'admin'] as const);
+    // Privileged accounts must be provisioned by a trusted administrator.
+    const role = body.role === undefined ? 'athlete' : requireEnum(body, 'role', ['athlete'] as const);
 
     const user = await createUser(db, {
       email: requireEmail(body, 'email'),
@@ -94,9 +95,7 @@ export function createApp(config: AppConfig): FitzenApp {
       role,
     });
     await pushNotification(db, user.id, 'welcome', 'Welcome to Fitzen',
-      role === 'athlete'
-        ? 'Complete your athlete profile, then run your first jump assessment.'
-        : 'Your coach account is ready. Athletes can now be assigned to you.');
+      'Complete your athlete profile, then run your first jump assessment.');
     return json(201, { user, token: issueToken(user) });
   });
 

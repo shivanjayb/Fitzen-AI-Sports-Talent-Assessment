@@ -36,29 +36,20 @@ function envOr(name: string, fallback: string): string {
 }
 
 export function loadConfig(overrides: Partial<AppConfig> = {}): AppConfig {
-  const jwtSecret = process.env.FITZEN_JWT_SECRET;
-  if (!jwtSecret && process.env.NODE_ENV === 'production') {
-    throw new Error('FITZEN_JWT_SECRET must be set in production.');
+  const jwtSecret = overrides.jwtSecret ?? process.env.FITZEN_JWT_SECRET;
+  if (process.env.NODE_ENV === 'production' && (!jwtSecret || jwtSecret.length < 32)) {
+    throw new Error('FITZEN_JWT_SECRET must contain at least 32 characters in production.');
   }
-  const supabaseUrl = envOr(
-    'SUPABASE_URL',
-    envOr('VITE_SUPABASE_URL', 'https://hfcodbbwiidrehbjwhmg.supabase.co')
-  );
-  const supabaseKey = envOr(
-    'SUPABASE_SECRET_KEY',
-    envOr(
-      'SUPABASE_ANON_KEY',
-      envOr(
-        'VITE_SUPABASE_ANON_KEY',
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhmY29kYmJ3aWlkcmVoYmp3aG1nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1NTYzODUsImV4cCI6MjEwNTEzMjM4NX0.3x4ykChTmPJJT1n3HymIrwdg95TOGbaOTIqwd5nlkbY'
-      )
-    )
-  );
+  // Legacy persistence is server-only; never fall back to an embedded project or a client anon key.
+  const isTest = process.env.NODE_ENV === 'test';
+  const supabaseUrl = overrides.supabaseUrl ?? process.env.SUPABASE_URL ?? (isTest ? 'https://test.supabase.invalid' : '');
+  const supabaseKey = overrides.supabaseKey ?? process.env.SUPABASE_SECRET_KEY ?? (isTest ? 'test-only-key' : '');
+  if (!supabaseUrl || !supabaseKey) throw new Error('SUPABASE_URL and SUPABASE_SECRET_KEY must be configured for the legacy server.');
 
   return {
     port: Number(envOr('FITZEN_PORT', '4000')),
     host: envOr('FITZEN_HOST', '0.0.0.0'),
-    jwtSecret: jwtSecret ?? devSecret(),
+    jwtSecret: jwtSecret ?? (isTest ? randomBytes(32).toString('hex') : devSecret()),
     jwtTtlSeconds: Number(envOr('FITZEN_JWT_TTL', String(60 * 60 * 24 * 7))),
     supabaseUrl,
     supabaseKey,

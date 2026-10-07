@@ -1,9 +1,10 @@
+import { t, setupFor } from './language';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import type { ExerciseDef } from '@fitzen/engines';
-import { IconCamera, IconPlay, IconUpload } from './icons';
-import { setPendingVideo } from './Session';
+import { IconCamera, IconClose, IconPlay, IconUpload } from './icons';
+import { setPendingVideo } from './pendingVideo';
 import Pictogram from './Pictogram';
 
 export default function ExerciseSheet({ ex, onClose }: { ex: ExerciseDef; onClose: () => void }) {
@@ -12,13 +13,27 @@ export default function ExerciseSheet({ ex, onClose }: { ex: ExerciseDef; onClos
   const [dragY, setDragY] = useState(0);
   const start = useRef<number | null>(null);
   const file = useRef<HTMLInputElement>(null);
+  const dialog = useRef<HTMLDivElement>(null);
+  const closeButton = useRef<HTMLButtonElement>(null);
 
   const close = () => { setClosing(true); setTimeout(onClose, 260); };
   useEffect(() => {
-    const k = (e: KeyboardEvent) => e.key === 'Escape' && close();
+    const opener = document.activeElement as HTMLElement | null;
+    const root = document.getElementById('root');
+    const wasInert = root?.inert;
+    if (root) root.inert = true;
+    closeButton.current?.focus();
+    const k = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') close();
+      if (e.key !== 'Tab') return;
+      const f = [...(dialog.current?.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([hidden]), a[href]') ?? [])];
+      const first = f[0], last = f[f.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last?.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus(); }
+    };
     window.addEventListener('keydown', k);
-    return () => window.removeEventListener('keydown', k);
-  });
+    return () => { window.removeEventListener('keydown', k); if (root) root.inert = wasInert ?? false; opener?.focus(); };
+  }, []);
 
   const go = (src: 'camera' | 'demo' | 'video') => nav(`/train/${ex.id}?src=${src}`);
   const target = ex.mode === 'reps' && ex.reps ? `${ex.reps.start === 'high' ? '≤' : '≥'} ${ex.reps.target}° ${ex.angles.find((a) => a.id === ex.reps!.driver)?.label.toLowerCase()}` :
@@ -28,6 +43,7 @@ export default function ExerciseSheet({ ex, onClose }: { ex: ExerciseDef; onClos
     <>
       <div className="scrim" onClick={close} style={closing ? { opacity: 0, transition: 'opacity .3s' } : undefined} />
       <div
+        ref={dialog}
         className={`sheet glass ${closing ? 'closing' : ''}`} role="dialog" aria-modal="true" aria-label={ex.name}
         style={dragY ? { transform: `translate(-50%, ${dragY}px)`, animation: 'none' } : undefined}
       >
@@ -37,6 +53,7 @@ export default function ExerciseSheet({ ex, onClose }: { ex: ExerciseDef; onClos
           onPointerMove={(e) => { if (start.current !== null) setDragY(Math.max(0, e.clientY - start.current)); }}
           onPointerUp={() => { start.current = null; if (dragY > 120) close(); else setDragY(0); }}
         />
+        <button ref={closeButton} className="btn icon glass" style={{ float: 'right' }} onClick={close} aria-label="Close exercise"><IconClose /></button>
         <div className="row" style={{ gap: 14 }}>
           <Pictogram def={ex} size={72} />
           <div>
@@ -52,10 +69,10 @@ export default function ExerciseSheet({ ex, onClose }: { ex: ExerciseDef; onClos
           <div><span>Checks</span><b>{ex.checks.length} joints</b></div>
         </div>
 
-        <h3 className="section-title" style={{ marginTop: 20 }}>Set up</h3>
-        <ol className="steps">{ex.setup.map((s, i) => <li key={i}>{s}</li>)}</ol>
+        <h3 className="section-title" style={{ marginTop: 20 }}>{t('Set up')}</h3>
+        <ol className="steps">{setupFor(ex).map((s, i) => <li key={i}>{s}</li>)}</ol>
 
-        <h3 className="section-title">What we measure</h3>
+        <h3 className="section-title">{t('What we measure')}</h3>
         <div className="list">
           {ex.checks.map((c, i) => (
             <div key={i} className="row" style={{ fontSize: '0.88rem', gap: 12 }}>

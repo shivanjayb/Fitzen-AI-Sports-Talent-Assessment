@@ -53,13 +53,23 @@ export default function Consent() {
     <p className="muted">If you signed in with a different email, sign out and open the link again from the right inbox.</p>
     <button className="btn glass press" onClick={() => void supabase!.auth.signOut()}>Sign out</button>
   </>);
-  else if (req.consented) body = <p>You have confirmed for <b>{req.display_name}</b>. Thank you. <Link to="/">Open Fitzen</Link></p>;
+  else if (req.consented) body = <>
+    <p>You confirmed public leaderboard sharing for <b>{req.display_name}</b>. <Link to="/">Open Fitzen</Link></p>
+    <button className="btn danger" disabled={busy} onClick={() => run(async () => {
+      const { data, error } = await supabase!.rpc('revoke_parent_consent', { child });
+      if (error) throw error;
+      if (!data) return 'The request changed; reload this page.';
+      setReq({ ...req, consented: false });
+      return 'Public sharing consent revoked.';
+    })}>Withdraw public sharing consent</button>
+  </>;
   else body = (<>
     <p style={{ marginTop: 0 }}><b>{req.display_name}</b> (born {req.birth_year}) wants to appear on Fitzen's public leaderboards.</p>
     <ul style={{ paddingLeft: 18, lineHeight: 1.55 }}>
       <li>Others see only their <b>initials</b>, their best score and form score per exercise, and where they rank in their city, state, country and the world. Never their full name, email, age, photos or video.</li>
       <li>Video never leaves their phone. Fitzen stores only the exercise, the headline number, a form score and the date.</li>
-      <li>To withdraw, ask your child to change the parent email in their Fitzen profile (this cancels your consent at once), turn off public leaderboards, or delete their account data.</li>
+      <li>Return to this link to withdraw public sharing consent yourself. This permission is only for public leaderboards, not for AI processing.</li>
+      <li>Email sign-in verifies control of this mailbox. It does not independently verify adulthood or guardian status; further verification is required before a public youth release.</li>
     </ul>
     <button className="btn primary block" disabled={busy} onClick={() => run(async () => {
       const { data, error } = await supabase!.rpc('give_parent_consent', { child });

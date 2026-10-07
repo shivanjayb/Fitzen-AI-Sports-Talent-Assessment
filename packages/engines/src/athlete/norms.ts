@@ -9,8 +9,8 @@
  *  - Push-ups: CSEP-PATH Resource Manual 2nd ed. (2019), push-up health-benefit ratings, ages 15–19 and 20–29
  *    (women: modified/knee push-ups), as reprinted in ACE Push-up Assessment Protocol (2020). Bands only.
  *
- * Not embedded (returns null): Khelo India / Fit India age-sex norm tables (official PDFs could not be retrieved
- * to verify rows), sit-ups, curl-ups, plank and flamingo holds. Add rows here once verified from the source.
+ * Fit India 5–18 Years v1: printed page 51, push-up bands ages 13–18, for coach-confirmed protocol counts only.
+ * No verified compatible table for sit-ups, curl-ups, plank or flamingo holds.
  */
 import { lmsAt, lmsZ } from './body.js';
 
@@ -50,21 +50,19 @@ export function normCdf(z: number): number {
 export const bandForPercentile = (p: number): NormBand =>
   p >= 80 ? 'excellent' : p >= 60 ? 'very good' : p >= 40 ? 'good' : p >= 20 ? 'fair' : 'needs work';
 
-const JUMP_IDS = new Set(['sai-vertical-jump', 'countermovement-jump', 'squat-jump']);
+const JUMP_IDS = new Set(['countermovement-jump']);
 const PUSHUP_IDS = new Set(['sai-push-up', 'push-up']);
 
 export function percentileFor(exerciseId: string, metric: NormMetric, value: number, age: number, sex: 'male' | 'female'): NormResult | null {
   if (!(value >= 0)) return null;
-  if (metric === 'jumpHeightCm' && JUMP_IDS.has(exerciseId) && age >= 13) {
+  if (metric === 'jumpHeightCm' && JUMP_IDS.has(exerciseId) && age >= 13 && age <= 21) {
     const z = lmsZ(lmsAt(GABEL_HMAX[sex], 13, age), value / 100);
     // Beyond the published P3–P97 the LMS curve is extrapolation, so report 1–99 only.
     const percentile = Math.min(99, Math.max(1, Math.round(normCdf(z) * 1000) / 10));
     const notes = ['Reference jumps were hands-on-waist on a force plate; Fitzen estimates height from camera flight time.'];
-    if (exerciseId === 'sai-vertical-jump') notes.push('Arm swing adds roughly 10 % height, so this percentile reads high.');
-    if (age > 21) notes.push('Age > 21 compared with the 21-year row.');
     return { percentile, band: bandForPercentile(percentile), reference: 'International (Gabel 2016, Canada)', n: 715, note: notes.join(' ') };
   }
-  if (metric === 'reps' && PUSHUP_IDS.has(exerciseId) && age >= 15 && age < 30) {
+  if (metric === 'reps' && PUSHUP_IDS.has(exerciseId) && sex === 'male' && age >= 15 && age < 30) {
     const cut = CSEP_PUSHUP[age < 20 ? '15-19' : '20-29'][sex];
     const bands: NormBand[] = ['excellent', 'very good', 'good', 'fair'];
     const i = cut.findIndex((c) => value >= c);
@@ -72,8 +70,71 @@ export function percentileFor(exerciseId: string, metric: NormMetric, value: num
       percentile: null,
       band: i < 0 ? 'needs work' : bands[i]!,
       reference: 'International (CSEP-PATH 2019, Canada)',
-      note: sex === 'female' ? 'Women’s bands are for knee push-ups; full push-ups are harder, so this band is conservative.' : undefined,
+      note: 'Standard full push-ups. The female CSEP reference uses knee push-ups and is not comparable with this test.',
     };
   }
   return null;
+}
+
+
+export const FIT_INDIA_PUSHUP_SOURCE = 'https://fitindia.gov.in/wp-content/uploads/doc/Fitness%20Protocols%20for%20Age%2005-18%20Years%20v1%20(English).pdf';
+export type FitIndiaPushupProtocol = 'fit-india-full-push-up-v1' | 'fit-india-modified-push-up-v1';
+export type FitIndiaLevel = 'L1' | 'L2' | 'L3' | 'L4' | 'L5' | 'L6' | 'L7' | 'below published range';
+export interface FitIndiaPushupResult {
+  level: FitIndiaLevel;
+  label: string;
+  percentile: null;
+  reference: string;
+  sourceUrl: string;
+  sourcePage: 51;
+  protocolId: FitIndiaPushupProtocol;
+  note: string;
+}
+
+// Verified against printed p51, sections 7.9/7.10. Each row contains the strict lower bound of L1
+// followed by the six inclusive upper bounds. L7 is strictly above the last bound.
+// Girls age13 L2 is >8 to8 in the source: retain the empty band, never interpolate it.
+const FIT_INDIA_PUSHUP: Record<'male' | 'female', Record<number, number[]>> = {
+  male: {
+    13: [8, 9, 10, 11, 13, 15, 16],
+    14: [9, 10, 11, 13, 15, 16, 17],
+    15: [13, 15, 17, 19, 21, 23, 28],
+    16: [15, 17, 19, 21, 23, 28, 33],
+    17: [17, 19, 21, 23, 28, 33, 37],
+    18: [19, 21, 23, 28, 33, 37, 43],
+  },
+  female: {
+    13: [7, 8, 8, 9, 10, 12, 14],
+    14: [10, 11, 13, 15, 16, 17, 19],
+    15: [11, 13, 15, 16, 17, 19, 21],
+    16: [13, 15, 16, 17, 19, 21, 22],
+    17: [15, 16, 17, 19, 21, 22, 24],
+    18: [16, 17, 19, 21, 22, 24, 27],
+  },
+};
+const FIT_INDIA_LABELS = ['Work Harder', 'Must Improve', 'Can do Better', 'Good', 'Very Good', 'Athletic', 'Sports Fit'];
+
+/** Requires a coach-confirmed correctly completed count under the published protocol (p23).
+ * Camera reps currently allow >90° elbow depth and cannot establish exhaustion/rhythm: do not pass their raw count.
+ * Age is completed whole years; no age, sex or protocol extrapolation. Bands are not percentiles or user rankings.
+ */
+export function fitIndiaPushupBand(reps: number, age: number, sex: 'male' | 'female', protocolId: string): FitIndiaPushupResult | null {
+  if (!Number.isInteger(reps) || reps < 0 || !Number.isFinite(age) || age < 13 || age >= 19) return null;
+  const expected: FitIndiaPushupProtocol = sex === 'male' ? 'fit-india-full-push-up-v1' : 'fit-india-modified-push-up-v1';
+  if (protocolId !== expected) return null;
+  const row = FIT_INDIA_PUSHUP[sex]?.[Math.floor(age)];
+  if (!row) return null;
+  const below = reps <= row[0]!;
+  const index = below ? -1 : row.slice(1).findIndex((upper) => reps <= upper);
+  const band = index < 0 ? 6 : index;
+  return {
+    level: below ? 'below published range' : `L${band + 1}` as FitIndiaLevel,
+    label: below ? 'Below published range' : FIT_INDIA_LABELS[band]!,
+    percentile: null,
+    reference: 'Fit India Mission, Fitness Protocols for Age 5–18 Years v1, p51',
+    sourceUrl: FIT_INDIA_PUSHUP_SOURCE,
+    sourcePage: 51,
+    protocolId: expected,
+    note: 'Coach-confirmed protocol count; screening comparison, not a percentile or Fitzen leaderboard. Strict published boundaries and empty bands are preserved.',
+  };
 }

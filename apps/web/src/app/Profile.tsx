@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
 import { assessDiet, maturityOffset, type DietPattern } from '@fitzen/engines';
-import { getHistory, getProfile, INDIAN_STATES, saveProfile, toAthlete, uploadResult, type Profile as P } from './store';
+import { getHistory, getProfile, INDIAN_STATES, saveProfile, toAthlete, syncHistory, importGuestHistory, type Profile as P } from './store';
 import { getAccount, isMinor, supabase, useUser, type Account as Acct } from '../lib/supabase';
+import { applyTheme, getTheme, THEME, type Theme } from './theme';
+import Offline from './Offline';
+import { getLanguage, setLanguage, type Language } from './language';
 
 function Stepper({ label, value, set, min = 0, max = 10, step = 1, unit = '' }: { label: string; value: number; set: (v: number) => void; min?: number; max?: number; step?: number; unit?: string }) {
   return (
@@ -16,18 +19,11 @@ function Stepper({ label, value, set, min = 0, max = 10, step = 1, unit = '' }: 
   );
 }
 
-type Theme = 'light' | 'dark';
-const THEME = 'fitzen.theme';
-export function applyTheme(t: Theme) {
-  if (t === 'dark') document.documentElement.removeAttribute('data-theme');
-  else document.documentElement.setAttribute('data-theme', t);
-}
-export const getTheme = (): Theme => { try { return localStorage.getItem(THEME) === 'light' ? 'light' : 'dark'; } catch { return 'dark'; } };
-
 export default function Profile() {
   const [p, setP] = useState<P>(getProfile());
   const [theme, setTheme] = useState<Theme>(getTheme());
-  useEffect(() => { saveProfile(p); }, [p]);
+  const [saveFailed, setSaveFailed] = useState(false);
+  useEffect(() => { setSaveFailed(!saveProfile(p)); }, [p]);
   useEffect(() => { applyTheme(theme); try { localStorage.setItem(THEME, theme); } catch { /* private mode */ } }, [theme]);
   const num = (k: 'weightKg' | 'heightCm' | 'age' | 'sittingHeightCm') => (e: React.ChangeEvent<HTMLInputElement>) => setP({ ...p, [k]: e.target.value ? Number(e.target.value) : null });
   const diet = (k: keyof P['diet']) => (v: number) => setP({ ...p, diet: { ...p.diet, [k]: v } });
@@ -39,6 +35,9 @@ export default function Profile() {
     <main className="page" style={{ maxWidth: 640 }}>
       <p className="subtitle">No account needed</p>
       <h1 className="large-title">Profile</h1>
+      <label className="field" style={{ marginTop: 14 }}><span>Language / भाषा</span><select value={getLanguage()} onChange={(e) => setLanguage(e.target.value as Language)}><option value="en">English</option><option value="hi">हिन्दी — मुख्य मूल्यांकन निर्देश</option></select></label>
+      <Offline />
+      {saveFailed && <p role="alert">Device storage is unavailable. Profile changes last only until this tab closes.</p>}
       <section className="glass panel" style={{ display: 'grid', gap: 14, marginTop: 18 }}>
         <label className="field"><span>Name</span><input value={p.name} onChange={(e) => setP({ ...p, name: e.target.value })} /></label>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
@@ -117,7 +116,6 @@ export default function Profile() {
 }
 
 type Draft = Omit<Acct, 'id' | 'parent_consent_at' | 'birth_year'> & { birth_year: string };
-const BACKFILLED = 'fitzen.backfilled';
 
 /** Optional account: only needed for leaderboards and groups. */
 function Account({ p }: { p: P }) {
@@ -127,7 +125,6 @@ function Account({ p }: { p: P }) {
   const [email, setEmail] = useState('');
   const [msg, setMsg] = useState('');
   const [busy, setBusy] = useState(false);
-  const [backfilled, setBackfilled] = useState(() => { try { return !!localStorage.getItem(BACKFILLED); } catch { return false; } });
 
   useEffect(() => {
     let live = true;
@@ -210,8 +207,8 @@ function Account({ p }: { p: P }) {
         <div style={{ display: 'grid', gap: 10 }}>
           <label className="field"><span>Parent or guardian email (required under 18)</span><input type="email" required value={d.parent_email ?? ''} onChange={(e) => set('parent_email', e.target.value)} /></label>
           <p className="faint" style={{ margin: 0, fontSize: '.8rem' }}>
-            {acct?.parent_consent_at ? `A parent confirmed on ${new Date(acct.parent_consent_at).toLocaleDateString()}. You can appear on public boards as initials.`
-              : 'Under Indian law (DPDP Act) a parent must confirm before you appear on public boards. Until then only your groups see you.'}
+            {acct?.parent_consent_at ? `Guardian mailbox confirmed on ${new Date(acct.parent_consent_at).toLocaleDateString()}. Public boards use initials for year-only ages up to 18.`
+              : 'A guardian must approve public sharing. Email confirmation checks mailbox ownership; guardian verification is still required before a public youth release. Until then only your groups see you.'}
           </p>
           {!acct?.parent_consent_at && (
             <button className="btn glass press" disabled={busy || !savedParent} onClick={() => run(async () => {
@@ -228,15 +225,14 @@ function Account({ p }: { p: P }) {
     </section>
     {acct && (
       <section className="glass panel" style={{ display: 'grid', gap: 10, marginTop: 10 }}>
-        {!backfilled && (
-          <button className="btn glass press" disabled={busy} onClick={() => run(async () => {
-            // ponytail: sessions saved since sign-in get uploaded again; harmless because boards rank each user's best. Track ids if history views come.
-            const res = await Promise.all(getHistory().map(uploadResult));
-            try { localStorage.setItem(BACKFILLED, '1'); } catch { /* private mode */ }
-            setBackfilled(true);
-            return `Uploaded ${res.filter(Boolean).length} past session${res.filter(Boolean).length === 1 ? '' : 's'} (demo runs and failed video checks are skipped).`;
-          })}>Upload my past sessions</button>
-        )}
+        <button className="btn glass press" disabled={busy} onClick={() => run(async () => {
+          const res = await syncHistory();
+          return `Synced ${res.uploaded} session(s). ${res.pending} change(s) waiting for retry. Demo, unassessed and flagged sessions are excluded.`;
+        })}>Sync pending sessions and deletions</button>
+        <button className="btn glass press" disabled={busy} onClick={() => {
+          if (!confirm('Copy this device’s guest sessions into your account? Only continue if these assessments belong to you. Guest copies remain on this device.')) return;
+          setMsg(importGuestHistory() ? 'Guest sessions copied. Use Sync to upload eligible results.' : 'Could not save the import. Free device storage and retry.');
+        }}>Import my guest sessions</button>
         <div className="row" style={{ flexWrap: 'wrap' }}>
           <button className="btn glass press" disabled={busy} onClick={() => void supabase!.auth.signOut()}>Sign out</button>
           <button className="btn danger" disabled={busy} onClick={() => {

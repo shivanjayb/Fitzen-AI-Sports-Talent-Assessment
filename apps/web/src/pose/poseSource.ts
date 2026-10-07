@@ -51,108 +51,103 @@ const POSE_MODEL_URL = (m: PoseModel) =>
 
 export class CameraPoseSource implements PoseSource {
   readonly kind = 'camera' as const;
-  private callbacks: PoseSourceCallbacks;
   private stream: MediaStream | null = null;
   private rafId = 0;
   private video: HTMLVideoElement | null = null;
   private landmarker: import('@mediapipe/tasks-vision').PoseLandmarker | null = null;
-  private stopped = false;
-  private opts: { facingMode: 'user' | 'environment'; model: PoseModel };
+  private generation = 0;
 
-  constructor(callbacks: PoseSourceCallbacks, opts: Partial<{ facingMode: 'user' | 'environment'; model: PoseModel }> = {}) {
-    this.callbacks = callbacks;
-    this.opts = { facingMode: 'environment', model: 'lite', ...opts };
-  }
+  constructor(private callbacks: PoseSourceCallbacks, private opts: Partial<{ facingMode: 'user' | 'environment'; model: PoseModel }> = {}) {}
 
   async start(video: HTMLVideoElement | null): Promise<void> {
-    if (!video) throw new Error('Camera source requires a video element');
-    this.stopped = false;
+    this.stop();
+    const run = this.generation;
+    if (!video) { this.callbacks.onError('Camera source requires a video element'); return; }
     this.callbacks.onStatus('Requesting camera…');
+    let stage = 'camera';
     try {
-      this.stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: this.opts.facingMode, width: { ideal: 1280 }, height: { ideal: 720 } },
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: this.opts.facingMode ?? 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
         audio: false,
       });
-    } catch {
-      this.callbacks.onError(
-        'Camera unavailable or permission denied. You can still use Guided Demo mode.',
-      );
-      return;
-    }
-    video.srcObject = this.stream;
-    await video.play();
+      if (run !== this.generation) { stream.getTracks().forEach(t => t.stop()); return; }
+      this.stream = stream;
+      this.video = video;
+      video.srcObject = stream;
+      await video.play();
+      if (run !== this.generation) return;
+      stage = 'model';
+      this.callbacks.onStatus('Loading pose model…');
+      const landmarker = await createLandmarker(this.opts.model);
+      if (run !== this.generation) { landmarker.close(); return; }
+      this.landmarker = landmarker;
+      this.callbacks.onStatus('Tracking');
 
-    this.callbacks.onStatus('Loading pose model…');
-    try {
-      this.landmarker = await createLandmarker(this.opts.model);
-    } catch {
-      this.callbacks.onError(
-        'Could not load the pose model (first load needs a network connection).',
-      );
-      this.stop();
-      return;
-    }
-    if (this.stopped) return;
-    this.callbacks.onStatus('Tracking');
-
-    // Stamp frames with the camera capture time (requestVideoFrameCallback metadata.captureTime), not the rAF
-    // time, which adds up to one display interval of jitter to every dt. WICG video-rvfc. rAF is the fallback.
-    const rvfc = typeof video.requestVideoFrameCallback === 'function';
-    let lastVideoTime = -1;
-    let lastTs = -Infinity;
-    const loop = (_now?: number, meta?: { captureTime?: number }) => {
-      if (this.stopped || !this.landmarker) return;
-      if ((rvfc || video.currentTime !== lastVideoTime) && video.videoWidth > 0) {
-        lastVideoTime = video.currentTime;
-        const nowMs = Math.max(meta?.captureTime ?? performance.now(), lastTs + 0.001); // detectForVideo needs monotonic time
-        lastTs = nowMs;
-        const result = this.landmarker.detectForVideo(video, nowMs);
-        const lm = result.landmarks?.[0];
-        if (lm && lm.length >= 33) {
-          this.callbacks.onFrame({
-            timestampMs: nowMs,
-            landmarks: lm.map((p) => ({
-              x: p.x,
-              y: p.y,
-              z: p.z,
-              visibility: p.visibility ?? 0.9,
-            })),
-          });
+      // Prefer capture timestamps over display time; enforce MediaPipe's monotonic clock.
+      const rvfc = typeof video.requestVideoFrameCallback === 'function';
+      let lastVideoTime = -1;
+      let lastTs = -Infinity;
+      const loop = (_now?: number, meta?: { captureTime?: number }) => {
+        if (run !== this.generation || !this.landmarker) return;
+        try {
+          if ((rvfc || video.currentTime !== lastVideoTime) && video.videoWidth > 0) {
+            lastVideoTime = video.currentTime;
+            const nowMs = Math.max(meta?.captureTime ?? performance.now(), lastTs + 0.001);
+            lastTs = nowMs;
+            const lm = this.landmarker.detectForVideo(video, nowMs).landmarks?.[0];
+            this.callbacks.onFrame({ timestampMs: nowMs, landmarks: lm && lm.length >= 33
+              ? lm.map(p => ({ x: p.x, y: p.y, z: p.z, visibility: p.visibility ?? 0.9 })) : [] });
+          }
+          if (run === this.generation) schedule();
+        } catch {
+          this.stop();
+          this.callbacks.onError('Pose tracking stopped unexpectedly. Please try again.');
         }
-      }
+      };
+      const schedule = () => {
+        this.rafId = rvfc ? video.requestVideoFrameCallback(loop) : requestAnimationFrame(() => loop());
+      };
       schedule();
-    };
-    const schedule = () => {
-      if (rvfc) this.rafId = video.requestVideoFrameCallback(loop);
-      else this.rafId = requestAnimationFrame(() => loop());
-    };
-    this.video = video;
-    schedule();
+    } catch {
+      if (run !== this.generation) return;
+      this.stop();
+      this.callbacks.onError(stage === 'camera'
+        ? 'Camera unavailable or permission denied. You can still use Guided Demo mode.'
+        : 'Could not load the pose model (first load needs a network connection).');
+    }
   }
 
   stop(): void {
-    this.stopped = true;
+    this.generation++;
     if (this.video && typeof this.video.cancelVideoFrameCallback === 'function') this.video.cancelVideoFrameCallback(this.rafId);
     else cancelAnimationFrame(this.rafId);
     this.landmarker?.close();
     this.landmarker = null;
-    this.stream?.getTracks().forEach((t) => t.stop());
+    this.stream?.getTracks().forEach(t => t.stop());
     this.stream = null;
+    if (this.video) { this.video.pause(); this.video.srcObject = null; }
+    this.video = null;
   }
 }
+
+/** Bound memory use for retained raw landmarks and file inspection. */
+export const MAX_VIDEO_BYTES = 100 * 1024 * 1024;
+export const MAX_VIDEO_SECONDS = 120;
 
 export class VideoFilePoseSource implements PoseSource {
   readonly kind = 'video' as const;
   private callbacks: PoseSourceCallbacks;
   private file: File;
   private landmarker: import('@mediapipe/tasks-vision').PoseLandmarker | null = null;
-  private rafId = 0;
-  private stopped = false;
+  private generation = 0;
+  private cancelWait: (() => void) | null = null;
   private objectUrl: string | null = null;
   private video: HTMLVideoElement | null = null;
 
   private model: PoseModel;
   private nativeFps: number | undefined;
+  private videoAspect = 16 / 9;
+  get aspect(): number { return this.videoAspect; }
   /** Every detected frame, in order (raw landmarks, no smoothing) — for offline filtering and integrity checks. */
   readonly frames: PoseFrame[] = [];
 
@@ -165,21 +160,35 @@ export class VideoFilePoseSource implements PoseSource {
   }
 
   async start(video: HTMLVideoElement | null): Promise<void> {
-    if (!video) throw new Error('Video source requires a video element');
-    this.stopped = false;
+    this.stop();
+    const run = this.generation;
+    this.frames.length = 0;
+    if (!video) { this.callbacks.onError('Video source requires a video element'); return; }
+    if (this.file.size > MAX_VIDEO_BYTES) { this.callbacks.onError('Choose a video smaller than 100 MB.'); return; }
     this.video = video;
+    try { await this.process(video, run); }
+    catch {
+      if (run !== this.generation) return;
+      this.stop();
+      this.callbacks.onError('Could not process this video. Try a shorter MP4 (H.264) or WebM clip.');
+    }
+  }
 
+  private async process(video: HTMLVideoElement, run: number): Promise<void> {
     this.callbacks.onStatus('Loading pose model…');
     try {
-      this.landmarker = await createLandmarker(this.model);
+      const landmarker = await createLandmarker(this.model);
+      if (run !== this.generation) { landmarker.close(); return; }
+      this.landmarker = landmarker;
     } catch {
+      if (run !== this.generation) return;
       this.callbacks.onError(
         'Could not load the pose model (first load needs a network connection).',
       );
       this.stop();
       return;
     }
-    if (this.stopped) return;
+    if (run !== this.generation) return;
 
     this.objectUrl = URL.createObjectURL(this.file);
     video.srcObject = null;
@@ -189,16 +198,33 @@ export class VideoFilePoseSource implements PoseSource {
     video.preload = 'auto';
 
     const metadataOk = await new Promise<boolean>((resolve) => {
-      const done = (ok: boolean) => resolve(ok);
+      const done = (ok: boolean) => {
+        window.clearTimeout(timer);
+        video.onloadedmetadata = null;
+        video.onerror = null;
+        this.cancelWait = null;
+        resolve(ok);
+      };
+      const timer = window.setTimeout(() => done(video.readyState >= 1), 8000);
+      this.cancelWait = () => done(false);
       video.onloadedmetadata = () => done(true);
       video.onerror = () => done(false);
-      window.setTimeout(() => done(video.readyState >= 1), 8000);
+      if (video.readyState >= 1) done(true);
     });
+    if (run !== this.generation) return;
     if (!metadataOk || !Number.isFinite(video.duration) || video.duration <= 0) {
       this.callbacks.onError('Could not read this video file — try MP4 (H.264) or WebM.');
       this.stop();
       return;
     }
+
+    if (video.duration > MAX_VIDEO_SECONDS) {
+      this.callbacks.onError('Choose a video no longer than 2 minutes.');
+      this.stop();
+      return;
+    }
+
+    this.videoAspect = video.videoWidth > 0 && video.videoHeight > 0 ? video.videoWidth / video.videoHeight : 16 / 9;
 
     // Seek-based decoding: step the timeline once per native frame and run the landmarker on each decoded frame.
     // Unlike realtime playback this is deterministic, immune to background-tab/power-saving pauses, and works at
@@ -219,7 +245,18 @@ export class VideoFilePoseSource implements PoseSource {
     const seekTo = (t: number) =>
       new Promise<number | null>((resolve) => {
         let done = false;
-        const finish = (v: number | null) => { if (!done) { done = true; video.removeEventListener('seeked', onSeeked); resolve(v); } };
+        let frameCallback = 0;
+        let fallbackTimer = 0;
+        const finish = (v: number | null) => {
+          if (done) return;
+          done = true;
+          window.clearTimeout(timeout);
+          window.clearTimeout(fallbackTimer);
+          if (frameCallback) video.cancelVideoFrameCallback(frameCallback);
+          video.removeEventListener('seeked', onSeeked);
+          this.cancelWait = null;
+          resolve(v);
+        };
         // After 'seeked' the new frame is composited and rvfc fires with its mediaTime. If it does not fire within
         // 250 ms (e.g. the seek landed on the frame already shown, or a background tab), fall back to the start of the
         // native frame containing currentTime (the mid-frame seek target): the same PTS rvfc reports for a clip starting
@@ -227,11 +264,12 @@ export class VideoFilePoseSource implements PoseSource {
         const grid = () => Math.floor(video.currentTime * native) / native;
         const onSeeked = () => {
           if (!rvfc) { finish(grid()); return; }
-          video.requestVideoFrameCallback((_now, meta) => finish(meta.mediaTime));
-          window.setTimeout(() => finish(grid()), 250);
+          frameCallback = video.requestVideoFrameCallback((_now, meta) => finish(meta.mediaTime));
+          fallbackTimer = window.setTimeout(() => finish(grid()), 250);
         };
         video.addEventListener('seeked', onSeeked);
-        window.setTimeout(() => finish(video.readyState >= 2 ? grid() : null), 2000);
+        const timeout = window.setTimeout(() => finish(video.readyState >= 2 ? grid() : null), 2000);
+        this.cancelWait = () => finish(null);
         video.currentTime = Math.min(t, Math.max(0, duration - 0.001));
       });
 
@@ -240,42 +278,46 @@ export class VideoFilePoseSource implements PoseSource {
     // Seek to the middle of a native frame so the decoder lands unambiguously on it. (Not step/2: when decimating by an
     // even factor that is exactly a frame boundary, and the decoder may show either neighbour.)
     for (let t = 0.5 / native; t < duration; t += step) {
-      if (this.stopped || !this.landmarker) return;
+      if (run !== this.generation || !this.landmarker) return;
       const mediaTime = await seekTo(t);
+      if (run !== this.generation || !this.landmarker) return;
       if (mediaTime === null || video.videoWidth === 0) continue;
       const ms = mediaTime * 1000;
       if (ms <= lastMs) continue; // rvfc says this is a frame we already analysed (VFR clip, sub-frame step)
       lastMs = ms;
       const result = this.landmarker.detectForVideo(video, ms);
       const lm = result.landmarks?.[0];
-      if (lm && lm.length >= 33) {
-        const frame: PoseFrame = {
-          timestampMs: ms,
-          landmarks: lm.map((p) => ({
-            x: p.x,
-            y: p.y,
-            z: p.z,
-            visibility: p.visibility ?? 0.9,
-          })),
-        };
-        this.frames.push(frame);
-        this.callbacks.onFrame(frame);
-      }
+      const frame: PoseFrame = {
+        timestampMs: ms,
+        landmarks: lm && lm.length >= 33
+          ? lm.map(p => ({ x: p.x, y: p.y, z: p.z, visibility: p.visibility ?? 0.9 })) : [],
+      };
+      this.frames.push(frame);
+      this.callbacks.onFrame(frame);
+      if (run !== this.generation) return;
       const pct = Math.floor((t / duration) * 100);
       if (pct !== lastPct && pct % 10 === 0) {
         lastPct = pct;
         this.callbacks.onStatus(`Processing video… ${pct}%`);
       }
     }
-    if (!this.stopped) this.callbacks.onStatus('Video complete');
+    if (run === this.generation) {
+      this.stop();
+      this.callbacks.onStatus('Video complete');
+    }
   }
 
   stop(): void {
-    this.stopped = true;
-    cancelAnimationFrame(this.rafId);
+    this.generation++;
+    this.cancelWait?.();
+    this.cancelWait = null;
     this.landmarker?.close();
     this.landmarker = null;
-    this.video?.pause();
+    if (this.video) {
+      this.video.pause();
+      this.video.removeAttribute('src');
+      this.video.load();
+    }
     this.video = null;
     if (this.objectUrl) {
       URL.revokeObjectURL(this.objectUrl);

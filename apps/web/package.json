@@ -8,6 +8,7 @@
     "dev": "vite",
     "prebuild": "npm run build -w @fitzen/engines",
     "build": "npx tsc -p tsconfig.json --noEmit && vite build",
+    "test": "node --test tests/*.test.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

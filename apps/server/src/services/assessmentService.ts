@@ -14,35 +14,17 @@ import type {
   SignedMetrics,
 } from '../domain/types.ts';
 
-function num(v: unknown): number {
-  return typeof v === 'number' && Number.isFinite(v) ? v : NaN;
-}
-
-function coerceMetrics(m: unknown): SignedMetrics {
-  if (typeof m !== 'object' || m === null) {
-    throw new HttpError(400, 'metrics missing from signed payload');
-  }
+/** Validate in place: changing a signed payload would invalidate its signature. */
+function validateMetrics(m: unknown): void {
+  if (typeof m !== 'object' || m === null || Array.isArray(m)) throw new HttpError(400, 'metrics missing from signed payload');
   const o = m as Record<string, unknown>;
-  return {
-    jumpHeightM: num(o.jumpHeightM) || 0,
-    jumpHeightCiLow: num(o.jumpHeightCiLow) || 0,
-    jumpHeightCiHigh: num(o.jumpHeightCiHigh) || 0,
-    flightTimeS: num(o.flightTimeS) || 0,
-    peakPowerW: num(o.peakPowerW) || 0,
-    relativePowerWkg: num(o.relativePowerWkg) || 0,
-    symmetryScore: num(o.symmetryScore) || 0,
-    movementQuality: num(o.movementQuality) || 0,
-    confidence: num(o.confidence) || 0,
-    effectiveFps: num(o.effectiveFps) || 30,
-    countermovementDepth: num(o.countermovementDepth) || 0,
-    qualityFlags: Array.isArray(o.qualityFlags)
-      ? o.qualityFlags.filter((x): x is string => typeof x === 'string')
-      : [],
-    validReps: typeof o.validReps === 'number' ? o.validReps : undefined,
-    totalAttempts: typeof o.totalAttempts === 'number' ? o.totalAttempts : undefined,
-    formAccuracyPercent: typeof o.formAccuracyPercent === 'number' ? o.formAccuracyPercent : undefined,
-    avgAsymmetryDeg: typeof o.avgAsymmetryDeg === 'number' ? o.avgAsymmetryDeg : undefined,
-  };
+  for (const key of ['jumpHeightM', 'jumpHeightCiLow', 'jumpHeightCiHigh', 'flightTimeS', 'peakPowerW', 'relativePowerWkg', 'symmetryScore', 'movementQuality', 'confidence', 'effectiveFps', 'countermovementDepth']) {
+    if (typeof o[key] !== 'number' || !Number.isFinite(o[key])) throw new HttpError(400, `metrics.${key} must be a finite number`);
+  }
+  for (const key of ['validReps', 'totalAttempts', 'formAccuracyPercent', 'avgAsymmetryDeg']) {
+    if (o[key] !== undefined && (typeof o[key] !== 'number' || !Number.isFinite(o[key]))) throw new HttpError(400, `metrics.${key} must be a finite number`);
+  }
+  if (!Array.isArray(o.qualityFlags) || o.qualityFlags.some((x) => typeof x !== 'string')) throw new HttpError(400, 'metrics.qualityFlags must be a string array');
 }
 
 export function parseEnvelope(body: unknown, athleteId: string): AssessmentEnvelope {
@@ -51,7 +33,7 @@ export function parseEnvelope(body: unknown, athleteId: string): AssessmentEnvel
   }
   const o = body as Record<string, unknown>;
   const signed = o.signed as SignedAssessment<AssessmentPayload> | undefined;
-  if (!signed || typeof signed !== 'object' || typeof signed.payload !== 'object') {
+  if (!signed || typeof signed !== 'object' || typeof signed.payload !== 'object' || signed.payload === null || Array.isArray(signed.payload)) {
     throw new HttpError(400, 'Envelope is missing the signed payload');
   }
   if (typeof signed.signature !== 'string' || typeof signed.payloadHash !== 'string') {
@@ -64,7 +46,9 @@ export function parseEnvelope(body: unknown, athleteId: string): AssessmentEnvel
   if (payload.athleteId !== athleteId) {
     throw new HttpError(403, 'Assessment athleteId does not match the authenticated athlete');
   }
-  coerceMetrics(payload.metrics);
+  if (typeof payload.test !== 'string' || !payload.test.trim() || payload.test.length > 60) throw new HttpError(400, 'payload.test is required');
+  if (typeof payload.capturedAt !== 'string' || !Number.isFinite(Date.parse(payload.capturedAt))) throw new HttpError(400, 'payload.capturedAt must be a valid timestamp');
+  validateMetrics(payload.metrics);
   const auditTrail = Array.isArray(o.auditTrail) ? (o.auditTrail as AuditEntry[]) : [];
   return { signed, auditTrail };
 }
