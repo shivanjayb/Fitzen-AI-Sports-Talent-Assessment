@@ -515,3 +515,24 @@ Main corrections: pull-up/chin-up targets (Youdas 2010: ~93°/101° elbow motion
 Engine changes from the audit: `side: 'flexed' | 'extended'` (Warrior I/II work whichever leg leads); box jumps landing on a raised surface are recorded; no flight-time "height" is reported for horizontal jumps or box landings.
 
 Not measurable from one phone, and now labelled as such in the app: javelin, discus and basketball release angle (scoring removed; hand moves several degrees between frames, mostly out of plane); broad jump and medicine-ball distance (needs a tape); sit-and-reach in cm (Fitzen scores the trunk–hip angle); Flamingo falls in 60 s (Fitzen reports time held); SAI vertical jump is jump-and-reach, so flight-time height is not comparable with SAI norm tables; 50 m dash and 600 m run; cricket elbow legality; knee hyperextension; lying and seated poses track weakly. Alternating drills (mountain climbers, high knees, A-skips, butt kicks) count one rep per left + right cycle on the leg nearer the camera. Bands tighter than ±10° are inside markerless measurement noise and need real-athlete calibration.
+
+## 13. Anti-cheat red team (2026-10-07)
+
+Code: `integrity.ts` (physics/biometric checks on the raw landmarks of an uploaded clip) and `forensics.ts` (container metadata). Tests and the full table: `integrity.test.ts`, `forensics.test.ts`. "Genuine" clips are humanised synthetic captures (3 takes, ±5 % tempo drift, sway, 120 Hz source resampled with optional VFR, tracker noise σ 0.0015–0.005). Each cell = clips flagged out of 6 conditions (24/30/60 fps, noise levels, one VFR).
+
+| Manipulation | Squat | Plank | Jump |
+|---|---|---|---|
+| **Genuine (false positives)** | **0/6** | **0/6** | **0/6** |
+| Speed ×0.5 … ×2 (retimed or dropped frames) | 0/6 | 0/6 | 6/6 |
+| Slow-mo by duplicated or interpolated frames, fps up-conversion | 6/6 | 6/6 | 6/6 |
+| Splice of a second take | 6/6 | 6/6 | 6/6 |
+| Cut at a matching pose | 0/6 | 0/6 | 0/6 |
+| Loop of 8 s (4 s) | 5/6 (0/6) | 0/6 (0/6) | 6/6 (0/6) |
+| Body morph 3.5 % / 8 % (AI-like warping) | 5/6 / 6/6 | 6/6 / 6/6 | 5/6 / 6/6 |
+| Foot sliding 5 cm (AI-generated motion artefact) | 6/6 | 4/6 | 6/6 |
+
+False-positive rate is 0/18 on realistic genuine clips and 0/86 across the catalog (4 puppet artefacts excluded and documented). Design rule: every flag is a warning with innocent explanations; `fail` only on a single strong physical signal (gravity from flight time, backward timestamps, bone-length failure) or a C2PA manifest that declares AI generation (IPTC trainedAlgorithmicMedia). A genuine clip must raise zero warnings to be "ok".
+
+Detects: retimed jumps (gravity), frame duplication/interpolation, splices, long loops, body warping, foot sliding typical of generated motion (UnderPressure, arXiv:2208.04598; generated video shows sub-Earth gravity, arXiv:2512.02016), C2PA AI and screen-capture declarations (Sora embeds C2PA), editor re-encodes (encoder tags such as CapCut, Lavf).
+
+Cannot detect client-side (honest limits): speed changes in reps/holds (no flight phase to give a clock), a cut at a matching pose, copies shorter than ~2.5 s, AI clips with C2PA stripped and no physical artefact, Google SynthID watermarks (readable only by Google tools), someone else performing the whole clip, and a lied-about height that cancels a retime. These need server-side ML classifiers, signed capture in the app (roadmap item 5: live capture with liveness prompts and ECDSA signing) or coach verification. No detector catches everything; results are warnings for a human reviewer, never accusations. All thresholds need recalibration on real phone clips (real tracker noise is correlated over time, not white).

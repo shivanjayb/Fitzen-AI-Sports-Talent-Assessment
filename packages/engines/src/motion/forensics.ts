@@ -53,8 +53,15 @@ const CAMERAS: [RegExp, string][] = [
   [/com\.apple\.quicktime|Core Media (Video|Audio|Metadata)/, 'Apple camera'],
   [/com\.android\.|^VideoHandle$|^SoundHandle$/, 'Android camera'],
 ];
-// IPTC digitalSourceType values meaning generative-AI output (see IPTC vocabulary URL above).
+// IPTC digitalSourceType values meaning generative-AI or non-camera output (see IPTC vocabulary URL above):
+// trainedAlgorithmicMedia "Created using Generative AI", compositeWithTrainedAlgorithmicMedia "Edited using Generative
+// AI", compositeSynthetic "Composite including generative AI elements", algorithmicMedia "Pure algorithmic media".
+// OpenAI states every Sora video embeds C2PA metadata (openai.com/index/launching-sora-responsibly).
 const AI_SOURCE = /trainedAlgorithmicMedia|compositeWithTrainedAlgorithmicMedia|compositeSynthetic|algorithmicMedia/g;
+// IPTC screenCapture: "A capture of the contents of the screen" — a screen recording of some other video.
+const SCREEN_SOURCE = /digitalsourcetype\/screenCapture|\bscreenCapture\b/;
+// A generator name alone is weaker than the IPTC declaration: "Veo" is also a brand of AI sports cameras that record
+// real matches, so names only raise a warning.
 const AI_GENERATORS = /\b(sora|veo|runway|firefly|kling|pika|luma|midjourney|dall-e|stable diffusion)\b/gi;
 
 const ascii = (b: Uint8Array) => { let s = ''; for (const c of b) s += String.fromCharCode(c); return s; };
@@ -192,16 +199,23 @@ export function inspectContainer(input: ArrayBuffer | Uint8Array, meta: Containe
     const text = c2paPayloads.map(ascii).join('\n');
     const sources = [...new Set(text.match(AI_SOURCE) ?? [])];
     const gens = [...new Set((text.match(AI_GENERATORS) ?? []).map((g) => g.toLowerCase()))];
-    if (sources.length || gens.length) {
+    if (sources.length) {
       flag('c2pa-ai-generated', 'strong', 'Content Credentials declare AI-generated or AI-composited media. The declaration was not cryptographically verified here, but a real camera clip would not normally carry it.',
         [...sources.map((s) => `digitalSourceType=${s}`), ...gens.map((g) => `softwareAgent~${g}`)].join(', '));
+    } else if (gens.length) {
+      flag('c2pa-ai-tool', 'warn', 'Content Credentials name a tool that can generate video, without declaring the clip AI-generated. Could be an edit made with that tool — or a camera brand with the same name.', gens.map((g) => `softwareAgent~${g}`).join(', '));
     } else {
       flag('c2pa-present', 'info', 'Content Credentials (C2PA) manifest present; no AI-generation assertion found by text scan. Signature not verified.', `${c2paPayloads.length} manifest box(es)`);
     }
+    if (SCREEN_SOURCE.test(text)) flag('c2pa-screen-capture', 'warn', 'Content Credentials say this is a screen recording, so it may show someone else\'s video rather than an original capture.', 'digitalSourceType=screenCapture');
   }
 
   // --- Editing / capture fingerprints ---
   fingerprint([...md.encoderStrings, ...handlerNames], meta.fileName, flag);
+
+  // --- Neither a camera nor an editor left a mark: metadata was stripped (ffmpeg -map_metadata -1, some messengers). ---
+  if (!flags.some((f) => f.code === 'camera-signature' || f.code === 'editor-signature'))
+    flag('no-capture-signature', 'info', 'No camera or editing-app tags in the file, so where it came from cannot be told. Messaging apps and metadata strippers both do this.', 'no encoder/handler/keys match');
 
   // --- Edit lists ---
   const edited = md.tracks.filter((t) => (t.edits ?? 0) > 1);

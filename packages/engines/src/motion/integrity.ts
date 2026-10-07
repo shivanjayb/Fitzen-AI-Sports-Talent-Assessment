@@ -22,13 +22,12 @@ export interface IntegrityOptions { aspect: number; statureCm?: number; mode?: '
 
 // ── thresholds (each with its source / derivation) ─────────────────────────
 
-// Bone-length robust CV. Floor: markerless joint-centre errors are a few cm (Needham et al. 2021, Sci Rep 11:20673,
-// 16–48 mm across OpenPose/AlphaPose/DeepLabCut). A ~1 cm frame-to-frame share on each end of a ~30 cm forearm gives
-// CV ≈ √2·1/30 ≈ 4.7 % before the >0.87 filter. The filter keeps only the top ~13 % band of lengths, which truncates
-// any spread, so the measured CV saturates near 5 % however strong the morph. Calibrated on the puppet
-// (integrity.test.ts): all 90 catalog exercises genuine 1.7–2.8 %; sinusoidal morph of injected CV 2 % → 3.1 %,
-// 3.5 % → 4.9 %, 5 % → 6.5 %, 8 % → 5.5 %, 15 % → 5.0 %. Warn above the genuine max, fail below the saturation level.
-// ponytail: puppet jitter is cleaner than real BlazePose; recalibrate BONE_CV_* on a set of real phone clips.
+// Bone-length robust CV, NOISE-CORRECTED: tracker jitter σ alone gives a length CV of √2σ/L, which is subtracted in
+// quadrature so only the excess counts (red team: raw CVs at σ = 3–5 mm-class noise reached 4–6 % on genuine clips and
+// false-flagged 15/18 of them; corrected, 0/18). Markerless joint-centre errors are a few cm (Needham et al. 2021,
+// Sci Rep 11:20673). The >0.87 in-plane filter truncates any spread, so the measure saturates near 5 % however strong
+// the morph. Genuine catalog max after correction 2.1 %; morph 3.5 % → flagged 16/18, 8 % → 18/18.
+// ponytail: puppet noise is white; real BlazePose noise is temporally correlated — recalibrate on real phone clips.
 const BONE_CV_WARN = 0.035;
 const BONE_CV_FAIL = 0.045;
 // Left/right length ratio: both sides of a rigid body share the camera distance, so the ratio is constant up to
@@ -42,6 +41,8 @@ const LR_DRIFT_WARN = 0.05;
 //  hip ≠ centre of mass: leg tuck moves CoM ~5 cm vs hip during flight; for T≈0.5 s that is up to 8Δ/T² ≈ 1.6 m/s²,
 //    take 0.08 as 1σ (tuck jumps can exceed it)
 //  fit: standard error of the quadratic coefficient from the residuals (computed per clip).
+// Generated video also fails this test: off-the-shelf video generators render falling objects at g_eff ≈ 1.8 m/s²
+// ("Objects in Generated Videos Are Slower Than They Appear", arXiv:2512.02016).
 // Re-timing by factor k scales g by k² (k=2 → ×4, ln 4 = 1.39 ≈ 12σ), so 2σ warn / 3σ fail still separates ±25 % speed.
 const REL = { statureGiven: 0.02, statureDefault: 0.06, ratio: 0.015, span: 0.03, com: 0.08 };
 const G_WARN_Z = 2;
@@ -75,6 +76,39 @@ const WRIST_SPEED_MAX = 50;
 const TORSO_STEP = 0.25;
 // Tracking: frame counts as poorly tracked when mean visibility of core joints < FILTER.minVisibility (0.5).
 const LOW_VIS_FRACTION_WARN = 0.2;
+// Tracker noise σ is measured per clip from second differences: for white noise var(Δ²x) = 6σ², and the median of
+// |Δ²x| (÷ 0.6745 for a Gaussian MAD) ignores the minority of frames dominated by real acceleration.
+// Repeated segment (copied / looped reps). Two re-tracked copies of the same footage differ only by tracker noise:
+// mean 2D joint distance ≈ √π·σ ≈ 1.8σ (difference of two N(0,σ²) points), SD ≈ 0.27σ over 12 joints. LOOP_TAU = 3σ
+// sits > 4 SD above that. Real repeats of a movement are never this close for long: tempo alone varies a few % rep to
+// rep, which at limb speeds of ~1 m/s puts the poses cm apart (≫ σ ≈ mm). Only MOVING frames count (a still hold
+// "matches itself" at any lag). A copy needs ≥ 2.5 s of matching moving frames at a non-overlapping lag — set
+// above the longest near-repeat seen between the puppet's otherwise robot-identical jumps (2.1 s), so a single copied
+// short rep can slip through: false positives cost more than misses here.
+// Over the run the MEAN distance must also be copy-like: < 2.2σ (copies average 1.77σ, SE ≈ 0.27σ/√30 ≈ 0.05σ),
+// which a near-repeat cherry-picked frame by frame under the 3σ cap does not reach.
+const LOOP_TAU = 3;
+const LOOP_MEAN = 2.2;
+const LOOP_MIN_SEC = 2.5;
+// …and the copied stretch must travel ≥ 5 % of body height: a small periodic wobble (breathing, sway) is not a rep.
+const LOOP_TRAVEL = 0.05;
+// Frame interpolation (slow-mo / frame-rate up-conversion). Synthesised in-between frames sit on the straight line
+// between real ones, so the per-frame second-difference energy E_i stops being stationary: it alternates with the
+// interpolation period (2 for ×2, 3 for ×3). Test: every phase r of period p must have the same mean E; z = deviation
+// of a phase mean in units of its standard error. 6 SE is a ~1e-9 Gaussian tail over the 5 phase tests, so only a
+// strong periodic structure trips it. Needs ≥ 30 regular frames per phase.
+const INTERP_Z = 6;
+const INTERP_MIN_PER_PHASE = 30;
+// Foot sliding. Footskating is a known artefact of synthesised human motion ("UnderPressure: Deep Learning for Foot
+// Contact Detection, Ground Reaction Force Estimation and Footskate Cleanup", arXiv:2208.04598). While both toes
+// are on the floor, their 2D separation is fixed whatever the camera does (pan/tilt move both toes alike). Flag a
+// ≥ 0.5 s double-support stretch whose separation spans (q90 − q10) more than 4 % of body height (~7 cm) and more
+// than 6σ of noise (q90 − q10 of a N(0, 2σ²) difference ≈ 3.6σ).
+const FOOT_MIN_SEC = 0.5;
+const FOOT_SLIDE = 0.04;
+// ≥ 2 reversals (out-in-out) of at least that size: a single step-out-and-back (warrior pose, stance change on a
+// smooth floor) is 1 reversal and stays quiet.
+const FOOT_SWINGS = 2;
 // Score: flat penalties — fail 40, warn 15 (two warns ≈ one fail, so an ok verdict never scores below a warn).
 const PENALTY: Record<IntegritySeverity, number> = { info: 0, warn: 15, fail: 40 };
 
@@ -148,6 +182,24 @@ export function analyseIntegrity(frames: PoseFrame[], opts: IntegrityOptions): I
   const mPerUnit = spanU > 0.05 ? (statureM * NOSE_STATURE_RATIO) / spanU : NaN;
   metrics.metresPerUnit = r4(mPerUnit);
 
+  const dts = frames.slice(1).map((f, i) => f.timestampMs - frames[i]!.timestampMs);
+  const nonMono = dts.filter((d) => d <= 0).length;
+  const medDt = median(dts.filter((d) => d > 0));
+
+  // Tracker noise and per-frame second-difference energy (regular frames only) ─
+  const P = frames.map((f) => (TRACKED.every((k) => ok(f.landmarks[k])) ? TRACKED.flatMap((k) => [f.landmarks[k]!.x * aspect, f.landmarks[k]!.y]) : null));
+  const regular = (i: number) => Math.abs(dts[i]! - medDt) <= 0.25 * medDt;
+  const absD2: number[] = [], E: { i: number; e: number }[] = [];
+  for (let i = 1; i + 1 < frames.length; i++) {
+    const a = P[i - 1], b = P[i], c = P[i + 1];
+    if (!a || !b || !c || !regular(i - 1) || !regular(i)) continue;
+    let e = 0;
+    for (let k = 0; k < b.length; k++) { const d = a[k]! - 2 * b[k]! + c[k]!; absD2.push(Math.abs(d)); e += d * d; }
+    E.push({ i, e });
+  }
+  const noise = absD2.length ? median(absD2) / 0.6745 / Math.sqrt(6) : 0;
+  metrics.noise = r4(noise);
+
   // 1. Bone-length constancy ─────────────────────────────────────────────────
   let boneMax = 0, lrMax = 0, worst = '';
   for (const [name, sides] of Object.entries(SEGMENTS)) {
@@ -156,13 +208,16 @@ export function analyseIntegrity(frames: PoseFrame[], opts: IntegrityOptions): I
       const max = quantile(L.filter(Number.isFinite), 0.95);
       return L.map((x) => (x >= FILTER.minSegmentRatio * max ? x : NaN)); // not foreshortened (cos φ > 0.87)
     });
-    const cvs = inPlane.map((L) => L.filter(Number.isFinite)).filter((L) => L.length >= 10).map(robustCv);
+    // Tracker noise alone gives a length CV of √2σ/L; subtract it in quadrature so only the excess counts.
+    const jit = inPlane.map((L) => (Math.SQRT2 * noise) / median(L.filter(Number.isFinite)));
+    const excess = (v: number, j: number) => Math.sqrt(Math.max(0, v * v - j * j));
+    const cvs = inPlane.map((L, k) => [L.filter(Number.isFinite), k] as const).filter(([L]) => L.length >= 10).map(([L, k]) => excess(robustCv(L), jit[k]!));
     if (!cvs.length) continue;
     const cv = cvs.reduce((s, x) => s + x, 0) / cvs.length;
     metrics[`boneCV_${name}`] = r4(cv);
     if (cv > boneMax) { boneMax = cv; worst = name; }
     const ratios = inPlane[0]!.map((l, i) => l / inPlane[1]![i]!).filter(Number.isFinite);
-    if (ratios.length >= 10) { const d = robustCv(ratios); metrics[`lrDrift_${name}`] = r4(d); lrMax = Math.max(lrMax, d); }
+    if (ratios.length >= 10) { const d = excess(robustCv(ratios), Math.hypot(jit[0]!, jit[1]!)); metrics[`lrDrift_${name}`] = r4(d); lrMax = Math.max(lrMax, d); }
   }
   metrics.boneCV = r4(boneMax);
   metrics.lrDrift = r4(lrMax);
@@ -176,9 +231,6 @@ export function analyseIntegrity(frames: PoseFrame[], opts: IntegrityOptions): I
       { lrDrift: lrMax, warnAt: LR_DRIFT_WARN });
 
   // 3. Temporal integrity (before gravity: gravity needs a sane clock) ───────
-  const dts = frames.slice(1).map((f, i) => f.timestampMs - frames[i]!.timestampMs);
-  const nonMono = dts.filter((d) => d <= 0).length;
-  const medDt = median(dts.filter((d) => d > 0));
   const gaps = dts.filter((d) => d > GAP_FACTOR * medDt).length;
   const irregular = dts.filter((d) => d > 0 && d <= GAP_FACTOR * medDt && Math.abs(d - medDt) > IRREGULAR_TOL * medDt).length / dts.length;
   Object.assign(metrics, { fps: r4(1000 / medDt), nonMonotonic: nonMono, gaps, irregularFraction: r4(irregular) });
@@ -211,6 +263,92 @@ export function analyseIntegrity(frames: PoseFrame[], opts: IntegrityOptions): I
     flag('frozen-frames', 'warn', `Pose is pixel-identical across ${frozen} frame step(s) (longest ${longestSec.toFixed(2)} s). Real footage always carries sensor noise; repeats suggest duplicated frames or a paused/looped clip — or a frame-rate conversion.`, { frozenFraction: frozen / dts.length, longestFrozenSec: longestSec });
   if (teleports) flag('teleport', 'warn', `The body jumps faster than any human can move (> ${BODY_SPEED_MAX} m/s whole-body) in ${teleports} frame step(s). Suggests a splice or cut — or the tracker jumping to someone else.`, { teleports, bodySpeedMax: BODY_SPEED_MAX });
   if (torsoSteps) flag('scale-step', 'warn', `Torso size jumps by > ${TORSO_STEP * 100}% in one frame ${torsoSteps} time(s). Suggests a different person, a zoom cut or a splice.`, { torsoSteps, stepAt: TORSO_STEP });
+
+
+  // Repeated segment: same movement at a fixed lag, matching to within tracker noise.
+  // ponytail: O(n²) pairs; the centroid gate (|mean a − mean b| ≤ mean |a − b|) rejects almost all of them cheaply.
+  const C = P.map((p) => p && [0, 1].map((o) => p.filter((_, k) => k % 2 === o).reduce((s, x) => s + x, 0) / (p.length / 2)));
+  const pd = (i: number, j: number, gate = true) => {
+    const a = P[i], b = P[j];
+    if (!a || !b || (gate && Math.hypot(C[i]![0]! - C[j]![0]!, C[i]![1]! - C[j]![1]!) >= tau)) return Infinity;
+    if (gate && !mov[i] && !mov[j]) return 0; // both still and co-located: neutral
+    let s = 0; for (let k = 0; k < a.length; k += 2) s += Math.hypot(a[k]! - b[k]!, a[k + 1]! - b[k + 1]!);
+    return s / (a.length / 2);
+  };
+  const minRun = Math.max(5, Math.round((LOOP_MIN_SEC * 1000) / medDt));
+  const tau = LOOP_TAU * noise + FROZEN_EPS;
+  // Moving = the pose shifted > 2τ over the last ~0.2 s. Still frames neither count nor break a run (a copied rep
+  // includes its pauses), but must still sit in the same place (centroid gate).
+  const w = Math.max(1, Math.round(200 / medDt));
+  const mov = P.map((_, i) => pd(i, i >= w ? i - w : Math.min(i + w, P.length - 1), false) > 2 * tau);
+  const copied = new Uint8Array(frames.length);
+  let bestMean = Infinity;
+  for (let L = minRun; L < frames.length; L++) {
+    for (let i = L, hits: number[] = [], sum = 0; i <= frames.length; i++) {
+      const j = i - L;
+      const d = i < frames.length ? pd(i, j) : Infinity;
+      if (d === 0 && !mov[i] && !mov[j]) continue; // both still, same place: neutral
+      if (d < tau) { hits.push(i); sum += d; continue; }
+      if (hits.length >= minRun) {
+        const m = sum / hits.length / Math.max(noise, 1e-9);
+        bestMean = Math.min(bestMean, m);
+        const travel = Math.max(...hits.map((k) => pd(k, hits[0]!, false)));
+        if (m < LOOP_MEAN && travel > LOOP_TRAVEL * spanU) for (const k of hits) copied[k] = 1;
+      }
+      hits = []; sum = 0;
+    }
+  }
+  const copiedSec = (copied.reduce((s, x) => s + x, 0) * medDt) / 1000;
+  metrics.repeatedSec = r4(copiedSec);
+  if (Number.isFinite(bestMean)) metrics.repeatMeanSigma = r4(bestMean);
+  if (copiedSec) flag('repeated-segment', 'warn', `${copiedSec.toFixed(1)} s of movement repeats an earlier stretch to within tracker noise. Real repetitions always differ by more than that, so this looks like a copied or looped segment — or an app's loop/replay effect.`, { repeatedSec: copiedSec, noise });
+
+  // Interpolated frames: periodic second-difference energy.
+  // Medians, not means: motion bursts make E heavy-tailed. SE(median) ≈ 1.2533·σ/√n with σ from the MAD.
+  let interpZ = 0, interpP = 0;
+  const mE = median(E.map((x) => x.e));
+  const sdE = 1.4826 * median(E.map((x) => Math.abs(x.e - mE)));
+  for (const p of [2, 3]) for (let r = 0; r < p; r++) {
+    const ph = E.filter((x) => x.i % p === r).map((x) => x.e);
+    if (ph.length < INTERP_MIN_PER_PHASE || !(sdE > 0)) continue;
+    const z = Math.abs(median(ph) - mE) / ((1.2533 * sdE) / Math.sqrt(ph.length));
+    if (z > interpZ) { interpZ = z; interpP = p; }
+  }
+  metrics.interpZ = r4(interpZ);
+  if (interpZ > INTERP_Z) flag('interpolated-frames', 'warn', `Frame-to-frame motion follows a strict every-${interpP}-frames pattern, typical of synthesised in-between frames (slow motion or frame-rate conversion). Some video encoders leave a similar rhythm, so treat timing-based results with care.`, { z: interpZ, period: interpP });
+
+  // Foot sliding during double support.
+  const groundToe = median(frames.flatMap((f) => [31, 32].filter((k) => ok(f.landmarks[k])).map((k) => f.landmarks[k]!.y)));
+  const sep = frames.map((f) => {
+    const l = f.landmarks[31], r = f.landmarks[32];
+    return ok(l) && ok(r) && groundToe - l!.y < CLEARANCE * spanU && groundToe - r!.y < CLEARANCE * spanU ? dist(l!, r!) : NaN;
+  });
+  // Count back-and-forth swings of the separation (zigzag with step h): one step-out or step-in is a deliberate stance
+  // change; skating wanders out and back repeatedly.
+  const h = Math.max(FOOT_SLIDE * spanU, 6 * noise);
+  let slide = 0, swings = 0;
+  const footRun = Math.round((FOOT_MIN_SEC * 1000) / medDt);
+  for (let i = 0; i < sep.length; ) {
+    if (!Number.isFinite(sep[i])) { i++; continue; }
+    let j = i; while (j < sep.length && Number.isFinite(sep[j])) j++;
+    if (j - i >= footRun) {
+      const raw = sep.slice(i, j) as number[];
+      slide = Math.max(slide, quantile(raw, 0.9) - quantile(raw, 0.1));
+      // 0.2 s moving average first, so noise extremes (±3.5σ over hundreds of frames) can't fake a swing.
+      const s = raw.map((_, k) => { const win = raw.slice(Math.max(0, k - w), k + w + 1); return win.reduce((a, b) => a + b, 0) / win.length; });
+      let n = 0, lo = s[0]!, hi = s[0]!, dir = 0;
+      for (const x of s) {
+        lo = Math.min(lo, x); hi = Math.max(hi, x);
+        if (dir >= 0 && hi - x > h) { if (dir > 0) n++; dir = -1; lo = hi = x; }
+        else if (dir <= 0 && x - lo > h) { if (dir < 0) n++; dir = 1; lo = hi = x; }
+      }
+      swings = Math.max(swings, n);
+    }
+    i = j;
+  }
+  Object.assign(metrics, { footSlide: r4(slide / spanU), footSwings: swings });
+  if (swings >= FOOT_SWINGS)
+    flag('foot-slide', 'warn', `With both feet on the floor, the gap between them widens and narrows ${swings + 1} times by ~${((slide / spanU) * 100).toFixed(0)}% of body height. Planted feet don't wander like that, so this can point to generated or warped video ("foot skating") — or to slider/skater drills, a slippery floor, or the tracker confusing left and right foot.`, { footSlide: slide / spanU, swings, warnAt: FOOT_SLIDE });
 
   // 2. Gravity / time-scale ───────────────────────────────────────────────────
   if (opts.mode === 'event' || opts.mode === undefined) {

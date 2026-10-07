@@ -65,6 +65,31 @@ describe('container forensics', () => {
     expect(f.evidence).toContain('sora');
   });
 
+  const c2pa = (claim: string) => {
+    const uuid = [0xd8, 0xfe, 0xc3, 0xd6, 0x1b, 0x0e, 0x48, 0x3c, 0x92, 0x97, 0x58, 0x28, 0x87, 0x7e, 0xc4, 0x81];
+    return box('uuid', uuid, [0, 0, 0, 0], str('manifest'), [0], box('jumb', box('jumd', str('c2pa')), str(claim)));
+  };
+
+  it('only the IPTC declaration is strong; a bare tool name (e.g. a "Veo" sports camera) is a warning', () => {
+    const named = inspectContainer(mp4({ created: REC, deltas: [[300, 20]], extra: [c2pa('c2pa.actions c2pa.created softwareAgent Veo Cam 3')] }), { fileName: 'match.mp4', lastModified: REC, nowMs: NOW });
+    expect(named.flags.find((x) => x.code === 'c2pa-ai-tool')?.severity).toBe('warn');
+    expect(named.flags.some((x) => x.severity === 'strong')).toBe(false);
+    const edited = inspectContainer(mp4({ created: REC, deltas: [[300, 20]], extra: [c2pa('digitalSourceType http://cv.iptc.org/newscodes/digitalsourcetype/compositeWithTrainedAlgorithmicMedia')] }), { fileName: 'a.mp4', lastModified: REC, nowMs: NOW });
+    expect(edited.flags.find((x) => x.code === 'c2pa-ai-generated')?.severity).toBe('strong');
+  });
+
+  it('flags a C2PA screen capture and notes stripped metadata', () => {
+    const r = inspectContainer(mp4({ created: REC, deltas: [[300, 20]], extra: [c2pa('digitalSourceType http://cv.iptc.org/newscodes/digitalsourcetype/screenCapture')] }), { fileName: 'rec.mp4', lastModified: REC, nowMs: NOW });
+    expect(codes(r)).toEqual(expect.arrayContaining(['c2pa-present', 'c2pa-screen-capture', 'no-capture-signature']));
+    expect(codes(inspectContainer(mp4({ deltas: [[300, 20]] }), { fileName: 'x.mp4', lastModified: NOW, nowMs: NOW }))).toContain('no-capture-signature');
+  });
+
+  it('names consumer editors from encoder tags', () => {
+    const r = inspectContainer(mp4({ created: REC, deltas: [[300, 20]], encoder: 'CapCut 12.1' }), { fileName: 'v.mp4', lastModified: REC, nowMs: NOW });
+    expect(r.flags.find((x) => x.code === 'editor-signature')?.message).toContain('CapCut');
+    expect(codes(r)).not.toContain('no-capture-signature');
+  });
+
   it('reads WebM writing app and rejects unknown bytes', () => {
     const info = [0x15, 0x49, 0xa9, 0x66, 0x80 | 16, 0x4d, 0x80, 0x80 | 5, ...str('Lavf6'), 0x57, 0x41, 0x80 | 5, ...str('Chrom')];
     const r = inspectContainer(new Uint8Array([0x1a, 0x45, 0xdf, 0xa3, 0x80, ...info]), { fileName: 'x.webm', lastModified: NOW });
