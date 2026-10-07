@@ -217,7 +217,7 @@ export const SPORT: ExerciseDef[] = [
     setup: [
       'Camera side-on at hip height, 3 m away, head-to-toe plus space above.',
       'Stand tall, feet hip-width.',
-      'Hands on hips (standard CMJ), or swing arms — but pick one and keep it every test.',
+      'Keep hands on hips throughout (standard CMJ). Use SAI Vertical Jump for arm-swing attempts.',
       'Dip fast to a comfortable depth and jump straight up.',
       'Land in the same spot.',
     ],

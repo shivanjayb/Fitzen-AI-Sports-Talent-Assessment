@@ -77,10 +77,22 @@ function interp(ts: number[], v: number[], t: number, hint: { i: number }): numb
  * Timestamps must be ascending. If frame spacing is irregular (VFR clip, dropped frames), each track is
  * resampled to a uniform grid at the median frame interval, filtered, and interpolated back to the original
  * timestamps, so the output has the same frames and times as the input.
- * ponytail: linear interpolation bridges tracking gaps; a long gap gets a straight line, not real motion.
+ * Missing detections and gaps over 300 ms split tracks; they are never reconstructed as real motion.
  */
 export function filtfiltLandmarks(frames: PoseFrame[], cutoffHz = 6, order = 2): PoseFrame[] {
   if (frames.length < 3) return frames.map((f) => ({ ...f, landmarks: f.landmarks.map((l) => ({ ...l })) }));
+  // Match MotionSession's discontinuity rule; filter each observed stretch independently.
+  if (frames.some((f, i) => !f.landmarks.length || (i > 0 && f.timestampMs - frames[i - 1]!.timestampMs > 300))) {
+    const out: PoseFrame[] = [];
+    for (let i = 0; i < frames.length; ) {
+      if (!frames[i]!.landmarks.length) { out.push({ ...frames[i]!, landmarks: [] }); i++; continue; }
+      let end = i + 1;
+      while (end < frames.length && frames[end]!.landmarks.length && frames[end]!.timestampMs - frames[end - 1]!.timestampMs <= 300) end++;
+      out.push(...filtfiltLandmarks(frames.slice(i, end), cutoffHz, order));
+      i = end;
+    }
+    return out;
+  }
   const ts = frames.map((f) => f.timestampMs);
   const dts = ts.slice(1).map((t, i) => t - ts[i]!).sort((p, q) => p - q);
   const med = dts[Math.floor(dts.length / 2)]!;

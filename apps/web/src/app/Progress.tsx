@@ -1,8 +1,10 @@
+import { t } from './language';
 import { Link } from 'react-router-dom';
 import { bestJumpCm, evaluateBadges, exerciseById, projectGrowth, type AthleteStats } from '@fitzen/engines';
-import { getHistory, getProfile, measureOf, normOf, toAthlete, type SavedSession } from './store';
+import { getHistory, getProfile, isEligibleSession, measureOf, normOf, toAthlete, type SavedSession } from './store';
 import { GrowthChart } from './Results';
 import { IconFlag, IconPodium } from './icons';
+import TrainingGoal from './TrainingGoal';
 
 const day = (s: SavedSession) => new Date(s.report.startedAt).toDateString();
 const PUSH = /push-up/, SQUAT = /squat/;
@@ -34,11 +36,11 @@ const xpOf = (h: SavedSession[]) => h.reduce((a, s) => a + 10 + Math.round(s.rep
 const levelOf = (xp: number) => Math.floor(Math.sqrt(xp / 50)) + 1;
 
 export default function Progress() {
-  const h = getHistory();
+  const h = getHistory().filter(isEligibleSession);
   const p = getProfile(), a = toAthlete(p);
   if (!h.length) return (
-    <main className="page"><p className="subtitle">Streaks, badges, rankings</p><h1 className="large-title">Progress</h1>
-      <div className="empty"><div className="big"><IconFlag /></div>No sessions yet. Train once to start your streak.<br /><br /><Link to="/app" className="btn primary">Start training</Link></div></main>
+    <main className="page"><p className="subtitle">Streaks, badges, rankings</p><h1 className="large-title">{t('Progress')}</h1>
+      <div className="empty"><div className="big"><IconFlag /></div>No eligible real sessions yet. Train once to start your streak.<br /><br /><Link to="/app" className="btn primary">Start training</Link></div><TrainingGoal /></main>
   );
 
   const st = statsOf(h, p.weightKg);
@@ -61,7 +63,9 @@ export default function Progress() {
   return (
     <main className="page">
       <p className="subtitle">Streaks, badges, rankings</p>
-      <h1 className="large-title">Progress</h1>
+      <h1 className="large-title">{t('Progress')}</h1>
+      <p className="faint">Based on up to 60 retained, eligible real sessions. Demos, unassessed and flagged results do not count.</p>
+      <TrainingGoal />
 
       <div className="kv" style={{ marginTop: 18 }}>
         <div><span>Streak</span><b className="num">{st.streakDays} d</b><small>{st.activeDays} active days total</small></div>

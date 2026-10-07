@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { SessionReport } from '../motion/engine.js';
 import { assessDiet, bmiAssessment, maturityOffset } from './body.js';
-import { normCdf, percentileFor } from './norms.js';
+import { fitIndiaPushupBand, normCdf, percentileFor } from './norms.js';
 import { projectGrowth } from './projection.js';
 import { mentalReport, readiness } from './readiness.js';
 import { summarizeFuture } from './summary.js';
@@ -94,7 +94,7 @@ describe('norms', () => {
   it('is monotonic in value', () => {
     let prev = -1;
     for (let cm = 15; cm <= 70; cm += 5) {
-      const p = percentileFor('sai-vertical-jump', 'jumpHeightCm', cm, 16, 'female')!.percentile!;
+      const p = percentileFor('countermovement-jump', 'jumpHeightCm', cm, 16, 'female')!.percentile!;
       expect(p).toBeGreaterThanOrEqual(prev);
       if (cm >= 25 && cm <= 40) expect(p).toBeGreaterThan(prev);
       prev = p;
@@ -103,7 +103,7 @@ describe('norms', () => {
   it('CSEP push-up bands and nulls where no verified table exists', () => {
     expect(percentileFor('sai-push-up', 'reps', 39, 16, 'male')!.band).toBe('excellent');
     expect(percentileFor('sai-push-up', 'reps', 17, 16, 'male')!.band).toBe('needs work');
-    expect(percentileFor('sai-push-up', 'reps', 20, 16, 'female')!.band).toBe('good');
+    expect(percentileFor('sai-push-up', 'reps', 20, 16, 'female')).toBeNull();
     expect(percentileFor('sai-push-up', 'reps', 20, 13, 'male')).toBeNull();
     expect(percentileFor('sai-sit-up', 'reps', 30, 15, 'male')).toBeNull();
     expect(percentileFor('plank', 'holdSec', 60, 15, 'male')).toBeNull();
@@ -146,5 +146,72 @@ describe('summarizeFuture', () => {
     expect(s.actions.length).toBe(5);
     for (let i = 1; i < s.actions.length; i++) expect(s.actions[i - 1]!.priority).toBeGreaterThanOrEqual(s.actions[i]!.priority);
     expect(s.futureScope.join(' ')).toMatch(/weeks/);
+  });
+});
+
+
+describe('protocol comparability', () => {
+  it('withholds references for incompatible protocols and out-of-range ages', () => {
+    for (const id of ['sai-vertical-jump', 'squat-jump']) expect(percentileFor(id, 'jumpHeightCm', 40, 15, 'male')).toBeNull();
+    expect(percentileFor('countermovement-jump', 'jumpHeightCm', 40, 22, 'male')).toBeNull();
+    expect(percentileFor('push-up', 'reps', 30, 18, 'female')).toBeNull();
+  });
+
+  it('an older, different jump test cannot change the latest protocol talent signal', () => {
+    const latest = jumpSession(30, 3, 'countermovement-jump');
+    const own = projectGrowth(athlete, [latest]);
+    const mixed = projectGrowth(athlete, [jumpSession(80, 0, 'sai-vertical-jump'), latest]);
+    expect(mixed.talent).toEqual(own.talent);
+    expect(mixed.metrics).toEqual(own.metrics);
+    expect(mixed.talent!.summary).toContain('Experimental');
+  });
+
+  it('excluded assessments cannot generate a projection', () => {
+    expect(projectGrowth(athlete, [{ ...jumpSession(40, 0), assessmentStatus: 'insufficient-evidence' }]).metrics).toEqual([]);
+  });
+});
+
+
+describe('verified Fit India push-up pack', () => {
+  const boys = (n: number, age = 13) => fitIndiaPushupBand(n, age, 'male', 'fit-india-full-push-up-v1');
+  const girls = (n: number, age = 13) => fitIndiaPushupBand(n, age, 'female', 'fit-india-modified-push-up-v1');
+
+  it('preserves the strict lower bound, inclusive upper bounds and L7', () => {
+    expect(boys(8)!.level).toBe('below published range');
+    expect(boys(9)!.level).toBe('L1');
+    expect(boys(10)!.level).toBe('L2');
+    expect(boys(11)!.level).toBe('L3');
+    expect(boys(13)!.level).toBe('L4');
+    expect(boys(15)!.level).toBe('L5');
+    expect(boys(16)!.level).toBe('L6');
+    expect(boys(17)!.level).toBe('L7');
+    expect(boys(9)!.percentile).toBeNull();
+    expect(boys(9)!.sourcePage).toBe(51);
+  });
+
+  it('preserves empty girls age13 L2 rather than manufacturing a boundary', () => {
+    expect(girls(7)!.level).toBe('below published range');
+    expect(girls(8)!.level).toBe('L1');
+    expect(girls(9)!.level).toBe('L3');
+    expect(girls(14)!.level).toBe('L6');
+    expect(girls(15)!.level).toBe('L7');
+  });
+
+  it('uses checked age-specific boys and girls rows, completed age only', () => {
+    expect(boys(43, 18)!.level).toBe('L6');
+    expect(boys(44, 18.9)!.level).toBe('L7');
+    expect(girls(27, 18)!.level).toBe('L6');
+    expect(girls(28, 18)!.level).toBe('L7');
+    expect(girls(13, 14)!.level).toBe('L2');
+  });
+
+  it('withholds norms for unverified camera protocols and incompatible sex protocols', () => {
+    expect(fitIndiaPushupBand(20, 15, 'female', 'fit-india-full-push-up-v1')).toBeNull();
+    expect(fitIndiaPushupBand(20, 15, 'male', 'fit-india-modified-push-up-v1')).toBeNull();
+    expect(fitIndiaPushupBand(20, 15, 'male', 'push-up')).toBeNull();
+    expect(boys(20, 12)).toBeNull();
+    expect(boys(20, 19)).toBeNull();
+    expect(boys(20.5)).toBeNull();
+    expect(boys(-1)).toBeNull();
   });
 });

@@ -55,3 +55,27 @@ describe('filtfilt', () => {
     expect(b.reps?.count).toBe(6);
   });
 });
+
+describe('offline tracking discontinuities', () => {
+  it('filters observed stretches independently while preserving missing detection frames and timestamps', () => {
+    const before = X.map((v, i) => frame(i * 1000 / FS, v));
+    const missing: PoseFrame = { timestampMs: 1600, landmarks: [] };
+    const after = X.map((v, i) => frame(2000 + i * 1000 / FS, v + 10));
+    const out = filtfiltLandmarks([...before, missing, ...after]);
+    expect(out[N]).toEqual(missing);
+    expect(out.slice(0, N)).toEqual(filtfiltLandmarks(before));
+    expect(out.slice(N + 1)).toEqual(filtfiltLandmarks(after));
+    expect(out.map(f => f.timestampMs)).toEqual([...before, missing, ...after].map(f => f.timestampMs));
+  });
+
+  it('does not blend across long timestamp gaps without an explicit missing frame', () => {
+    const before = X.map((v, i) => frame(i * 1000 / FS, v));
+    const after = X.map((v, i) => frame(10000 + i * 1000 / FS, v + 100));
+    expect(filtfiltLandmarks([...before, ...after])).toEqual([...filtfiltLandmarks(before), ...filtfiltLandmarks(after)]);
+  });
+
+  it('handles all-missing tracks without manufacturing landmarks', () => {
+    const missing: PoseFrame[] = [0, 33, 66, 99].map(timestampMs => ({ timestampMs, landmarks: [] }));
+    expect(filtfiltLandmarks(missing)).toEqual(missing);
+  });
+});

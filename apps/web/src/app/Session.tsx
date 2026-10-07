@@ -1,14 +1,13 @@
+import { t } from './language';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { MotionSession, analyseIntegrity, exerciseById, filtfiltLandmarks, inspectContainer, simulateExercise, type ForensicsReport, type LiveState, type PoseFrame } from '@fitzen/engines';
-import { CameraPoseSource, VideoFilePoseSource, type PoseSource } from '../pose/poseSource';
+import { CameraPoseSource, VideoFilePoseSource, MAX_VIDEO_BYTES, type PoseSource } from '../pose/poseSource';
 import { playRepCompletedSound } from '../lib/audioFeedback';
 import { drawOverlay } from './overlay';
 import { getProfile, saveSession } from './store';
+import { getPendingVideo, setPendingVideo } from './pendingVideo';
 import { IconAlert, IconBulb, IconCamera, IconClose, IconFlip, IconVolume } from './icons';
-
-let pendingVideo: File | null = null;
-export const setPendingVideo = (f: File) => { pendingVideo = f; };
 
 // Demo canvas matches the screen's shape so the figure is never cropped.
 const DEMO_H = 900;
@@ -69,9 +68,11 @@ export default function Session() {
   const { id = '' } = useParams();
   const [params] = useSearchParams();
   const src = (params.get('src') ?? 'camera') as Src;
+  const batteryRun = params.get('battery') ?? undefined;
   const def = exerciseById(id);
   const nav = useNavigate();
   const profile = useRef(getProfile()).current;
+  const selectedVideo = useRef(getPendingVideo());
 
   const video = useRef<HTMLVideoElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -98,7 +99,7 @@ export default function Session() {
 
   const finish = useCallback(() => {
     const v = video.current;
-    const aspect = (v?.videoWidth || 16) / (v?.videoHeight || 9);
+    const aspect = source.current instanceof VideoFilePoseSource ? source.current.aspect : (v?.videoWidth || 16) / (v?.videoHeight || 9);
     source.current?.stop();
     const s = session.current;
     if (!s || !def) { nav(-1); return; }
@@ -115,11 +116,11 @@ export default function Session() {
       report = offline.finish();
       extra = { integrity: analyseIntegrity(raw, { aspect, statureCm: profile.heightCm ?? undefined, mode: def.mode }), forensics: forensics.current };
     }
-    const sid = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
-    saveSession({ id: sid, report, source: src, ...extra });
+    const sid = crypto.randomUUID();
+    const persisted = saveSession({ id: sid, report, source: src, batteryRun, ...extra });
     session.current = null;
-    nav(`/results/${sid}`, { replace: true, state: { checkin: true } });
-  }, [nav, src, def, profile.weightKg, profile.heightCm]);
+    nav(`/results/${sid}`, { replace: true, state: { checkin: true, storageFailed: !persisted } });
+  }, [nav, src, def, batteryRun, profile.weightKg, profile.heightCm]);
 
   const beginActive = useCallback(() => {
     if (!def) return;
@@ -165,6 +166,7 @@ export default function Session() {
     } else {
       probe.current ??= new MotionSession(def);
       l = probe.current.push(f, aspect);
+      if (st === 'countdown' && !l.tracking && src === 'camera') { okSince.current = null; setStage('framing'); }
       if (st === 'loading' || st === 'framing') {
         if (st === 'loading') setStage('framing');
         if (l.tracking) {
@@ -180,6 +182,9 @@ export default function Session() {
   // Source lifecycle
   useEffect(() => {
     if (!def) return;
+    source.current?.stop();
+    session.current = null; probe.current = null; okSince.current = null;
+    setStage('loading'); setError(null); setLive(null);
     const cb = {
       onFrame: (f: PoseFrame) => onFrameRef.current(f),
       onStatus: (s: string) => {
@@ -190,8 +195,10 @@ export default function Session() {
     };
     if (src === 'camera') source.current = new CameraPoseSource(cb, { facingMode: facing, model: profile.model });
     else if (src === 'video') {
-      const file = pendingVideo;
+      const file = selectedVideo.current;
+      setPendingVideo(null);
       if (!file) { setError('No video selected.'); setStage('error'); return; }
+      if (file.size > MAX_VIDEO_BYTES) { setError('Choose a video under 100 MB and 2 minutes. Trim a copy on your device first.'); setStage('error'); return; }
       let cancelled = false;
       setStatus('Reading video file…');
       void (async () => {
@@ -297,7 +304,7 @@ export default function Session() {
             </div>
             <div style={{ marginLeft: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 10 }}>
               <div className="glass" style={{ borderRadius: 999, padding: 4 }}><Ring value={(live?.score ?? 100) / 100} color={zoneColor(live?.score ?? 100)} label={`${live?.score ?? 100}`} /></div>
-              {src !== 'video' && <button className="btn danger press" onClick={finish}>End</button>}
+              {src !== 'video' && <button className="btn danger press" onClick={finish}>{t('End')}</button>}
             </div>
           </div>
         )}

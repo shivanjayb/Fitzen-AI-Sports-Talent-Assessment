@@ -160,3 +160,70 @@ describe('jump landings', () => {
     expect(ev[0]!.jumpHeightCm).toBeUndefined();
   });
 });
+
+
+describe('assessment evidence and interrupted tracking', () => {
+  it('does not award an A to an idle jump with zero attempts', () => {
+    const poses = simulateExercise(exerciseById('countermovement-jump')!).slice(0, 10);
+    const r = report('countermovement-jump', poses);
+    expect(r.events).toHaveLength(0);
+    expect(r.assessmentStatus).toBe('insufficient-evidence');
+    expect(r.formScore).toBe(0);
+    expect(r.grade).toBe('N/A');
+  });
+
+  it('counts absent detections in coverage and breaks a continuous hold', () => {
+    const poses = simulateExercise(exerciseById('plank')!).filter((f) => f.timestampMs >= 1000 && f.timestampMs < 3000);
+    const begin = poses[0]!.timestampMs;
+    const first = poses.map((f) => ({ ...f, timestampMs: f.timestampMs - begin }));
+    const absent = Array.from({ length: 300 }, (_, i) => ({ timestampMs: 2000 + i * 1000 / 30, landmarks: [] }));
+    const second = first.map((f) => ({ ...f, timestampMs: f.timestampMs + 12000 }));
+    const r = report('plank', [...first, ...absent, ...second]);
+    expect(r.hold!.bestSec).toBeLessThan(2.1);
+    expect(r.hold!.totalSec).toBeLessThan(4.1);
+    expect(r.trackedPct).toBeLessThan(30);
+    expect(r.validity!.longestGapMs).toBeGreaterThan(9900);
+    expect(r.validity!.attemptedFrames).toBe(first.length * 2 + 300);
+  });
+
+  it('breaks a hold when source callbacks stop without adding time on resume', () => {
+    const poses = simulateExercise(exerciseById('plank')!).filter((f) => f.timestampMs >= 1000 && f.timestampMs < 3000);
+    const begin = poses[0]!.timestampMs;
+    const first = poses.map((f) => ({ ...f, timestampMs: f.timestampMs - begin }));
+    const r = report('plank', [...first, ...first.map((f) => ({ ...f, timestampMs: f.timestampMs + 12000 }))]);
+    expect(r.hold!.bestSec).toBeLessThan(2.1);
+    expect(r.hold!.totalSec).toBeLessThan(4);
+    expect(r.validity!.longestGapMs).toBeGreaterThan(10000);
+  });
+
+  it('requires a fresh starting position after losing a rep mid-descent', () => {
+    const poses = simulateExercise(exerciseById('back-squat')!, { reps: 1 });
+    const s = new MotionSession(exerciseById('back-squat')!, { checkMovement: false });
+    const midpoint = Math.floor(poses.length / 2);
+    for (const f of poses.slice(0, midpoint)) s.push(f);
+    s.push({ timestampMs: poses[midpoint]!.timestampMs, landmarks: [] });
+    for (const f of poses.slice(midpoint + 1)) s.push(f);
+    expect(s.finish().reps!.count).toBe(0);
+  });
+
+  it('does not connect pre-gap takeoff with post-gap landing', () => {
+    const poses = simulateExercise(exerciseById('countermovement-jump')!, { reps: 1 });
+    const toe = (f: PoseFrame) => Math.max(f.landmarks[31]!.y, f.landmarks[32]!.y);
+    const ground = toe(poses[0]!);
+    const air = poses.findIndex((f) => toe(f) < ground - 0.05);
+    const land = poses.findIndex((f, i) => i > air && toe(f) >= ground - 0.005);
+    const r = report('countermovement-jump', [...poses.slice(0, air + 2), { timestampMs: poses[air + 2]!.timestampMs, landmarks: [] }, ...poses.slice(land)]);
+    expect(r.events).toHaveLength(0);
+  });
+
+  it('does not score a rejected event as an accepted form check', () => {
+    const jump = exerciseById('countermovement-jump')!;
+    const def = { ...jump, id: 'plank', name: 'Plank' }; // jump trigger, incompatible hold reference
+    const s = new MotionSession(def);
+    for (const f of simulateExercise(jump)) s.push(f);
+    const r = s.finish();
+    expect(r.mismatched.length).toBeGreaterThan(0);
+    expect(r.events).toHaveLength(0);
+    expect(r.checks.filter((c) => c.when === 'bottom' || c.when === 'release').every((c) => c.samples === 0)).toBe(true);
+  });
+});

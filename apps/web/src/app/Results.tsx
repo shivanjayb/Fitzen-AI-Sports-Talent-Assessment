@@ -1,10 +1,14 @@
+import { t } from './language';
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { exerciseById, mentalReport, readiness, summarizeFuture, type MetricProjection, type ReadinessInput, type SessionReport } from '@fitzen/engines';
-import { deleteSession, getHistory, getProfile, getSession, glow, measureOf, normOf, saveReadiness, toAthlete, type SavedSession } from './store';
+import { exerciseById, isAssessedReport, mentalReport, readiness, summarizeFuture, type MetricProjection, type ReadinessInput, type SessionReport } from '@fitzen/engines';
+import { deleteSession, getHistory, getProfile, getSession, glow, isEligibleSession, isSessionPersistent, measureOf, normOf, saveReadiness, saveSession, toAthlete, type SavedSession } from './store';
 import { IconAlert, IconBack, IconCheck, IconFolder, IconShare, IconSparkle, IconStop } from './icons';
 import { openAssistant } from './openAssistant';
+import { download } from './download';
+import { ReferenceCheck } from './Validation';
+import { BATTERY } from './battery';
 
 const ORD = new Intl.PluralRules('en', { type: 'ordinal' });
 const ord = (x: number) => { const n = Math.round(x); return `${n}${({ one: 'st', two: 'nd', few: 'rd' } as Record<string, string>)[ORD.select(n)] ?? 'th'}`; };
@@ -171,7 +175,7 @@ export function GrowthChart({ m }: { m: MetricProjection }) {
 function Future({ s, onCheckIn }: { s: SavedSession; onCheckIn: () => void }) {
   const a = toAthlete(getProfile());
   const r = s.report;
-  const hist = getHistory().map((x) => x.report).reverse();
+  const hist = getHistory().filter(isEligibleSession).map((x) => x.report).reverse();
   const ready = s.readiness ? readiness(s.readiness) : null;
   const mind = mentalReport(r, ready, hist);
   const m = measureOf(r), norm = normOf(r, a);
@@ -198,7 +202,7 @@ function Future({ s, onCheckIn }: { s: SavedSession; onCheckIn: () => void }) {
           <p style={{ marginBottom: 4 }}>{norm.percentile !== null ? `About the ${ord(norm.percentile)} percentile` : `Band: ${norm.band}`} vs {who} — {norm.reference}{norm.n ? `, n = ${norm.n}` : ''}.</p>
           {norm.note && <p className="faint" style={{ fontSize: '.8rem', margin: 0 }}>{norm.note}</p>}
           <p className="faint" style={{ fontSize: '.76rem', marginBottom: 0 }}>A comparison with a published reference sample, not a ranking of real Fitzen users. Band names are Fitzen quintiles. Indian (Khelo India / Fit India) tables are not built in yet.</p>
-        </>) : <p className="muted" style={{ margin: 0 }}>No verified norm table for this test and age yet (built in: vertical/countermovement/squat jump from 13 y, push-ups 15–29 y). Indian Khelo India / Fit India tables are not built in yet.</p>}
+        </>) : <p className="muted" style={{ margin: 0 }}>No compatible norm for this protocol and age. Jump norms apply only to hands-on-hips CMJ aged 13–21; push-up norms require the reference technique. Indian Khelo India / Fit India tables are not built in yet.</p>}
     </section>
 
     <h2 className="section-title">Your future <small>estimates</small></h2>
@@ -231,15 +235,12 @@ export default function Results() {
   if (!saved) return <main className="page"><div className="empty"><div className="big"><IconFolder /></div>Session not found.<br /><br /><Link className="btn" to="/app">Back to training</Link></div></main>;
   const r = saved.report;
   const banner = needsBanner(saved);
+  const assessed = isAssessedReport(r);
+  const persistent = isSessionPersistent(id);
   const ex = exerciseById(r.exerciseId);
   const rp = r.reps;
 
-  const exportJson = () => {
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([JSON.stringify(r, null, 2)], { type: 'application/json' }));
-    a.download = `fitzen-${r.exerciseId}-${r.startedAt.slice(0, 10)}.json`;
-    a.click();
-  };
+  const exportJson = () => download(`fitzen-${r.exerciseId}-${r.startedAt.slice(0, 10)}.json`, JSON.stringify(saved, null, 2), 'application/json');
 
   const headline = rp ? `${rp.count} reps · ${rp.valid} correct` : r.hold ? `${f(r.hold.bestSec)} s best hold` :
     r.events?.length ? (r.events.some((e) => e.jumpHeightCm !== undefined) ? `${f(Math.max(...r.events.map((e) => e.jumpHeightCm ?? 0)))} cm best jump` : `${r.events.length} attempts`) : 'No attempts detected';
@@ -252,11 +253,14 @@ export default function Results() {
       <div className="row between no-print">
         <button className="btn glass press" onClick={() => nav('/app')}><IconBack /> Train</button>
         <div className="row">
-          <button className="btn glass press" onClick={() => window.print()}>Print report</button>
+          <button className="btn glass press" onClick={() => window.print()}>{t('Print report')}</button>
           <button className="btn icon glass press" onClick={exportJson} aria-label="Export JSON"><IconShare /></button>
         </div>
       </div>
 
+      {!persistent && <div className="insight warn" role="alert" style={{ marginTop: 14 }}><div><b>This report is only held in this tab</b><p>Device storage is unavailable. Export JSON or print before closing. Free storage, then retry saving.</p><button className="btn" onClick={() => { saveSession(saved); bump((n) => n + 1); }}>Retry save</button></div></div>}
+      {!assessed && <p role="status">Insufficient evidence: no eligible completed attempt or scored checks. No performance grade is assigned.</p>}
+      {saved.source === 'demo' && <p>Demonstration only. This synthetic session does not count toward real progress.</p>}
       {banner && (
         <div className={`insight ${banner}`} role="alert" style={{ marginTop: 14 }}>
           <div className="ic">{banner === 'bad' ? <IconStop /> : <IconAlert />}</div>
@@ -266,25 +270,38 @@ export default function Results() {
       )}
 
       <section className="glass result-hero" onPointerMove={glow}>
-        <div className={`grade ${r.grade}`}>{r.grade}</div>
+        <div className={`grade ${assessed ? r.grade : 'unassessed'}`}>{assessed ? r.grade : 'N/A'}</div>
         <div>
           <div className="faint" style={{ fontSize: '.8rem', fontWeight: 600 }}>{new Date(r.startedAt).toLocaleString()} · {saved.source === 'demo' ? 'Demo athlete' : saved.source === 'video' ? 'Video analysis' : 'Live camera'}</div>
           <h1 className="large-title" style={{ fontSize: '2rem' }}>{r.name}</h1>
           <div style={{ fontSize: '1.1rem', fontWeight: 700 }}>{headline}</div>
-          <div className="muted" style={{ fontSize: '.9rem' }}>Form score <b style={{ color: 'var(--text)' }}>{r.formScore}</b>/100</div>
+          <div className="muted" style={{ fontSize: '.9rem' }}>{assessed ? <>Form score <b style={{ color: 'var(--text)' }}>{r.formScore}</b>/100</> : 'Form not assessed'}</div>
         </div>
       </section>
 
       <section className="glass panel no-print" style={{ marginTop: 14 }}>
-        <b className="row" style={{ gap: 8, color: 'var(--accent)' }}><IconSparkle /> <span style={{ color: 'var(--text)' }}>AI scouting report</span></b>
-        <p className="muted" style={{ margin: '6px 0 12px', fontSize: '.9rem' }}>A coach-style read of this session: why you lagged and a step-by-step plan, from these numbers only.</p>
+        <b className="row" style={{ gap: 8, color: 'var(--accent)' }}><IconSparkle /> <span style={{ color: 'var(--text)' }}>{t('Local coaching report')}</span></b>
+        <p className="muted" style={{ margin: '6px 0 12px', fontSize: '.9rem' }}>Review measured faults and the existing training guidance. Works offline; no athlete data is sent to an AI service.</p>
         <div className="row" style={{ flexWrap: 'wrap' }}>
-          <button className="btn primary press" onClick={() => openAssistant({ kind: 'result', sessionId: id }, 'Give me a professional scouting report on this session and how to improve')}>Generate report</button>
-          <button className="btn glass press" onClick={() => openAssistant({ kind: 'result', sessionId: id })}>Ask a question</button>
+          <button className="btn primary press" onClick={() => openAssistant({ kind: 'result', sessionId: id }, 'Give me a professional scouting report on this session and how to improve')}>{t('Generate report')}</button>
+          <button className="btn glass press" onClick={() => openAssistant({ kind: 'result', sessionId: id })}>{t('Open local guide')}</button>
         </div>
       </section>
 
-      <h2 className="section-title">Measurements</h2>
+      <p className="faint">Single-camera screening estimates, not clinical measurements or athlete-selection evidence.</p>
+      <section className="glass panel" style={{ marginTop: 14 }}>
+        <b>{t('Assessment quality')}</b>
+        <p>Protocol: {r.validity?.protocolId ?? 'Legacy report: protocol not recorded'}</p>
+        <p>Tracking: {r.trackedPct.toFixed(1)}% · attempted frames: {r.validity?.attemptedFrames ?? r.frames} · longest gap: {r.validity ? `${r.validity.longestGapMs} ms` : 'not recorded'}</p>
+        <p className="faint">{r.validity?.modelVersion ?? 'Legacy report: engine version not recorded'} · {saved.source === 'demo' ? 'Synthetic demonstration' : 'Self-reported capture; not independently verified'}</p>
+        <Link to="/validation" className="btn">Coach validation and CSV export</Link>
+      </section>
+      <ReferenceCheck sessionId={id} />
+      {saved.batteryRun && <section className="glass panel" style={{ marginTop: 14 }}>
+        <b>{t('Guided assessment')}</b><p>Rest before the next test. Each test keeps its own protocol and quality record.</p>
+        <Link className="btn primary" to={`/guided?run=${encodeURIComponent(saved.batteryRun)}&step=${isEligibleSession(saved) ? Math.min(BATTERY.length - 1, BATTERY.indexOf(r.exerciseId) + 1) : Math.max(0, BATTERY.indexOf(r.exerciseId))}`}>{isEligibleSession(saved) ? 'Review battery / next test' : 'Repeat this test with better evidence'}</Link>
+      </section>}
+      <h2 className="section-title">{t('Measurements')}</h2>
       <div className="kv">
         <div><span>Duration</span><b className="num">{f(r.durationSec)} s</b></div>
         {rp && (<>
@@ -321,8 +338,8 @@ export default function Results() {
         )) : <div className="insight good"><div className="ic"><IconCheck /></div><div><b>Nothing to fix</b><p>All measured joints stayed in range.</p></div></div>}
       </div>
 
-      <Future s={saved} onCheckIn={() => setAsking(true)} />
-      {asking && !saved.readiness && <CheckIn onDone={(v) => { if (v) saveReadiness(id, v); setAsking(false); nav('.', { replace: true, state: null }); bump((n) => n + 1); }} />}
+      {isEligibleSession(saved) && <Future s={saved} onCheckIn={() => setAsking(true)} />}
+      {asking && isEligibleSession(saved) && !saved.readiness && <CheckIn onDone={(v) => { if (v) saveReadiness(id, v); setAsking(false); nav('.', { replace: true, state: null }); bump((n) => n + 1); }} />}
 
       <div className="two-col" style={{ marginTop: 14 }}>
         <section className="glass panel">
@@ -395,8 +412,12 @@ export default function Results() {
       </p>
 
       <div className="row no-print" style={{ marginTop: 18, gap: 10 }}>
-        {ex && <Link className="btn primary press" to={`/train/${ex.id}?src=${saved.source === 'demo' ? 'demo' : 'camera'}`}>Go again</Link>}
-        <button className="btn press" onClick={() => { deleteSession(id); nav('/history'); }}>Delete</button>
+        {ex && <Link className="btn primary press" to={`/train/${ex.id}?src=${saved.source === 'demo' ? 'demo' : 'camera'}`}>{t('Go again')}</Link>}
+        <button className="btn press" onClick={() => { if (deleteSession(id)) nav('/history'); else alert('Storage failed; deletion is held only in this tab.'); }}>Delete local copy</button>
+        {saved.cloudId && <button className="btn danger" onClick={() => {
+          if (!confirm('Delete this session locally and its cloud result? Offline deletions wait for the next sync.')) return;
+          if (deleteSession(id, true)) nav('/history'); else alert('Could not persist deletion. Free device storage and retry.');
+        }}>Delete everywhere</button>}
       </div>
     </main>
   );

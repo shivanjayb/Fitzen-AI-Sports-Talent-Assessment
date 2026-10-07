@@ -1,9 +1,7 @@
 import { createApp } from '../apps/server/src/app.ts';
 import { loadConfig } from '../apps/server/src/config.ts';
 
-const config = loadConfig({
-  jwtSecret: process.env.FITZEN_JWT_SECRET || 'vercel-serverless-secret-fitzen-2026',
-});
+const config = loadConfig();
 
 const app = createApp(config);
 

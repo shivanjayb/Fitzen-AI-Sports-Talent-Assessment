@@ -249,3 +249,22 @@ describe('analyseIntegrity', () => {
     expect(r.metrics.lowVisFraction!).toBeCloseTo(0.4, 1);
   });
 });
+
+describe('missing detection frames', () => {
+  it('keeps missing detections in quality coverage without crashing physical checks', () => {
+    const raw = sim('countermovement-jump').slice(0, 90);
+    const withGaps = raw.map((f, i) => i % 3 === 0 ? { ...f, landmarks: [] } : f);
+    const report = check(withGaps, 'event');
+    expect(report.metrics.frames).toBe(withGaps.length);
+    expect(report.metrics.lowVisFraction).toBeGreaterThanOrEqual(1 / 3 - 0.001);
+    expect(report.flags.some(f => f.code === 'low-visibility')).toBe(true);
+  });
+
+  it('all-missing footage is quality-limited, never reported as fully tracked', () => {
+    const frames: PoseFrame[] = Array.from({ length: 30 }, (_, i) => ({ timestampMs: i * 1000 / 30, landmarks: [] }));
+    const report = check(frames, 'event');
+    expect(report.metrics.lowVisFraction).toBe(1);
+    expect(report.verdict).toBe('warn');
+    expect(report.metrics.frozenFraction).toBe(0);
+  });
+});

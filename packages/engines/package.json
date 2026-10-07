@@ -16,7 +16,7 @@
   ],
   "scripts": {
     "build": "npx tsc -p tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run --maxWorkers=1"
   },
   "dependencies": {
     "typescript": "^5.7.2"

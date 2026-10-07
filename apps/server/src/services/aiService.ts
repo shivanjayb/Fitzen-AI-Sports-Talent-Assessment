@@ -1,15 +1,7 @@
-import Anthropic from '@anthropic-ai/sdk';
 import type { PotentialResult } from '@fitzen/engines';
 import type { AthleteStatsSummary } from './statsService.ts';
 
-/**
- * AI coaching insights.
- *
- * When an Anthropic API key is available, generates a personalised coaching
- * brief with Claude. Offline (or with no key) it degrades gracefully to a
- * deterministic, template-based brief derived from the same inputs — the
- * feature always works; the LLM upgrades its quality.
- */
+/** Rule-based coaching only. Athlete measurements never leave the server for an external model. */
 
 export interface CoachingBriefInput {
   athleteName: string;
@@ -20,7 +12,7 @@ export interface CoachingBriefInput {
 }
 
 export interface CoachingBrief {
-  source: 'claude' | 'deterministic';
+  source: 'deterministic';
   headline: string;
   brief: string;
   focusAreas: string[];
@@ -47,12 +39,12 @@ export function deterministicBrief(input: CoachingBriefInput): CoachingBrief {
   }
 
   lines.push(
-    `Best verified jump: ${cm(stats.bestJumpHeightM)} across ${stats.assessmentCount} assessment(s); latest at ${cm(stats.latestJumpHeightM)}.`,
+    `Best recorded jump (integrity checked): ${cm(stats.bestJumpHeightM)} across ${stats.assessmentCount} assessment(s); latest at ${cm(stats.latestJumpHeightM)}.`,
   );
 
   if (potential) {
     lines.push(
-      `Current performance sits at ${potential.currentPerformance}/100 with a projected potential of ${potential.potentialScore}/100 (${potential.confidenceScore}% confidence).`,
+      `Experimental screening estimate: current performance ${potential.currentPerformance}/100 and potential ${potential.potentialScore}/100. These heuristic scores and their confidence labels are not validated predictions or selection criteria.`,
     );
     const opportunities = potential.insights.filter((i) => i.kind === 'opportunity').slice(0, 3);
     for (const opp of opportunities) {
@@ -82,55 +74,6 @@ export function deterministicBrief(input: CoachingBriefInput): CoachingBrief {
   };
 }
 
-let client: Anthropic | null = null;
-
-function anthropicClient(): Anthropic | null {
-  if (!process.env.ANTHROPIC_API_KEY) return null;
-  if (!client) client = new Anthropic();
-  return client;
-}
-
 export async function generateCoachingBrief(input: CoachingBriefInput): Promise<CoachingBrief> {
-  const fallback = deterministicBrief(input);
-  const anthropic = anthropicClient();
-  if (!anthropic || input.stats.assessmentCount === 0) return fallback;
-
-  try {
-    const response = await anthropic.messages.create({
-      model: 'claude-opus-4-8',
-      // Deliberately short output: a tight coaching brief, not an essay.
-      max_tokens: 1024,
-      system:
-        'You are an elite youth athletics coach writing short, actionable briefs. ' +
-        'Be concrete and encouraging, never generic. Ground every claim in the data provided. ' +
-        'Respond with 3-5 sentences of prose, no headers or lists.',
-      messages: [
-        {
-          role: 'user',
-          content:
-            `Write a coaching brief for this athlete.\n` +
-            `Name: ${input.athleteName}\nAge: ${input.ageYears}\nSport: ${input.sport ?? 'general'}\n` +
-            `Stats: ${JSON.stringify(input.stats)}\n` +
-            `Potential analysis: ${JSON.stringify(input.potential)}`,
-        },
-      ],
-    });
-
-    const text = response.content
-      .filter((block): block is Anthropic.TextBlock => block.type === 'text')
-      .map((block) => block.text)
-      .join('\n')
-      .trim();
-    if (!text) return fallback;
-
-    return {
-      source: 'claude',
-      headline: fallback.headline,
-      brief: text,
-      focusAreas: fallback.focusAreas,
-    };
-  } catch {
-    // Offline-first: any API failure falls back to the deterministic brief.
-    return fallback;
-  }
+  return deterministicBrief(input);
 }

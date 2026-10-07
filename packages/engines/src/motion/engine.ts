@@ -230,11 +230,19 @@ export interface SessionReport {
   checks: CheckStat[];
   symmetry: Record<string, number>;
   formScore: number;
-  grade: 'A' | 'B' | 'C' | 'D' | 'F';
+  grade: 'A' | 'B' | 'C' | 'D' | 'F' | 'N/A';
+  assessmentStatus?: 'assessed' | 'insufficient-evidence';
+  validity?: { protocolId: string; modelVersion: string; attemptedFrames: number; trackedFrames: number; longestGapMs: number; completedAttempts: number; scoredSamples: number };
   kcal: number | null;
   insights: CoachInsight[];
   /** Driver (or first angle) over time, ≤ 400 points, for charts. */
   series: Array<{ t: number; v: number }>;
+}
+
+/** Old saved reports have no status field; infer eligibility from completed movement, never their grade alone. */
+export function isAssessedReport(r: SessionReport): boolean {
+  if (r.assessmentStatus) return r.assessmentStatus === 'assessed';
+  return r.trackedPct > 0 && (r.reps ? r.reps.count > 0 : r.hold ? r.hold.totalSec > 0 : (r.events?.length ?? 0) > 0);
 }
 
 // ---------------------------------------------------------------------------
@@ -323,6 +331,9 @@ export class MotionSession {
   private frames = 0;
   private tracked = 0;
   private history: Frame[] = [];
+  private segmentStart = 0;
+  private longestGapMs = 0;
+  private previousTracked = false;
   private acc: CheckAcc[];
   private sym: Record<string, number[]> = {};
   // foreshortening gate: session max 2D length per `${side}:${segment}`, excluded readings per check
@@ -332,6 +343,7 @@ export class MotionSession {
 
   // reps
   private repState: 'top' | 'down' = 'top';
+  private repReady = false;
   private repStart = 0; private lastTop = 0; private topPeak = -Infinity;
   private extreme = Infinity; private extremeT = 0; private extremeSnap: Record<string, number> = {}; private extremeFs = new Set<string>();
   private repActive: CheckAcc[] = [];
@@ -383,6 +395,8 @@ export class MotionSession {
     const t = frame.timestampMs;
     if (Number.isNaN(this.startMs)) this.startMs = t;
     const prevT = this.lastMs;
+    this.longestGapMs = Math.max(this.longestGapMs, Number.isFinite(prevT) ? t - prevT : 0);
+    if (Number.isFinite(prevT) && t - prevT > 300) this.breakTracking();
     this.lastMs = t;
     this.frames++;
 
@@ -397,6 +411,10 @@ export class MotionSession {
     this.pickSide(pts);
     const framing = this.framing(pts);
     const tracking = framing === null;
+    if (!tracking) {
+      this.longestGapMs = Math.max(this.longestGapMs, Number.isFinite(this.lastTrackedT) ? t - this.lastTrackedT : t - this.startMs);
+      this.breakTracking();
+    }
     const angles: Record<string, AngleReading> = {};
     const values: Record<string, number> = {};
     const raw: Record<string, number> = {};
@@ -415,9 +433,8 @@ export class MotionSession {
       }
       if (this.def.checks.some((c) => fs.has(c.angle))) this.fsFrames++;
       this.history.push({ t, a: values, raw, pts, rp: rawPts, fs, sh: this.lastShort });
-      if (t - this.lastTrackedT > 300) this.holdRun = 0; // no tracked pose for > 300 ms (frames missing, e.g. no detection) breaks the hold
       this.lastTrackedT = t;
-    } else if (t - this.lastTrackedT > 300) this.holdRun = 0; // tracking lost > 300 ms breaks the continuous hold
+    }
 
     // Phase for check applicability
     let phase: LiveState['phase'] = 'idle';
@@ -461,7 +478,7 @@ export class MotionSession {
       const gated = (i: number) => fs.has(this.def.checks[i]!.angle);
       const holding = holdIdx.length > 0 && holdIdx.every((i) => gated(i) || (checkZones[i] !== null && checkZones[i] !== 'bad'));
       // dt from the previous frame of any kind, capped at 100 ms, so untracked gaps never count as hold time.
-      const dt = Number.isFinite(prevT) ? Math.min(100, Math.max(0, t - prevT)) : 0;
+      const dt = this.previousTracked && Number.isFinite(prevT) && t - prevT <= 300 ? Math.min(100, Math.max(0, t - prevT)) : 0;
       // A foreshortened hold check can't be verified: pause the clock (no time added) without breaking the run.
       if (holding && holdIdx.some(gated)) phase = 'hold';
       else if (holding) { this.holdMs += dt; this.holdRun += dt; this.bestHold = Math.max(this.bestHold, this.holdRun); phase = 'hold'; }
@@ -471,6 +488,7 @@ export class MotionSession {
     }
 
     if (tracking && this.def.mode === 'event') this.stepEvent(t, pts);
+    this.previousTracked = tracking;
 
     // Colour map
     const jointZones: Record<number, Zone> = {};
@@ -642,11 +660,11 @@ export class MotionSession {
     this.descending = this.repState === 'down' && x <= this.extreme + 3;
     if (this.repState === 'top') {
       this.topPeak = Math.max(this.topPeak, x);
-      if (x >= exit) this.lastTop = t;
-      if (x < enter) {
+      if (x >= exit) { this.lastTop = t; this.repReady = true; }
+      if (x < enter && this.repReady) {
         this.repState = 'down';
         // Rep starts at the last local maximum of the driver (descent onset), not the last frame above `exit`.
-        const h = this.history;
+        const h = this.history.slice(this.segmentStart);
         let j = h.length - 1;
         const xs = (k: number) => { const d = h[k]?.a[rule.driver]; return d === undefined ? NaN : s * d; };
         while (j > 0 && xs(j - 1) > xs(j)) j--;
@@ -817,7 +835,7 @@ export class MotionSession {
   // Events — throws (peak wrist speed), jumps (toe flight), apex (hip high point).
   private stepEvent(t: number, p: P[]): void {
     const ev = this.def.event!;
-    const h = this.history;
+    const h = this.segmentStart ? this.history.slice(this.segmentStart) : this.history;
     const n = h.length;
     // Running max of the shoulder-toe span: crouched/leaning throw postures shrink the per-frame span and inflate speed.
     // ponytail: session max, assumes roughly constant camera distance; switch to a decaying p95 if athletes move toward the camera.
@@ -937,12 +955,33 @@ export class MotionSession {
     if (isMin && Math.max(...recent) - m > 0.1 * legLen && mid.t - this.lastEventT > 1000) this.recordEvent('apex', mid.t, mid);
   }
 
+  /** A missing pose must not join two independent movements or keep resources in the filter alive. */
+  private breakTracking(): void {
+    this.segmentStart = this.history.length;
+    this.filters.clear();
+    this.previousTracked = false;
+    this.repState = 'top'; this.repReady = false; this.repActive = []; this.topPeak = -Infinity; this.lastTop = 0;
+    this.holdRun = 0; this.holdWinStart = NaN; this.holdWinMs = 0; this.holdWinHeld = 0;
+    this.holdWinFrames = 0; this.holdEntries = 0; this.wasHolding = false; this.heldTs.clear();
+    this.bestBeforeWin = this.bestHold;
+    this.airborneSince = NaN; this.groundY = NaN; this.groundBuf = []; this.airSamples = [];
+    this.speedPeak = 0; this.speedPeakFrame = -1; this.facingSum = 0;
+    this.eventZones = []; this.eventZonesT = -1e9;
+  }
+
   private recordEvent(kind: EventRecord['kind'], tAbs: number, atFrame: Frame, releaseAngle?: number, peakSpeed?: number): EventRecord {
     const at = atFrame.a;
     this.lastEventT = tAbs;
     const faults: string[] = [];
     let wsum = 0, score = 0;
-    const win = this.history.filter((f) => f.t >= tAbs - 1500 && f.t <= tAbs);
+    const win = this.history.slice(this.segmentStart).filter((f) => f.t >= tAbs - 1500 && f.t <= tAbs);
+    const sig = this.windowSig(win);
+    this.sigs.push(sig);
+    const why = this.checkMovement ? movementMismatch(this.def, sig, referenceSignature(this.def)) : null;
+    if (why) {
+      this.flagMismatch(tAbs, why);
+      return { index: this.events.length + 1, tMs: tAbs - this.startMs, kind, score: 0, faults: [why], atEvent: at };
+    }
     this.eventZones = this.def.checks.map(() => null);
     this.eventZonesT = this.lastMs;
     // Deepest countermovement = frame of minimum knee (else hip) angle in the window.
@@ -988,10 +1027,6 @@ export class MotionSession {
       faults,
       atEvent: at,
     };
-    const sig = this.windowSig(win);
-    this.sigs.push(sig);
-    const why = this.checkMovement ? movementMismatch(this.def, sig, referenceSignature(this.def)) : null;
-    if (why) { this.flagMismatch(tAbs, why); return rec; } // not recorded as an attempt
     this.events = [...this.events, rec];
     return rec;
   }
@@ -1005,7 +1040,7 @@ export class MotionSession {
       const w = c.weight ?? 1;
       s += w * (a.good + 0.6 * a.ok) / n; wsum += w;
     });
-    return wsum ? Math.round((100 * s) / wsum) : 100;
+    return wsum ? Math.round((100 * s) / wsum) : 0;
   }
 
   // -------------------------------------------------------------------------
@@ -1096,8 +1131,11 @@ export class MotionSession {
     let formScore = this.runningScore();
     if (reps && reps.count) formScore = Math.round(0.7 * formScore + 30 * (reps.valid / reps.count));
     if (def.mode === 'event' && this.events.length) formScore = Math.round(100 * mean(this.events.map((e) => e.score)));
-    if (this.tracked === 0) formScore = 0;
-    const grade = formScore >= 90 ? 'A' : formScore >= 80 ? 'B' : formScore >= 70 ? 'C' : formScore >= 60 ? 'D' : 'F';
+    const completedAttempts = reps?.count ?? (hold ? Number(hold.totalSec > 0) : this.events.length);
+    const scoredSamples = checks.reduce((sum, c) => sum + c.samples, 0);
+    const assessmentStatus = this.tracked > 0 && completedAttempts > 0 && scoredSamples > 0 ? 'assessed' : 'insufficient-evidence';
+    if (assessmentStatus !== 'assessed') formScore = 0;
+    const grade = assessmentStatus !== 'assessed' ? 'N/A' : formScore >= 90 ? 'A' : formScore >= 80 ? 'B' : formScore >= 70 ? 'C' : formScore >= 60 ? 'D' : 'F';
 
     const driver = def.reps?.driver ?? def.checks[0]?.angle ?? def.angles[0]?.id ?? '';
     const step = Math.max(1, Math.ceil(this.history.length / 400));
@@ -1125,6 +1163,8 @@ export class MotionSession {
       symmetry,
       formScore,
       grade,
+      assessmentStatus,
+      validity: { protocolId: def.id === 'countermovement-jump' ? 'cmj-hands-on-hips-v1' : def.id === 'sai-vertical-jump' ? 'cmj-arm-swing-v1' : def.id, modelVersion: 'motion-2026-10-07', attemptedFrames: this.frames, trackedFrames: this.tracked, longestGapMs: this.longestGapMs, completedAttempts, scoredSamples },
       kcal: this.weightKg ? (def.met * 3.5 * this.weightKg / 200) * (dur / 60) : null,
       insights: [],
       series,
@@ -1142,6 +1182,7 @@ export function buildInsights(def: ExerciseDef, r: SessionReport): CoachInsight[
   const out: CoachInsight[] = [];
   const f1 = (x: number) => (Math.round(x * 10) / 10).toString();
 
+  if (r.assessmentStatus === 'insufficient-evidence') out.push({ level: 'warn', title: 'Insufficient evidence', detail: 'No completed movement with measurable form checks was recorded. Retest with your whole body visible.' });
   if (r.trackedPct < 70) out.push({ level: 'warn', title: 'Camera could not see you clearly', detail: `Body was tracked in ${Math.round(r.trackedPct)} % of frames. Place the camera ${def.camera === 'side' ? 'side-on' : 'facing you'} at hip height, 2–3 m away, with your whole body and good light.` });
 
   const mm = r.mismatched ?? [];

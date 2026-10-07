@@ -1,10 +1,21 @@
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { fileURLToPath } from 'node:url';
+import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 
 export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
+    {
+      name: 'fitzen-offline',
+      generateBundle(_options, bundle) {
+        const assets = ['/index.html', '/manifest.webmanifest', '/icon.svg', ...Object.keys(bundle).filter((x) => !x.endsWith('.map') && x !== 'index.html').map((x) => `/${x}`)];
+        const id = createHash('sha256').update(JSON.stringify(assets)).digest('hex').slice(0, 12);
+        const template = readFileSync(new URL('./src/offline-sw.js', import.meta.url), 'utf8');
+        this.emitFile({ type: 'asset', fileName: 'sw.js', source: template.replace('__BUILD_ID__', id).replace('__OFFLINE_ASSETS__', JSON.stringify(assets)) });
+      },
+    },
     {
       // Dev parity: serve the Vercel function api/ai.ts at /api/ai (runs before the /api proxy to :4000).
       name: 'fitzen-api-ai',

@@ -11,6 +11,7 @@ import {
 } from '@fitzen/engines';
 import { createApp, type FitzenApp } from '../src/app.ts';
 import { loadConfig } from '../src/config.ts';
+import { createUser } from '../src/services/userService.ts';
 
 let app: FitzenApp;
 let baseUrl: string;
@@ -253,24 +254,27 @@ describe('Fitzen API', () => {
     }, athleteToken);
   });
 
-  it('registers a coach who can view an athlete summary', async () => {
+  it.each(['coach', 'admin'])('rejects public registration as %s', async (role) => {
     const reg = await api('POST', '/api/auth/register', {
-      email: 'coach@example.com', password: 'coach-secret-1', name: 'Coach T', role: 'coach',
+      email: `${role}-self@example.com`, password: 'privilege-secret-1', name: 'Self registration', role,
     });
-    expect(reg.status).toBe(201);
-    const coachToken = reg.json.token;
-    const { status, json } = await api('GET', `/api/coach/athletes/${athleteId}`, undefined, coachToken);
+    expect(reg.status).toBe(400);
+    const login = await api('POST', '/api/auth/login', { email: `${role}-self@example.com`, password: 'privilege-secret-1' });
+    expect(login.status).toBe(401);
+  });
+
+  it('allows a trusted provisioned coach to view athlete summary', async () => {
+    await createUser(app.db, { email: 'coach@example.com', password: 'coach-secret-1', name: 'Coach T', role: 'coach' });
+    const login = await api('POST', '/api/auth/login', { email: 'coach@example.com', password: 'coach-secret-1' });
+    const { status, json } = await api('GET', `/api/coach/athletes/${athleteId}`, undefined, login.json.token);
     expect(status).toBe(200);
     expect(json.stats.assessmentCount).toBeGreaterThan(0);
-    expect(json.assessments.length).toBeGreaterThan(0);
   });
 
   it('allows admin to query and calibrate geometric exercise thresholds', async () => {
-    // Register Admin
-    const regAdmin = await api('POST', '/api/auth/register', {
-      email: 'admin_test@example.com', password: 'admin-secret-1', name: 'Admin Test', role: 'admin',
-    });
-    const adminToken = regAdmin.json.token;
+    await createUser(app.db, { email: 'admin_test@example.com', password: 'admin-secret-1', name: 'Admin Test', role: 'admin' });
+    const login = await api('POST', '/api/auth/login', { email: 'admin_test@example.com', password: 'admin-secret-1' });
+    const adminToken = login.json.token;
 
     // 1. GET thresholds
     const getRes = await api('GET', '/api/admin/thresholds', undefined, adminToken);

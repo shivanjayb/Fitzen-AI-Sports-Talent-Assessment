@@ -14,7 +14,7 @@
     "dev:server": "npm run build:engines && npm run dev -w @fitzen/server",
     "dev:web": "npm run build:engines && npm run dev -w @fitzen/web",
     "build": "npm run build:engines && npm run build -w @fitzen/web && node -e \"require('fs').cpSync('apps/web/dist', 'dist', {recursive: true})\"",
-    "test": "npm run build:engines && npm run test -w @fitzen/engines && npm run test -w @fitzen/server",
+    "test": "npm run build:engines && npm run test -w @fitzen/engines && npm run test -w @fitzen/server && npm run test -w @fitzen/web",
     "seed": "npm run build:engines && npm run seed -w @fitzen/server"
   },
   "dependencies": {

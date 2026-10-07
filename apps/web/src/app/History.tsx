@@ -1,3 +1,4 @@
+import { t } from './language';
 import { Link } from 'react-router-dom';
 import { exerciseById } from '@fitzen/engines';
 import { getHistory, glow } from './store';
@@ -15,7 +16,7 @@ export default function History() {
   return (
     <main className="page">
       <p className="subtitle">Stored on this device</p>
-      <h1 className="large-title">History</h1>
+      <h1 className="large-title">{t('History')}</h1>
       {h.length > 0 && <button className="btn glass press" style={{ marginTop: 12 }} onClick={() => openAssistant({ kind: 'progress' })}><IconSparkle /> Ask AI about my progress</button>}
       {!h.length && <div className="empty"><div className="big"><IconFlag /></div>No sessions yet.<br /><br /><Link to="/app" className="btn primary">Start training</Link></div>}
       {[...byDay].map(([day, list]) => (
