@@ -28,7 +28,7 @@ export default function Compete() {
   const [rows, setRows] = useState<Row[] | null>(null);
   const [err, setErr] = useState('');
 
-  useEffect(() => { let live = true; void getAccount().then((a) => live && setAcct(a)); return () => { live = false; }; }, [user?.id]);
+  useEffect(() => { let live = true; void getAccount().then((a) => live && setAcct(a)).catch(() => { if (live) setErr('Could not load your account. Check your connection and reload.'); }); return () => { live = false; }; }, [user?.id]);
 
   const loadGroups = async () => {
     const { data } = await supabase!.from('groups').select('id, name, invite_code, owner').order('created_at');
@@ -51,11 +51,11 @@ export default function Compete() {
 
   const head = <><p className="subtitle">Leaderboards and groups</p><h1 className="large-title">Compete</h1></>;
   if (!supabase) return <main className="page">{head}<Empty>Accounts aren't switched on yet, so there is no one to rank against. Your sessions still count on <Link to="/progress">Progress</Link>.</Empty></main>;
-  if (acct === undefined) return <main className="page">{head}<div className="spinner" style={{ marginTop: 40 }} aria-label="Loading" /></main>;
+  if (acct === undefined) return <main className="page">{head}{err ? <p role="alert">{err}</p> : <div className="spinner" style={{ marginTop: 40 }} aria-label="Loading" />}</main>;
   if (!user || !acct) return (
     <main className="page">{head}
       <Empty>{user ? 'Save your account details to join leaderboards and groups.' : 'Sign in to compare your scores with friends, your city, your state and India.'}<br /><br />
-        <Link to="/profile#account" className="btn primary">{user ? 'Finish my account' : 'Sign in'}</Link></Empty>
+        <Link to={user ? '/profile#account' : '/auth?next=%2Fcompete'} className="btn primary">{user ? 'Finish my account' : 'Sign in'}</Link></Empty>
     </main>
   );
 

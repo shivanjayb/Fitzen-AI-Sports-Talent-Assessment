@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { assessDiet, maturityOffset, type DietPattern } from '@fitzen/engines';
 import { getHistory, getProfile, INDIAN_STATES, saveProfile, toAthlete, syncHistory, importGuestHistory, type Profile as P } from './store';
 import { getAccount, isMinor, supabase, useUser, type Account as Acct } from '../lib/supabase';
 import { applyTheme, getTheme, THEME, type Theme } from './theme';
 import Offline from './Offline';
 import { getLanguage, setLanguage, type Language } from './language';
+import { signOut } from '../lib/auth';
 
 function Stepper({ label, value, set, min = 0, max = 10, step = 1, unit = '' }: { label: string; value: number; set: (v: number) => void; min?: number; max?: number; step?: number; unit?: string }) {
   return (
@@ -122,7 +124,6 @@ function Account({ p }: { p: P }) {
   const user = useUser();
   const [acct, setAcct] = useState<Acct | null | undefined>(undefined); // undefined = loading
   const [d, setD] = useState<Draft | null>(null);
-  const [email, setEmail] = useState('');
   const [msg, setMsg] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -135,7 +136,7 @@ function Account({ p }: { p: P }) {
         display_name: p.name, birth_year: p.age ? String(new Date().getFullYear() - p.age) : '', sex: p.sex,
         city: p.city, state: p.state, country: 'India', public_boards: false, parent_email: '',
       });
-    });
+    }).catch(() => { if (live) setMsg('Could not load your account. Check your connection, then reload this page.'); });
     return () => { live = false; };
   }, [user?.id]); // prefill once per sign-in, not on every local edit
 
@@ -147,26 +148,22 @@ function Account({ p }: { p: P }) {
 
   if (!supabase) return (<>
     <h2 className="section-title">Account</h2>
-    <section className="glass panel"><p className="muted" style={{ margin: 0 }}>Accounts aren't switched on yet. Everything works without one; your sessions stay on this device.</p></section>
+    <section className="glass panel"><p className="muted" style={{ margin: 0 }}>Online accounts are being configured. Your local sessions stay on this device.</p><Link to="/auth" className="btn glass press" style={{ marginTop: 14 }}>Account sign-in</Link></section>
   </>);
 
   const status = msg && <p role="status" aria-live="polite" className="muted" style={{ margin: 0, fontSize: '.88rem' }}>{msg}</p>;
 
   if (!user) return (<>
     <h2 className="section-title">Account <small>optional</small></h2>
-    <form className="glass panel" style={{ display: 'grid', gap: 12 }} onSubmit={(e) => { e.preventDefault(); void run(async () => {
-      const { error } = await supabase!.auth.signInWithOtp({ email: email.trim(), options: { emailRedirectTo: location.origin + '/profile' } });
-      if (error) throw error;
-      return `Check ${email.trim()} for a sign-in link. You can open it on this phone or another one.`;
-    }); }}>
+    <section className="glass panel" style={{ display: 'grid', gap: 12 }}>
       <p style={{ margin: 0 }}>Sign in to join leaderboards and groups. No password: we email you a link.</p>
-      <label className="field"><span>Email</span><input type="email" required autoComplete="email" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} /></label>
-      <button className="btn primary" disabled={busy}>{busy ? 'Sending…' : 'Email me a sign-in link'}</button>
+      <Link className="btn primary" to="/auth?next=%2Fprofile">Sign in or create an account</Link>
       {status}
-    </form>
+    </section>
   </>);
 
-  if (acct === undefined || !d) return (<><h2 className="section-title">Account</h2><div className="spinner" aria-label="Loading account" /></>);
+  const logout = <button className="btn glass press" disabled={busy} onClick={() => void run(async () => { await signOut(supabase); return 'Signed out on this device.'; })}>Sign out</button>;
+  if (acct === undefined || !d) return (<><h2 className="section-title">Account</h2>{msg ? <section className="glass panel"><p role="alert">{msg}</p><button className="btn glass" onClick={() => location.reload()}>Retry</button>{logout}</section> : <div className="spinner" aria-label="Loading account" />}</>);
 
   const by = Number(d.birth_year);
   const minor = by > 1900 && isMinor(by);
@@ -175,7 +172,9 @@ function Account({ p }: { p: P }) {
 
   const save = () => run(async () => {
     const parent = d.parent_email?.trim() || null;
-    if (minor && !parent) return 'Under 18: add a parent or guardian email first.';
+    if (!Number.isInteger(by) || by < 1920 || by > new Date().getFullYear()) return 'Enter a valid birth year.';
+    if (minor && !parent) return 'Age 18 or younger: add a parent or guardian email first.';
+    if (parent && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(parent)) return 'Enter a valid parent or guardian email.';
     if (parent && parent.toLowerCase() === user.email?.toLowerCase()) return 'The parent email must be different from your own.';
     const row = { display_name: d.display_name.trim(), birth_year: by, sex: d.sex, city: d.city?.trim() || null, state: d.state || null,
       country: d.country.trim() || 'India', public_boards: d.public_boards, parent_email: parent };
@@ -223,6 +222,7 @@ function Account({ p }: { p: P }) {
       {status}
       <p className="faint" style={{ margin: 0, fontSize: '.8rem' }}>What we upload: for each camera or video session, only the exercise, your best number, your form score and the date. Never video, never your camera feed. Demo runs are not uploaded.</p>
     </section>
+    <div style={{ marginTop: 14 }}>{logout}</div>
     {acct && (
       <section className="glass panel" style={{ display: 'grid', gap: 10, marginTop: 10 }}>
         <button className="btn glass press" disabled={busy} onClick={() => run(async () => {
@@ -234,7 +234,6 @@ function Account({ p }: { p: P }) {
           setMsg(importGuestHistory() ? 'Guest sessions copied. Use Sync to upload eligible results.' : 'Could not save the import. Free device storage and retry.');
         }}>Import my guest sessions</button>
         <div className="row" style={{ flexWrap: 'wrap' }}>
-          <button className="btn glass press" disabled={busy} onClick={() => void supabase!.auth.signOut()}>Sign out</button>
           <button className="btn danger" disabled={busy} onClick={() => {
             if (!confirm('Delete your account data? Your uploaded scores, groups you own and memberships are removed. Sessions on this phone stay.')) return;
             void run(async () => {
