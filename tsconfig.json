@@ -1,4 +1,8 @@
 {
   "extends": "./apps/server/tsconfig.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "bundler"
+  },
   "include": ["api/**/*.ts"]
 }
