@@ -19,6 +19,7 @@ const Compete = lazy(() => import('./app/Compete'));
 const Consent = lazy(() => import('./app/Consent'));
 const Validation = lazy(() => import('./app/Validation'));
 const Guided = lazy(() => import('./app/Guided'));
+const Auth = lazy(() => import('./app/Auth'));
 
 applyTheme(getTheme());
 
@@ -51,6 +52,8 @@ export default function App() {
           <Routes key={`${identity.user?.id ?? 'guest'}:${language}`}>
             <Route path="/" element={<Landing />} />
             <Route element={<Shell />}>
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/auth/callback" element={<Auth />} />
               <Route path="/app" element={<Home />} />
               <Route path="/progress" element={<Progress />} />
               <Route path="/compete" element={<Compete />} />

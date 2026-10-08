@@ -7,7 +7,7 @@ import { createClient, type User } from '@supabase/supabase-js';
 import { useSyncExternalStore } from 'react';
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
+const key = (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY) as string | undefined;
 
 // implicit flow: a magic link opened on another device (a parent's phone) still signs in; PKCE would need this browser.
 export const supabase = url && key ? createClient(url, key, { auth: { flowType: 'implicit', persistSession: true } }) : null;
@@ -50,6 +50,7 @@ export async function getAccount(): Promise<Account | null> {
   if (!supabase) return null;
   const { data: s } = await supabase.auth.getSession();
   if (!s.session) return null;
-  const { data } = await supabase.from('profiles').select('*').eq('id', s.session.user.id).maybeSingle();
+  const { data, error } = await supabase.from('profiles').select('*').eq('id', s.session.user.id).maybeSingle();
+  if (error) throw error;
   return (data as Account | null) ?? null;
 }

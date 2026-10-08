@@ -21,7 +21,7 @@ Built for SIH25073 (Smart India Hackathon problem statement from SAI / Ministry 
 ## Capabilities and Constraints
 - 90 exercise definitions across 8 categories: Gym, Calisthenics, Athletics, Throws & Strikes, Olympic Lifts, SAI Battery, Yoga, Mobility.
 - Pose estimation runs on-device (MediaPipe Pose Landmarker). Video never leaves the device.
-- No account needed right now; email sign-in is paused. Profile and history are stored locally.
+- No account needed for local assessments. Optional Supabase email-link sign-in adds account profiles, groups and result sync when the provider is configured. Profile and full history remain on the device.
 - Every exercise can be run with live camera, an uploaded video, or a demo with a synthetic athlete.
 - Measurements are single-camera screening estimates, not clinical measurements.
 
