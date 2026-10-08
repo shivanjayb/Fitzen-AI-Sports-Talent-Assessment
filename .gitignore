@@ -18,3 +18,4 @@ graphify-out/
 .playwright-mcp/
 .claude/settings.json
 !.env.example
+brag-output/
