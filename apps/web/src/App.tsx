@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import Shell, { Aurora } from './app/Shell';
+import Shell from './app/Shell';
 import Home from './app/Home';
 import Landing from './app/Landing';
 import { applyTheme, getTheme } from './app/theme';
@@ -30,7 +30,7 @@ function ScrollToTop() {
   return null;
 }
 
-const Loading = () => <div className="app"><Aurora /><div className="page"><div className="spinner" style={{ marginTop: '40vh' }} /></div></div>;
+const Loading = () => <div className="app"><div className="page"><div className="spinner" style={{ marginTop: '40vh' }} /></div></div>;
 
 export default function App() {
   const identity = useIdentity();

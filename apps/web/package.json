@@ -1,7 +1,7 @@
 {
   "name": "@fitzen/web",
   "version": "1.0.0",
-  "description": "Fitzen web client — camera assessments, offline-first sync, dashboards",
+  "description": "Fitzen web client \u2014 camera assessments, offline-first sync, dashboards",
   "private": true,
   "type": "module",
   "scripts": {
@@ -13,8 +13,6 @@
   },
   "dependencies": {
     "@fitzen/engines": "*",
-    "@fontsource/barlow": "^5.3.0",
-    "@fontsource/barlow-condensed": "^5.3.0",
     "@mediapipe/tasks-vision": "^0.10.18",
     "@supabase/supabase-js": "^2.117.2",
     "@types/react": "^18.3.14",

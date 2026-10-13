@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CATEGORIES, EXERCISES, MotionSession, exerciseById, simulateExercise, type LiveState, type PoseFrame, type SessionReport, type Zone } from '@fitzen/engines';
 import Pictogram from './Pictogram';
-import { Aurora } from './Shell';
 import './landing.css';
 
 /** Sports the hero athlete cycles through. */
@@ -293,7 +292,6 @@ export default function Landing() {
 
   return (
     <div className={`lp ${paused ? 'lp-paused' : ''}`}>
-      <Aurora />
       <div className="lp-progress" aria-hidden />
       <a href="#main" className="lp-skip">Skip to content</a>
       <header className="lp-nav">

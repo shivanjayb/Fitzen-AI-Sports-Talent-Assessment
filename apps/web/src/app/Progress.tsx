@@ -4,6 +4,7 @@ import { bestJumpCm, evaluateBadges, exerciseById, projectGrowth, type AthleteSt
 import { getHistory, getProfile, isEligibleSession, measureOf, normOf, toAthlete, type SavedSession } from './store';
 import { GrowthChart } from './Results';
 import { IconFlag, IconPodium } from './icons';
+import Rings from './Rings';
 import TrainingGoal from './TrainingGoal';
 
 const day = (s: SavedSession) => new Date(s.report.startedAt).toDateString();
@@ -67,10 +68,16 @@ export default function Progress() {
       <p className="faint">Based on up to 60 retained, eligible real sessions. Demos, unassessed and flagged results do not count.</p>
       <TrainingGoal />
 
-      <div className="kv" style={{ marginTop: 18 }}>
+      <section className="glass hero activity">
+        <Rings values={[weeks[0]! / 3, (xp - prev) / (next - prev), earned / badges.length]} />
+        <div className="hero-stats">
+          <div className="hero-stat"><span>Training days</span><b className="num">{weeks[0]}<small>/3 this week</small></b></div>
+          <div className="hero-stat"><span>Level {lv}</span><b className="num">{xp}<small> XP · {next - xp} to go</small></b></div>
+          <div className="hero-stat"><span>Badges</span><b className="num">{earned}<small>/{badges.length}</small></b></div>
+        </div>
+      </section>
+      <div className="kv" style={{ marginTop: 10 }}>
         <div><span>Streak</span><b className="num">{st.streakDays} d</b><small>{st.activeDays} active days total</small></div>
-        <div><span>Level {lv}</span><b className="num">{xp} XP</b><div className="bar" style={{ marginTop: 6 }}><i style={{ width: `${((xp - prev) / (next - prev)) * 100}%`, background: 'var(--accent)' }} /></div><small>{next - xp} XP to level {lv + 1}</small></div>
-        <div><span>Badges</span><b className="num">{earned}/{badges.length}</b></div>
         <div><span>Best form</span><b className="num">{st.bestMovementQuality}</b><small>out of 100</small></div>
       </div>
 

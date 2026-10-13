@@ -12,10 +12,6 @@ const TABS = [
   { to: '/profile', label: 'Profile', icon: <IconUser /> },
 ];
 
-export function Aurora() {
-  return (<><div className="aurora" aria-hidden><i /><i /><i /><i /></div><div className="grain" aria-hidden /></>);
-}
-
 export default function Shell() {
   const loc = useLocation();
   const bar = useRef<HTMLElement>(null);
@@ -26,7 +22,6 @@ export default function Shell() {
   }, [loc.pathname]);
   return (
     <div className="app">
-      <Aurora />
       <Outlet />
       <nav ref={bar} className="tabbar glass" aria-label="Main">
         <span className="tab-pill" style={pill} />

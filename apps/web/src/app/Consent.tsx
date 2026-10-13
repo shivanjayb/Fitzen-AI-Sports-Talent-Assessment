@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase, useUser } from '../lib/supabase';
-import { Aurora } from './Shell';
 
 /** /consent?child=<uuid>: a parent confirms, from their own email, that their under-18 child may appear on public boards. */
 export default function Consent() {
@@ -82,7 +81,6 @@ export default function Consent() {
 
   return (
     <div className="app">
-      <Aurora />
       <main className="page" style={{ maxWidth: 560 }}>
         <p className="subtitle">Fitzen</p>
         <h1 className="large-title">Parent consent</h1>
