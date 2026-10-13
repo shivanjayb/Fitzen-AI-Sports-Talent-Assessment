@@ -1,9 +1,12 @@
 import { t } from './language';
 import { Link } from 'react-router-dom';
 import { bestJumpCm, evaluateBadges, exerciseById, projectGrowth, type AthleteStats } from '@fitzen/engines';
+import type { CSSProperties } from 'react';
 import { getHistory, getProfile, isEligibleSession, measureOf, normOf, toAthlete, type SavedSession } from './store';
 import { GrowthChart } from './Results';
-import { IconFlag, IconPodium } from './icons';
+import { IconChevron, IconPodium } from './icons';
+import { PageHeader } from './Shell';
+import { Thumb } from './Figure';
 import Rings from './Rings';
 import TrainingGoal from './TrainingGoal';
 
@@ -36,12 +39,32 @@ function statsOf(h: SavedSession[], weightKg: number | null): AthleteStats {
 const xpOf = (h: SavedSession[]) => h.reduce((a, s) => a + 10 + Math.round(s.report.formScore / 5), 0);
 const levelOf = (xp: number) => Math.floor(Math.sqrt(xp / 50)) + 1;
 
+const MEDAL: Record<string, [string, string]> = { bronze: ['#c77b3c', '#7a3f12'], silver: ['#c7ccd6', '#5d6472'], gold: ['#ffd60a', '#b07a00'], platinum: ['#9be7ff', '#3a6fd8'] };
+const today = () => new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'short' });
+const sub = (s: SavedSession) => s.report.reps ? `${s.report.reps.count} reps` : s.report.hold ? `${s.report.hold.bestSec.toFixed(1)} s hold` : `${s.report.events?.length ?? 0} attempts`;
+
 export default function Progress() {
   const h = getHistory().filter(isEligibleSession);
   const p = getProfile(), a = toAthlete(p);
   if (!h.length) return (
-    <main className="page"><p className="subtitle">Streaks, badges, rankings</p><h1 className="large-title">{t('Progress')}</h1>
-      <div className="empty"><div className="big"><IconFlag /></div>No eligible real sessions yet. Train once to start your streak.<br /><br /><Link to="/app" className="btn primary">Start training</Link></div><TrainingGoal /></main>
+    <main className="page">
+      <PageHeader kicker={today()} title={t('Summary')} />
+      <section className="activity-card">
+        <div>
+          <h3>Activity</h3>
+          <div className="ring-stat"><span>Training days</span><b className="num">0/3<small> this week</small></b></div>
+          <div className="ring-stat"><span>Level 1</span><b className="num">0<small> XP</small></b></div>
+          <div className="ring-stat"><span>Badges</span><b className="num">0</b></div>
+        </div>
+        <Rings values={[0, 0, 0]} size={148} />
+      </section>
+      <section className="glass panel" style={{ marginTop: 12 }}>
+        <b>Close your first ring</b>
+        <p className="muted" style={{ margin: '4px 0 14px' }}>No eligible real sessions yet. Demos, unassessed and flagged results do not count. Train once to start your streak.</p>
+        <Link to="/app" className="btn primary press">Start training</Link>
+      </section>
+      <TrainingGoal />
+    </main>
   );
 
   const st = statsOf(h, p.weightKg);
@@ -63,94 +86,115 @@ export default function Progress() {
 
   return (
     <main className="page">
-      <p className="subtitle">Streaks, badges, rankings</p>
-      <h1 className="large-title">{t('Progress')}</h1>
-      <p className="faint">Based on up to 60 retained, eligible real sessions. Demos, unassessed and flagged results do not count.</p>
-      <TrainingGoal />
+      <PageHeader kicker={today()} title={t('Summary')} />
 
-      <section className="glass hero activity">
-        <Rings values={[weeks[0]! / 3, (xp - prev) / (next - prev), earned / badges.length]} />
-        <div className="hero-stats">
-          <div className="hero-stat"><span>Training days</span><b className="num">{weeks[0]}<small>/3 this week</small></b></div>
-          <div className="hero-stat"><span>Level {lv}</span><b className="num">{xp}<small> XP · {next - xp} to go</small></b></div>
-          <div className="hero-stat"><span>Badges</span><b className="num">{earned}<small>/{badges.length}</small></b></div>
+      <div className="summary-top">
+      <section className="activity-card">
+        <div>
+          <h3>Activity</h3>
+          <div className="ring-stat"><span>Training days</span><b className="num">{weeks[0]}/3<small> this week</small></b></div>
+          <div className="ring-stat"><span>Level {lv}</span><b className="num">{xp - prev}/{next - prev}<small> XP</small></b></div>
+          <div className="ring-stat"><span>Badges</span><b className="num">{earned}/{badges.length}</b></div>
         </div>
+        <Rings values={[weeks[0]! / 3, (xp - prev) / (next - prev), earned / badges.length]} size={148} />
       </section>
-      <div className="kv" style={{ marginTop: 10 }}>
-        <div><span>Streak</span><b className="num">{st.streakDays} d</b><small>{st.activeDays} active days total</small></div>
-        <div><span>Best form</span><b className="num">{st.bestMovementQuality}</b><small>out of 100</small></div>
+
+      <div className="tiles">
+        <div className="tile move"><span>Streak</span><small>{st.activeDays} active days in total</small><b className="num">{st.streakDays}<small> days</small></b></div>
+        <div className="tile exercise"><span>Best form</span><small>out of 100</small><b className="num">{st.bestMovementQuality}</b></div>
+        <div className="tile stand"><span>Consistency</span><small>Aim for 3+ days a week</small>
+          <div className="mini-bars" aria-label={`Training days over the last four weeks: ${[...weeks].reverse().join(', ')}`}>
+            {[...weeks].reverse().map((n, i) => <i key={i} className={n >= 3 ? '' : 'low'} style={{ height: `${Math.max(8, Math.min(7, n) / 7 * 100)}%`, animationDelay: `${i * 80}ms` }} />)}
+          </div>
+        </div>
+        <Link to="/history" className="tile yellow press"><span>Sessions</span><small>retained on this device</small><b className="num">{h.length}</b></Link>
       </div>
+      </div>
+      <p className="faint" style={{ fontSize: '.8125rem', margin: '10px 2px 0' }}>Based on up to 60 retained, eligible real sessions. Demos, unassessed and flagged results do not count.</p>
 
-      <h2 className="section-title">Weekly consistency</h2>
-      <section className="glass panel">
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, alignItems: 'end', height: 90 }}>
-          {[...weeks].reverse().map((n, i) => (
-            <div key={i} style={{ textAlign: 'center' }}>
-              <div style={{ height: `${Math.min(7, n) * 9 + 4}px`, borderRadius: 8, background: n >= 3 ? 'var(--good)' : 'var(--accent-2)' }} />
-              <small className="faint">{i === 3 ? 'this wk' : `${3 - i} wk ago`} · {n} d</small>
-            </div>
-          ))}
-        </div>
-        <p className="faint" style={{ fontSize: '.8rem', marginBottom: 0 }}>Aim for 3+ training days a week (green); that is what the growth plan assumes.</p>
-      </section>
-
-      <h2 className="section-title">Where you rank</h2>
-      <section className="glass panel">
-        {!a ? <p className="muted" style={{ margin: 0 }}>Add age, sex, height and weight in <Link to="/profile">Profile</Link> to compare with published norms.</p>
-          : ladders.length ? ladders.map(({ s, v, unit, norm }) => (
-            <div key={s.report.exerciseId} className="check-row">
-              <div><b style={{ fontSize: '.93rem' }}>{s.report.name}</b> <span className="tag">{norm!.band}</span>
-                <div className="faint" style={{ fontSize: '.78rem', marginTop: 3 }}>best {v.toFixed(unit === 'reps' ? 0 : 1)} {unit} · vs {a.sex === 'male' ? 'boys' : 'girls'} aged {a.ageYears}, {norm!.reference}</div></div>
-              <div>
-                {norm!.percentile !== null
-                  ? <><div className="bar"><i style={{ width: `${norm!.percentile}%`, background: 'var(--accent)' }} /></div><div className="faint num" style={{ fontSize: '.72rem', marginTop: 4, textAlign: 'right' }}>≈ P{Math.round(norm!.percentile)}</div></>
-                  : <div className="faint" style={{ fontSize: '.78rem', textAlign: 'right' }}>band only</div>}
-              </div>
-            </div>
-          )) : <p className="muted" style={{ margin: 0 }}>None of your tests has a verified norm yet. Record a vertical jump (13 y+) or push-ups (15–29 y).</p>}
-        <p className="faint" style={{ fontSize: '.76rem', marginBottom: 0 }}>Percentiles compare you with a published reference sample, not with other Fitzen users. Indian Khelo India / Fit India tables are not built in yet.</p>
-      </section>
-
-      <h2 className="section-title">Leaderboards</h2>
-      <Link to="/compete" className="glass press list-item">
-        <div style={{ flex: 1 }}><b>Compete</b><div className="muted" style={{ fontSize: '.85rem' }}>Rank against your group, {p.city || 'your city'}, {p.state || 'your state'} and India. Needs a free account.</div></div>
-        <IconPodium />
-      </Link>
-
-      {proj && proj.metrics.length > 0 && (<>
-        <h2 className="section-title">Expected growth <small>estimates</small></h2>
-        {proj.metrics.map((m) => {
-          const at = m.points[m.points.length - 1]!;
+      <h2 className="section-title">Sessions<Link className="see-all" to="/history">Show More</Link></h2>
+      <div className="rows">
+        {h.slice(0, 3).map((s) => {
+          const ex = exerciseById(s.report.exerciseId);
           return (
-            <section key={m.exerciseId} className="glass panel">
-              <b>{exerciseById(m.exerciseId)?.name ?? m.exerciseId}: {m.baseline} cm now</b>
-              <p className="muted" style={{ margin: '4px 0', fontSize: '.9rem' }}>In {at.week} weeks: {at.current.low}–{at.current.high} cm with current habits, {at.plan.low}–{at.plan.high} cm if you follow the plan.</p>
-              <GrowthChart m={m} />
-              {proj.talent && <p style={{ fontSize: '.9rem' }}>{proj.talent.summary}</p>}
-              <p className="faint" style={{ fontSize: '.76rem', margin: 0 }}>{m.basis}. Ranges, not promises.</p>
-            </section>
+            <Link key={s.id} to={`/results/${s.id}`} className="session-row">
+              {ex && <Thumb def={ex} size={46} />}
+              <span style={{ minWidth: 0 }}><b>{s.report.name}</b><small>{new Date(s.report.startedAt).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })} · {sub(s)}</small></span>
+              <span className="score num">{s.report.formScore}</span>
+              <IconChevron />
+            </Link>
           );
         })}
-      </>)}
-
-      <h2 className="section-title">Personal bests</h2>
-      <div className="list">
-        {[...pbs.values()].map(({ s, v, unit }) => (
-          <Link key={s.id} to={`/results/${s.id}`} className="glass press list-item">
-            <div style={{ flex: 1 }}><b>{s.report.name}</b><div className="muted" style={{ fontSize: '.85rem' }}>{new Date(s.report.startedAt).toLocaleDateString()}</div></div>
-            <b className="num">{v.toFixed(unit === 'reps' ? 0 : 1)} {unit}</b>
-          </Link>
-        ))}
       </div>
 
-      <h2 className="section-title">Badges <small>{earned} earned</small></h2>
-      <div className="kv">
-        {badges.slice(0, 12).map((b) => (
-          <div key={b.id} style={{ opacity: b.earned ? 1 : 0.6 }}>
-            <span>{b.tier}</span><b style={{ fontSize: '1rem' }}>{b.name}</b><small>{b.description}</small>
-            {!b.earned && <div className="bar" style={{ marginTop: 6, height: 6 }}><i style={{ width: `${b.progress * 100}%`, background: 'var(--accent-2)' }} /></div>}
+      <h2 className="section-title">Awards<small>{earned} earned</small></h2>
+      <div className="awards">
+        {badges.slice(0, 16).map((b) => {
+          const [m1, m2] = MEDAL[b.tier] ?? MEDAL.bronze!;
+          return (
+            <div key={b.id} className={`medal ${b.earned ? '' : 'locked'}`} style={{ '--m1': m1, '--m2': m2 } as CSSProperties} title={b.description}>
+              <i aria-hidden>{b.name.slice(0, 1)}</i>
+              <b>{b.name}</b>
+              <small>{b.earned ? b.tier : `${Math.round(b.progress * 100)}%`}</small>
+            </div>
+          );
+        })}
+      </div>
+
+      <TrainingGoal />
+
+      <div className="summary-grid">
+        <div>
+          <h2 className="section-title">Where you rank</h2>
+          <section className="glass panel">
+            {!a ? <p className="muted" style={{ margin: 0 }}>Add age, sex, height and weight in <Link to="/profile">Profile</Link> to compare with published norms.</p>
+              : ladders.length ? ladders.map(({ s, v, unit, norm }) => (
+                <div key={s.report.exerciseId} className="check-row">
+                  <div><b style={{ fontSize: '.93rem' }}>{s.report.name}</b> <span className="tag">{norm!.band}</span>
+                    <div className="faint" style={{ fontSize: '.78rem', marginTop: 3 }}>best {v.toFixed(unit === 'reps' ? 0 : 1)} {unit} · vs {a.sex === 'male' ? 'boys' : 'girls'} aged {a.ageYears}, {norm!.reference}</div></div>
+                  <div>
+                    {norm!.percentile !== null
+                      ? <><div className="bar"><i style={{ width: `${norm!.percentile}%`, background: 'var(--exercise)' }} /></div><div className="faint num" style={{ fontSize: '.72rem', marginTop: 4, textAlign: 'right' }}>≈ P{Math.round(norm!.percentile)}</div></>
+                      : <div className="faint" style={{ fontSize: '.78rem', textAlign: 'right' }}>band only</div>}
+                  </div>
+                </div>
+              )) : <p className="muted" style={{ margin: 0 }}>None of your tests has a verified norm yet. Record a vertical jump (13 y+) or push-ups (15–29 y).</p>}
+            <p className="faint" style={{ fontSize: '.76rem', marginBottom: 0 }}>Percentiles compare you with a published reference sample, not with other Fitzen users. Indian Khelo India / Fit India tables are not built in yet.</p>
+          </section>
+
+          <h2 className="section-title">Leaderboards</h2>
+          <nav className="rows">
+            <Link to="/compete"><span className="ic"><IconPodium /></span><span style={{ flex: 1 }}><b style={{ fontWeight: 600 }}>Compete</b><br /><small className="muted">Rank against your group, {p.city || 'your city'}, {p.state || 'your state'} and India. Needs a free account.</small></span><IconChevron /></Link>
+          </nav>
+        </div>
+
+        <div>
+          {proj && proj.metrics.length > 0 && (<>
+            <h2 className="section-title">Expected growth <small>estimates</small></h2>
+            {proj.metrics.map((m) => {
+              const at = m.points[m.points.length - 1]!;
+              return (
+                <section key={m.exerciseId} className="glass panel">
+                  <b>{exerciseById(m.exerciseId)?.name ?? m.exerciseId}: {m.baseline} cm now</b>
+                  <p className="muted" style={{ margin: '4px 0', fontSize: '.9rem' }}>In {at.week} weeks: {at.current.low}–{at.current.high} cm with current habits, {at.plan.low}–{at.plan.high} cm if you follow the plan.</p>
+                  <GrowthChart m={m} />
+                  {proj.talent && <p style={{ fontSize: '.9rem' }}>{proj.talent.summary}</p>}
+                  <p className="faint" style={{ fontSize: '.76rem', margin: 0 }}>{m.basis}. Ranges, not promises.</p>
+                </section>
+              );
+            })}
+          </>)}
+
+          <h2 className="section-title">Personal bests</h2>
+          <div className="rows">
+            {[...pbs.values()].map(({ s, v, unit }) => (
+              <Link key={s.id} to={`/results/${s.id}`}>
+                <span style={{ flex: 1 }}><b style={{ fontWeight: 600 }}>{s.report.name}</b><br /><small className="muted">{new Date(s.report.startedAt).toLocaleDateString()}</small></span>
+                <b className="num" style={{ fontFamily: 'var(--rounded)', color: 'var(--exercise)' }}>{v.toFixed(unit === 'reps' ? 0 : 1)} {unit}</b>
+              </Link>
+            ))}
           </div>
-        ))}
+        </div>
       </div>
     </main>
   );

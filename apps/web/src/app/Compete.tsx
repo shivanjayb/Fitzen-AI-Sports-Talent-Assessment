@@ -5,6 +5,8 @@ import { getAccount, supabase, useUser, type Account } from '../lib/supabase';
 import { getHistory } from './store';
 import { openAssistant } from './openAssistant';
 import { IconPodium } from './icons';
+import { PageHeader } from './Shell';
+import { t } from './language';
 
 type Scope = 'group' | 'city' | 'state' | 'country' | 'world';
 interface Row { rank: number; display_name: string; value: number; form_score: number; metric: 'reps' | 'holdSec' | 'jumpHeightCm'; is_me: boolean }
@@ -49,7 +51,7 @@ export default function Compete() {
     return () => { live = false; };
   }, [acct, ex, scope, grp, sort]);
 
-  const head = <><p className="subtitle">Leaderboards and groups</p><h1 className="large-title">Compete</h1></>;
+  const head = <PageHeader kicker="Leaderboards and groups" title={t('Compete')} />;
   if (!supabase) return <main className="page">{head}<Empty>Accounts aren't switched on yet, so there is no one to rank against. Your sessions still count on <Link to="/progress">Progress</Link>.</Empty></main>;
   if (acct === undefined) return <main className="page">{head}{err ? <p role="alert">{err}</p> : <div className="spinner" style={{ marginTop: 40 }} aria-label="Loading" />}</main>;
   if (!user || !acct) return (

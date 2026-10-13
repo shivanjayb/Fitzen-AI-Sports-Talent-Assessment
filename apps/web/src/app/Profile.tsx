@@ -5,7 +5,8 @@ import { getHistory, getProfile, INDIAN_STATES, saveProfile, toAthlete, syncHist
 import { getAccount, isMinor, supabase, useUser, type Account as Acct } from '../lib/supabase';
 import { applyTheme, getTheme, THEME, type Theme } from './theme';
 import Offline from './Offline';
-import { getLanguage, setLanguage, type Language } from './language';
+import { getLanguage, setLanguage, t, type Language } from './language';
+import { PageHeader } from './Shell';
 import { signOut } from '../lib/auth';
 
 function Stepper({ label, value, set, min = 0, max = 10, step = 1, unit = '' }: { label: string; value: number; set: (v: number) => void; min?: number; max?: number; step?: number; unit?: string }) {
@@ -35,8 +36,7 @@ export default function Profile() {
 
   return (
     <main className="page" style={{ maxWidth: 640 }}>
-      <p className="subtitle">No account needed</p>
-      <h1 className="large-title">Profile</h1>
+      <PageHeader kicker="No account needed" title={t('Profile')} />
       <label className="field" style={{ marginTop: 14 }}><span>Language / भाषा</span><select value={getLanguage()} onChange={(e) => setLanguage(e.target.value as Language)}><option value="en">English</option><option value="hi">हिन्दी — मुख्य मूल्यांकन निर्देश</option></select></label>
       <Offline />
       {saveFailed && <p role="alert">Device storage is unavailable. Profile changes last only until this tab closes.</p>}

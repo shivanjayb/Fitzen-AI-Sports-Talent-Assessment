@@ -2,7 +2,8 @@ import { t } from './language';
 import { Link } from 'react-router-dom';
 import { exerciseById } from '@fitzen/engines';
 import { getHistory, glow } from './store';
-import Pictogram from './Pictogram';
+import { Thumb } from './Figure';
+import { PageHeader } from './Shell';
 import { IconFlag, IconSparkle } from './icons';
 import { openAssistant } from './openAssistant';
 
@@ -15,8 +16,7 @@ export default function History() {
   }
   return (
     <main className="page">
-      <p className="subtitle">Stored on this device</p>
-      <h1 className="large-title">{t('History')}</h1>
+      <PageHeader kicker="Stored on this device" title={t('History')} back />
       {h.length > 0 && <button className="btn glass press" style={{ marginTop: 12 }} onClick={() => openAssistant({ kind: 'progress' })}><IconSparkle /> Ask AI about my progress</button>}
       {!h.length && <div className="empty"><div className="big"><IconFlag /></div>No sessions yet.<br /><br /><Link to="/app" className="btn primary">Start training</Link></div>}
       {[...byDay].map(([day, list]) => (
@@ -28,7 +28,7 @@ export default function History() {
               const sub = r.reps ? `${r.reps.count} reps · ${r.reps.valid} correct` : r.hold ? `${r.hold.bestSec.toFixed(1)} s hold` : `${r.events?.length ?? 0} attempts`;
               return (
                 <Link key={s.id} to={`/results/${s.id}`} className="glass press list-item" onPointerMove={glow}>
-                  {ex ? <Pictogram def={ex} /> : <div className="ex-glyph">•</div>}
+                  {ex ? <Thumb def={ex} /> : <div className="ex-glyph">•</div>}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <b>{r.name}</b>
                     <div className="muted" style={{ fontSize: '.85rem' }}>{sub} · {Math.round(r.durationSec)} s{s.source === 'demo' ? ' · demo' : ''}</div>
