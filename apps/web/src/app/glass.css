@@ -642,3 +642,9 @@ table.data td { padding: 9px 6px; border-top: 0.5px solid var(--sep); }
 .verdict-bar { display: flex; height: 10px; border-radius: 99px; overflow: hidden; margin-top: 10px; background: var(--bg-2); }
 .verdict-bar i { display: block; min-width: 2px; }
 .verdict-bar .v-genuine { background: var(--good); } .verdict-bar .v-review { background: var(--ok); } .verdict-bar .v-suspect { background: var(--bad); }
+
+/* Lite mode (main.tsx, low-end devices): no blur or motion, so the camera and pose model keep the frame budget. */
+:root[data-lite] *, :root[data-lite] *::before, :root[data-lite] *::after {
+  backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
+  animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important;
+}

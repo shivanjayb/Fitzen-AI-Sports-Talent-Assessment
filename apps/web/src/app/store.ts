@@ -6,6 +6,7 @@
  */
 import { bestJumpCm, isAssessedReport, percentileFor, personalize, standardReps, usualExtreme, type AthleteProfile, type ExerciseDef, type Personalized, type TrainingLevel, type ForensicsReport, type IntegrityReport, type NormResult, type ReadinessInput, type SessionReport } from '@fitzen/engines';
 import { storageOwner, supabase } from '../lib/supabase';
+import { isLowEndDevice } from '../pose/poseSource';
 
 export interface Profile {
   name: string; weightKg: number | null; heightCm: number | null; age: number | null;
@@ -52,7 +53,7 @@ const write = (k: string, v: unknown): boolean => {
 export const DEFAULT_PROFILE: Profile = {
   name: 'Athlete', weightKg: null, heightCm: null, age: null, sex: 'male', sittingHeightCm: null, city: '', state: '', sport: '',
   diet: { pattern: 'vegetarian', mealsPerDay: 3, proteinServingsPerDay: 1, milkServingsPerDay: 1, fruitVegServingsPerDay: 2 },
-  sleepHours: 8, trainingDaysPerWeek: 2, hasCoach: false, model: 'full', voice: true,
+  sleepHours: 8, trainingDaysPerWeek: 2, hasCoach: false, model: isLowEndDevice() ? 'lite' : 'full', voice: true,
   level: 'beginner', personalRanges: true,
 };
 // Old profiles only had name/weight/height/age/model/voice; spreading over the defaults migrates them.

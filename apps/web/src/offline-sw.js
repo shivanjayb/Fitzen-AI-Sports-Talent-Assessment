@@ -1,5 +1,6 @@
 const APP = 'fitzen-static-__BUILD_ID__';
 const POSE = 'fitzen-pose-v1';
+const MEDIA = 'fitzen-media-v1'; // exercise photos, cached as they are viewed
 const ASSETS = __OFFLINE_ASSETS__;
 const WASM = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.18/wasm/';
 const models = ['lite', 'full', 'heavy'];
@@ -27,9 +28,10 @@ self.addEventListener('fetch', (event) => {
     return;
   }
   const isPose = allowedPose.has(url.href);
-  if (!isPose && !(url.origin === self.location.origin && ASSETS.includes(url.pathname))) return;
+  const isMedia = url.origin === self.location.origin && /^\/exercises\/[a-z0-9-]+\.jpg$/.test(url.pathname);
+  if (!isPose && !isMedia && !(url.origin === self.location.origin && ASSETS.includes(url.pathname))) return;
   event.respondWith((async () => {
-    const cache = await caches.open(isPose ? POSE : APP);
+    const cache = await caches.open(isPose ? POSE : isMedia ? MEDIA : APP);
     const cached = await cache.match(request);
     if (cached) return cached;
     const response = await fetch(request);
