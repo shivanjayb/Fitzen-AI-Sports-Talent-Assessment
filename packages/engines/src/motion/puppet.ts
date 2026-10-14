@@ -1,39 +1,62 @@
 /**
  * Synthetic athlete for demo / testing without a camera.
  *
- * Builds a 2D stick figure by forward kinematics from joint angles, with
- * keyframes derived from the exercise's own green bands — so any catalog
- * entry can be replayed through the real engine. Directions are measured
- * from straight up, clockwise toward +x (the way the figure faces).
+ * Builds a 2D figure by forward kinematics from joint angles, in the camera's plane: side-on, or facing the camera
+ * for `camera: 'front'` exercises. Keyframes come from the exercise's own green bands, so any catalog entry can be
+ * replayed through the real engine; per-exercise styles (puppetStyle.ts) pose what the checks leave free (split
+ * stances, arm carriage, lying on a bench, the start of each rep). Directions are measured from straight up,
+ * clockwise toward +x (the way a side-on figure faces; a facing figure's left side). Right-side ("R") angles are
+ * given in the same convention and mirrored about the trunk in the front view.
  */
 
 import type { PoseFrame } from '../jump/types.js';
 import type { Check, ExerciseDef, JointName } from './types.js';
+import { STYLES, type Pose, type PuppetStyle } from './puppetStyle.js';
 
-interface Pose { trunk: number; hip: number; knee: number; ankle: number | null; shoulder: number; elbow: number; spread: number; lift: number; arm: number | null }
+export type { Prop } from './puppetStyle.js';
 
-const BASE: Pose = { trunk: 2, hip: 176, knee: 176, ankle: null, shoulder: 15, elbow: 168, spread: 0.9, lift: 0, arm: null };
+const BASE: Pose = {
+  trunk: 2, hip: 176, knee: 176, ankle: null, shoulder: 15, elbow: 168, spread: 0.9, lift: 0, arm: null, shift: 0,
+  hipR: null, kneeR: null, ankleR: null, shoulderR: null, elbowR: null, armR: null,
+};
 const SEG = { trunk: 0.3, thigh: 0.245, shin: 0.245, foot: 0.075, upper: 0.17, fore: 0.15, head: 0.11 };
+/** Facing figure: half shoulder and hip widths (body units). */
+const HALF = { shoulder: 0.105, hip: 0.075 };
 
 const mid = (c: Check) => (c.good[0] + c.good[1]) / 2;
 const rad = (d: number) => (d * Math.PI) / 180;
 const dir = (d: number) => ({ x: Math.sin(rad(d)), y: -Math.cos(rad(d)) });
+const R_OF = { hip: 'hipR', knee: 'kneeR', ankle: 'ankleR', shoulder: 'shoulderR', elbow: 'elbowR' } as const;
+type Num = Record<string, number | null>;
 
-function applyChecks(def: ExerciseDef, p: Pose, phases: Check['when'][], set = new Set<string>()): Pose {
+function applyChecks(def: ExerciseDef, p: Pose, phases: Check['when'][], set = new Set<string>(), supine = false, front = def.camera === 'front'): Pose {
   const out = { ...p };
-  for (const c of def.checks) {
+  const o = out as unknown as Num;
+  // Trunk first: thigh checks are relative to it.
+  const isTrunk = (c: Check) => def.angles.some((a) => a.id === c.angle && a.kind === 'segment' && a.segment === 'trunk');
+  for (const c of [...def.checks.filter(isTrunk), ...def.checks.filter((c) => !isTrunk(c))]) {
     if (!phases.includes(c.when)) continue;
     const a = def.angles.find((x) => x.id === c.angle);
     if (!a) continue;
     const v = mid(c);
     if (a.kind === 'joint') {
       const j = a.joint as JointName;
-      if (j === 'bodyLine') { out.hip = v; out.knee = Math.max(out.knee, 172); }
+      if (j === 'bodyLine') { out.hip = v; out.knee = Math.max(out.knee, 172); if (out.hipR !== null) out.hipR = v; }
       else if (j === 'wrist') continue;
-      else { (out as unknown as Record<string, number>)[j] = v; set.add(j); }
+      else {
+        // flexed = the leading (left) limb, extended = the trailing (right) one; both = keep any split in step.
+        const side = a.side ?? 'auto', r = R_OF[j as keyof typeof R_OF];
+        if (side === 'right' || side === 'extended') o[r] = v;
+        else { o[j] = v; if (side === 'both' && o[r] !== null) o[r] = v; }
+        set.add(j);
+      }
     } else if (a.kind === 'segment' && a.ref === 'vertical') {
-      if (a.segment === 'trunk') { out.trunk = v; set.add('trunk'); }
-      if (a.segment === 'upperArm') out.arm = v;
+      if (a.segment === 'trunk') {
+        const w = front ? c.good[0] + (c.good[1] - c.good[0]) / 4 : v; // facing: a lean tilts the shoulders, which are checked level
+        out.trunk = supine ? -w : w; set.add('trunk');
+      }
+      if (a.segment === 'upperArm') { out.arm = v; if (out.armR !== null) out.armR = v; }
+      if (a.segment === 'thigh') { out.hip = v - out.trunk; set.add('hip'); }
     } else if (a.kind === 'spread' && a.what === 'feet') out.spread = v;
   }
   return settle(out, set);
@@ -53,46 +76,78 @@ function orientation(def: ExerciseDef): Partial<Pose> {
   return {};
 }
 
-/** Figure → 33 landmarks (normalised image coords). */
-function render(p: Pose, aspect: number, jitter: () => number, ground = 0.93): PoseFrame['landmarks'] {
-  const S = 0.72 * (ground / 0.93); // body height as a fraction of frame height, shrunk with a raised floor
-  const add = (a: { x: number; y: number }, d: number, len: number) => { const u = dir(d); return { x: a.x + u.x * len * S, y: a.y + u.y * len * S }; };
-  const hip = { x: 0, y: 0 };
-  const shoulder = add(hip, p.trunk, SEG.trunk);
-  const thighD = p.trunk + p.hip;
-  const knee = add(hip, thighD, SEG.thigh);
-  const shinD = thighD + 180 - p.knee;
-  const ankle = add(knee, shinD, SEG.shin);
-  const footD = p.ankle === null ? 90 : shinD + 180 + p.ankle;
-  const foot = add(ankle, footD, SEG.foot);
-  const heel = add(ankle, footD + 180, SEG.foot * 0.35);
-  const upperD = p.arm ?? p.trunk + 180 - p.shoulder;
-  const elbow = add(shoulder, upperD, SEG.upper);
-  const wrist = add(elbow, upperD + 180 + p.elbow, SEG.fore);
-  const index = add(wrist, upperD + 180 + p.elbow, 0.04);
-  const nose = add(shoulder, p.trunk, SEG.head);
+type P2 = { x: number; y: number };
+interface Body { hip: [P2, P2]; shoulder: [P2, P2]; knee: [P2, P2]; ankle: [P2, P2]; foot: [P2, P2]; heel: [P2, P2]; elbow: [P2, P2]; wrist: [P2, P2]; index: [P2, P2]; nose: P2; ear: [P2, P2]; eye: [P2, P2] }
 
-  const pts = [hip, shoulder, knee, ankle, foot, heel, elbow, wrist, index, nose];
+const right = (p: Pose) => ({
+  hip: p.hipR ?? p.hip, knee: p.kneeR ?? p.knee, ankle: p.ankleR ?? p.ankle,
+  shoulder: p.shoulderR ?? p.shoulder, elbow: p.elbowR ?? p.elbow, arm: p.armR ?? (p.shoulderR === null ? p.arm : null),
+});
+
+/** Forward kinematics in body units, hip centre at the origin. Index 0 = left / near / leading, 1 = right. */
+function skeleton(p: Pose, front: boolean): Body {
+  const add = (a: P2, d: number, len: number) => { const u = dir(d); return { x: a.x + u.x * len, y: a.y + u.y * len }; };
+  const sides: [Pose, Pose] = [p, { ...p, ...right(p) }];
+  // The facing figure's right side is the left side mirrored about the trunk.
+  const m = (s: 0 | 1, d: number) => (front && s === 1 ? 2 * p.trunk - d : d);
+  const perp = dir(p.trunk + 90);
+  const c = { x: 0, y: 0 }, neck = add(c, p.trunk, SEG.trunk);
+  const off = (q: P2, s: 0 | 1, half: number) => (front ? { x: q.x + perp.x * half * (s ? -1 : 1), y: q.y + perp.y * half * (s ? -1 : 1) } : q);
+  const pair = <T>(f: (s: 0 | 1) => T): [T, T] => [f(0), f(1)];
+  const hip = pair((s) => off(c, s, HALF.hip));
+  const shoulder = pair((s) => off(neck, s, HALF.shoulder));
+  const thighD = pair((s) => m(s, p.trunk + sides[s].hip));
+  const knee = pair((s) => add(hip[s], thighD[s], SEG.thigh));
+  const shinD = pair((s) => m(s, p.trunk + sides[s].hip + 180 - sides[s].knee));
+  const ankle = pair((s) => add(knee[s], shinD[s], SEG.shin));
+  const footD = pair((s) => (front ? m(s, p.trunk + 150) : sides[s].ankle === null ? 90 : shinD[s] + 180 + sides[s].ankle!));
+  const footLen = front ? 0.035 : SEG.foot;
+  const foot = pair((s) => add(ankle[s], footD[s], footLen));
+  const heel = pair((s) => add(ankle[s], footD[s] + 180, footLen * 0.35));
+  const upperRaw = pair((s) => sides[s].arm ?? p.trunk + 180 - sides[s].shoulder);
+  const upperD = pair((s) => m(s, upperRaw[s]));
+  const elbow = pair((s) => add(shoulder[s], upperD[s], SEG.upper));
+  const foreD = pair((s) => m(s, upperRaw[s] + 180 + sides[s].elbow));
+  const wrist = pair((s) => add(elbow[s], foreD[s], SEG.fore));
+  const index = pair((s) => add(wrist[s], foreD[s], 0.04));
+  const nose = add(neck, p.trunk, SEG.head);
+  const ear = pair((s) => (front ? off(add(neck, p.trunk, SEG.head * 1.05), s, 0.045) : nose));
+  const eye = pair((s) => (front ? off(add(neck, p.trunk, SEG.head * 1.15), s, 0.02) : nose));
+  return { hip, shoulder, knee, ankle, foot, heel, elbow, wrist, index, nose, ear, eye };
+}
+
+/** Lowest point of one leg (toe, heel or ankle). */
+const legLow = (b: Body, s: 0 | 1) => Math.max(b.ankle[s].y, b.foot[s].y, b.heel[s].y);
+
+/** Figure → 33 landmarks (normalised image coords). */
+function render(p: Pose, aspect: number, jitter: () => number, ground = 0.93, front = false, hands?: number): PoseFrame['landmarks'] {
+  const S = 0.72 * (ground / 0.93); // body height as a fraction of frame height, shrunk with a raised floor
+  const b = skeleton(p, front);
+  const all = [...new Set((Object.values(b) as Array<P2 | [P2, P2]>).flatMap((v) => (Array.isArray(v) ? v : [v])))];
+  for (const q of all) { q.x *= S; q.y *= S; }
   // Fit wide poses (planks, lying lifts) into narrow/portrait frames.
-  const wSpan = Math.max(...pts.map((q) => q.x)) - Math.min(...pts.map((q) => q.x));
+  const wSpan = Math.max(...all.map((q) => q.x)) - Math.min(...all.map((q) => q.x));
   const k = Math.min(1, (0.8 * aspect) / (wSpan || 1));
-  if (k < 1) for (const q of pts) { q.x *= k; q.y *= k; }
-  const lowest = Math.max(...pts.map((q) => q.y));
-  const highest = Math.min(...pts.map((q) => q.y));
-  const dy = lowest - highest > 0.86 ? 0.5 - (lowest + highest) / 2 : ground - lowest;
-  const cx = k < 1 ? (Math.max(...pts.map((q) => q.x)) + Math.min(...pts.map((q) => q.x))) / 2 : 0; // hip-centred so moving limbs never shift the body
-  const T = (q: { x: number; y: number }, depth: number, vis: number) => ({
-    x: (q.x - cx + aspect / 2 + depth) / aspect + jitter(),
+  if (k < 1) for (const q of all) { q.x *= k; q.y *= k; }
+  const lowest = Math.max(...all.map((q) => q.y));
+  const highest = Math.min(...all.map((q) => q.y));
+  const dy = hands !== undefined ? hands - Math.min(b.wrist[0].y, b.wrist[1].y) : lowest - highest > 0.86 ? 0.5 - (lowest + highest) / 2 : ground - lowest;
+  const cx = k < 1 ? (Math.max(...all.map((q) => q.x)) + Math.min(...all.map((q) => q.x))) / 2 : 0; // hip-centred so moving limbs never shift the body
+  const T = (q: P2, depth: number, vis: number) => ({
+    x: (q.x - cx + p.shift * S * Math.min(1, aspect / 1.6) + aspect / 2 + depth) / aspect + jitter(),
     y: q.y + dy - p.lift + jitter(),
     z: 0,
     visibility: vis,
   });
 
-  const lm: PoseFrame['landmarks'] = Array.from({ length: 33 }, () => T(nose, 0, 0.9));
-  const put = (l: number, r: number, q: { x: number; y: number }) => { lm[l] = T(q, 0.012, 0.97); lm[r] = T(q, -0.012, 0.88); };
-  put(11, 12, shoulder); put(13, 14, elbow); put(15, 16, wrist); put(19, 20, index); put(17, 18, index); put(21, 22, index);
-  put(23, 24, hip); put(25, 26, knee); put(27, 28, ankle); put(29, 30, heel); put(31, 32, foot);
-  // Spread (front-view feel): push L/R ankles apart relative to the shoulder offset.
+  const lm: PoseFrame['landmarks'] = Array.from({ length: 33 }, () => T(b.nose, 0, 0.9));
+  const [dl, dr, vl, vr] = front ? [0, 0, 0.95, 0.95] : [0.012, -0.012, 0.97, 0.88];
+  const put = (l: number, r: number, q: [P2, P2]) => { lm[l] = T(q[0], dl, vl); lm[r] = T(q[1], dr, vr); };
+  put(11, 12, b.shoulder); put(13, 14, b.elbow); put(15, 16, b.wrist); put(19, 20, b.index); put(17, 18, b.index); put(21, 22, b.index);
+  put(23, 24, b.hip); put(25, 26, b.knee); put(27, 28, b.ankle); put(29, 30, b.heel); put(31, 32, b.foot);
+  if (front) { put(7, 8, b.ear); put(2, 5, b.eye); return lm; }
+  if (p.hipR !== null || p.kneeR !== null || p.ankleR !== null) return lm; // split stance: the legs already differ
+  // Side-on spread (front-view feel): push L/R ankles apart relative to the shoulder offset.
   const sw = Math.abs(lm[11]!.x - lm[12]!.x) || 0.024 / aspect;
   const feetGap = (p.spread * sw) / 2;
   const fx = (lm[27]!.x + lm[28]!.x) / 2;
@@ -101,18 +156,57 @@ function render(p: Pose, aspect: number, jitter: () => number, ground = 0.93): P
   return lm;
 }
 
-const resolveArm = (p: Pose): Pose => (p.arm === null ? { ...p, arm: p.trunk + 180 - p.shoulder } : p);
+const resolveArm = (p: Pose): Pose => {
+  const o = { ...p };
+  if (o.arm === null) o.arm = o.trunk + 180 - o.shoulder;
+  if (o.armR === null && o.shoulderR !== null) o.armR = o.trunk + 180 - o.shoulderR;
+  return o;
+};
 const lerp = (a0: Pose, b0: Pose, u: number): Pose => {
   const a = resolveArm(a0), b = resolveArm(b0);
   const o = { ...a };
   for (const k of Object.keys(a) as (keyof Pose)[]) {
     const x = a[k], y = b[k]!;
-    (o as Record<string, number | null>)[k] = x === null || y === null ? (u < 0.5 ? x : y) : x + (y - x) * u;
+    (o as unknown as Num)[k] = x === null || y === null ? (u < 0.5 ? x : y) : x + (y - x) * u;
   }
   return o;
 };
 
+/** Keep the forearms vertical the way a bar or the floor holds them (presses up, push-ups and dips down). */
+function couple(p: Pose, mode: PuppetStyle['forearm']): Pose {
+  if (!mode) return p;
+  const toward = mode === 'up' ? 0 : 180;
+  const o = { ...p, arm: toward - 180 - p.elbow };
+  if (p.elbowR !== null) o.armR = toward - 180 - p.elbowR;
+  return o;
+}
+
+/** Bring the trailing foot to the floor (split stances) by turning one right-side angle. */
+function level(p: Pose, key: NonNullable<PuppetStyle['level']>, front: boolean): Pose {
+  const err = (v: number) => { const b = skeleton({ ...p, [key]: v }, front); return legLow(b, 1) - legLow(b, 0); };
+  const cur = (p[key] as number | null) ?? (p[key.replace('R', '') as keyof Pose] as number);
+  let best = cur, bestE = Math.abs(err(cur));
+  // Search near the styled angle only: far away lies the mirror solution (both legs forward).
+  for (let v = cur - 40; v <= cur + 40; v += 1) { const e = Math.abs(err(v)); if (e < bestE) { bestE = e; best = v; } }
+  for (let v = best - 1; v <= best + 1; v += 0.05) { const e = Math.abs(err(v)); if (e < bestE) { bestE = e; best = v; } }
+  return { ...p, [key]: best };
+}
+
+/** Facing view: open both hips symmetrically until the feet sit `p.spread` shoulder widths apart. */
+function fitSpread(p: Pose): Pose {
+  const at = (open: number) => {
+    const q = { ...p, hip: p.hip - open, hipR: (p.hipR ?? p.hip) - open }, b = skeleton(q, true);
+    return { q, ratio: Math.abs(b.ankle[0].x - b.ankle[1].x) / Math.abs(b.shoulder[0].x - b.shoulder[1].x) };
+  };
+  let lo = -40, hi = 80;
+  for (let i = 0; i < 30; i++) { const m = (lo + hi) / 2; if (at(m).ratio < p.spread) lo = m; else hi = m; }
+  return at((lo + hi) / 2).q;
+}
+
 export interface PuppetOptions { reps?: number; fps?: number; aspect?: number; seed?: number; repSec?: number; /** Floor line as a fraction of frame height. */ ground?: number }
+
+/** Equipment the demo athlete is using, for drawing. */
+export const puppetProps = (def: ExerciseDef) => STYLES[def.id]?.props ?? [];
 
 /** Deterministic synthetic session for any exercise definition. */
 export function simulateExercise(def: ExerciseDef, opts: PuppetOptions = {}): PoseFrame[] {
@@ -120,15 +214,24 @@ export function simulateExercise(def: ExerciseDef, opts: PuppetOptions = {}): Po
   let seed = opts.seed ?? 7;
   const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647 - 0.5);
   const jitter = () => rnd() * 0.004;
-  const base = { ...BASE, ...orientation(def) };
-  const top = applyChecks(def, base, ['any', 'top']);
-  const bottomSet = new Set<string>();
-  const bottom = applyChecks(def, top, ['active', 'bottom', 'hold', 'release'], bottomSet);
+  const st: PuppetStyle = STYLES[def.id] ?? {};
+  const front = def.camera === 'front';
+  const styled = new Set(Object.keys({ ...st.top, ...st.bottom }));
+  const base = { ...BASE, ...orientation(def), ...st.base };
+  const top = applyChecks(def, { ...base, ...st.top }, ['any', 'top'], new Set(styled), st.supine);
+  const bottomSet = new Set(styled);
+  const bottom = applyChecks(def, { ...top, ...st.bottom }, ['any', 'active', 'bottom', 'hold', 'release'], bottomSet, st.supine);
+  const finish = (p: Pose) => {
+    let q = couple(p, st.forearm);
+    if (st.fitSpread && front) q = fitSpread(q);
+    return st.level ? level(q, st.level, front) : q;
+  };
   const frames: PoseFrame[] = [];
   let t = 0;
-  const emit = (p: Pose) => { frames.push({ timestampMs: t, landmarks: render(p, aspect, jitter, opts.ground) }); t += 1000 / fps; };
+  const emit = (p: Pose) => { frames.push({ timestampMs: t, landmarks: render(finish(p), aspect, jitter, opts.ground, front, st.hands) }); t += 1000 / fps; };
   const hold = (p: Pose, sec: number) => { for (let i = 0; i < sec * fps; i++) emit(p); };
-  const move = (a: Pose, b: Pose, sec: number) => { const n = Math.max(1, Math.round(sec * fps)); for (let i = 1; i <= n; i++) emit(lerp(a, b, (1 - Math.cos((Math.PI * i) / n)) / 2)); };
+  const ease = (i: number, n: number) => (1 - Math.cos((Math.PI * i) / n)) / 2;
+  const move = (a: Pose, b: Pose, sec: number) => { const n = Math.max(1, Math.round(sec * fps)); for (let i = 1; i <= n; i++) emit(lerp(a, b, ease(i, n))); };
 
   hold(top, 1.2);
 
@@ -138,44 +241,60 @@ export function simulateExercise(def: ExerciseDef, opts: PuppetOptions = {}): Po
       const a = def.angles.find((x) => x.id === r.driver);
       if (a?.kind === 'joint' && a.joint !== 'wrist') {
         if (a.joint === 'bodyLine') return { ...p, hip: v };
-        return { ...p, [a.joint]: v };
+        const both = a.side === 'both' && (p as unknown as Num)[R_OF[a.joint as keyof typeof R_OF]] !== null;
+        return { ...p, [a.joint]: v, ...(both ? { [R_OF[a.joint as keyof typeof R_OF]]: v } : {}) };
       }
-      if (a?.kind === 'segment' && a.segment === 'trunk') return { ...p, trunk: v };
+      if (a?.kind === 'segment' && a.segment === 'trunk') return { ...p, trunk: st.supine ? -v : v };
       if (a?.kind === 'segment' && a.segment === 'upperArm') return { ...p, arm: v };
+      if (a?.kind === 'segment' && a.segment === 'thigh') return { ...p, hip: v - p.trunk };
+      if (a?.kind === 'spread') return { ...p, spread: v };
       return p;
     };
-    const topV = r.start === 'high' ? Math.min(178, Math.max(r.exit + 12, 150)) : Math.max(2, r.exit - 10);
-    const lo = settle(setDriver(bottom, r.start === 'high' ? r.target - 4 : r.target + 4), bottomSet);
+    const topV = st.topDriver ?? (r.start === 'high' ? Math.min(178, Math.max(r.exit + 12, 150)) : Math.max(2, r.exit - 10));
+    const lo = settle(setDriver(bottom, st.bottomDriver ?? (r.start === 'high' ? r.target - 4 : r.target + 4)), bottomSet);
     const hi = setDriver(top, topV);
     const n = opts.reps ?? 6, rs = opts.repSec ?? 2.4;
+    // Alternating drills: the trailing leg runs half a cycle behind the counted (near) leg.
+    const alt = (a: Pose, b: Pose) => !r.alternating || st.alternate === false ? [a, b] : [
+      { ...a, hipR: b.hip, kneeR: b.knee, ankleR: b.ankle },
+      { ...b, hipR: a.hip, kneeR: a.knee, ankleR: a.ankle },
+    ] as const;
     for (let i = 0; i < n; i++) {
       // Last rep deliberately shallow so the demo shows a red/yellow rep.
       const deep = i === n - 1 ? lerp(hi, lo, 0.55) : lo;
-      move(hi, deep, rs * 0.55); hold(deep, 0.15); move(deep, hi, rs * 0.4); hold(hi, 0.35);
+      const [h, d] = alt(hi, deep);
+      move(h!, d!, rs * 0.55); hold(d!, 0.15); move(d!, h!, rs * 0.4); hold(h!, 0.35);
     }
   } else if (def.mode === 'hold') {
     move(top, bottom, 1.2);
     const sec = (def.hold?.targetSec ?? 20) + 3;
-    for (let i = 0; i < sec * fps; i++) emit(lerp(bottom, top, 0.04 + 0.04 * Math.sin(i / 9)));
+    for (let i = 0; i < sec * fps; i++) emit(lerp(bottom, top, 0.02 + 0.02 * Math.sin(i / 9)));
     move(bottom, top, 1);
   } else if (def.event?.trigger === 'jump') {
     for (let i = 0; i < (opts.reps ?? 3); i++) {
-      const crouch = { ...bottom, knee: Math.min(bottom.knee, 110), hip: Math.min(bottom.hip, 110), trunk: Math.max(bottom.trunk, 30) };
-      move(top, crouch, 0.6);
-      const ext = { ...top, knee: 178, hip: 178, ankle: 140, arm: 20 };
+      // Broad jumps travel forward in the air and walk back between attempts.
+      const d = st.travel ?? 0, from = { ...top, shift: -d / 2 };
+      const crouch = { ...bottom, knee: Math.min(bottom.knee, 110), hip: Math.min(bottom.hip, 110), trunk: Math.max(bottom.trunk, 30), ...st.crouch, shift: -d / 2 };
+      move(i ? top : from, crouch, 0.6);
+      const ext = { ...top, knee: 178, hip: 178, ankle: 140, arm: 20, ...st.takeoff, shift: -d / 2 };
       move(crouch, ext, 0.18);
       const flight = 0.5, n = Math.round(flight * fps);
-      for (let k = 1; k <= n; k++) { const tt = (k / n) * flight; emit({ ...ext, lift: 4.905 * tt * (flight - tt) * 0.72 / 1.75 }); }
-      move(ext, crouch, 0.25); move(crouch, top, 0.6); hold(top, 0.8);
+      for (let k = 1; k <= n; k++) { const tt = (k / n) * flight; emit({ ...ext, lift: 4.905 * tt * (flight - tt) * 0.72 / 1.75, shift: -d / 2 + (d * k) / n }); }
+      move({ ...ext, shift: d / 2 }, { ...crouch, shift: d / 2 }, 0.25); move({ ...crouch, shift: d / 2 }, from, 0.6); hold(from, 0.8);
     }
   } else {
     // Throw / strike: arm sweeps back-down → over the top → forward with peak speed at ~35° release.
     const rel = def.event?.releaseAngle ? (def.event.releaseAngle.good[0] + def.event.releaseAngle.good[1]) / 2 : 35;
     const releaseDir = 367 - rel; // arm direction whose wrist tangent is ~`rel` above horizontal (forearm adds ~7°)
+    // Throws judged on the right arm swing it; the left arm follows the style (balance arm) or mirrors it.
+    const rightArm = def.angles.some((a) => a.kind === 'joint' && a.side === 'right' && (a.joint === 'shoulder' || a.joint === 'elbow'));
+    const sweep = (armV: number, elbowV: number): Partial<Pose> => rightArm
+      ? { armR: armV, elbowR: Math.max(bottom.elbowR ?? bottom.elbow, elbowV) }
+      : { arm: armV, elbow: Math.max(bottom.elbow, elbowV) };
     for (let i = 0; i < (opts.reps ?? 3); i++) {
-      const wind = { ...bottom, arm: releaseDir - 80, elbow: Math.max(bottom.elbow, 160) };
-      const follow = { ...bottom, arm: releaseDir + 80, elbow: Math.max(bottom.elbow, 160) };
-      move(top, wind, 0.9); hold(wind, 0.2); move(wind, follow, 0.26); move(follow, top, 0.9); hold(top, 0.8);
+      const wind = { ...bottom, ...sweep(releaseDir - 80, 160), ...st.windup };
+      const follow = { ...bottom, ...sweep(releaseDir + 80, 160), ...st.follow };
+      move(top, wind, 0.9); hold(wind, 0.2); move(wind, follow, st.release ?? 0.26); move(follow, top, 0.9); hold(top, 0.8);
     }
   }
   hold(top, 0.8);
