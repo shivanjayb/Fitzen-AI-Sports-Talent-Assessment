@@ -58,8 +58,8 @@ export default function Admin() {
       <h2 className="section-title">Coach applications<small>{pending.length} waiting</small></h2>
       <div className="rows">
         {pending.map((u) => (
-          <div key={u.id} className="session-row">
-            <span style={{ minWidth: 0, flex: 1 }}><b>{u.display_name}</b><small>{u.organisation} · joined {new Date(u.created_at).toLocaleDateString()}</small></span>
+          <div key={u.id} className="session-row" style={{ flexWrap: 'wrap' }}>
+            <span style={{ minWidth: 0, flex: '1 1 100%' }}><b>{u.display_name}</b><small>{u.organisation} · joined {new Date(u.created_at).toLocaleDateString()}</small></span>
             <button className="btn primary" onClick={() => act(supabase!.rpc('review_coach', { target: u.id, approve: true }))}>Approve</button>
             <button className="btn glass press" onClick={() => act(supabase!.rpc('review_coach', { target: u.id, approve: false }))}>Reject</button>
           </div>
@@ -68,8 +68,8 @@ export default function Admin() {
       </div>
 
       <h2 className="section-title">People</h2>
-      <form className="row" style={{ gap: 8 }} onSubmit={(e) => { e.preventDefault(); loadUsers(q); }}>
-        <input aria-label="Search by display name" value={q} placeholder="Search by display name" onChange={(e) => setQ(e.target.value)} style={{ flex: 1 }} />
+      <form className="row" style={{ gap: 8, alignItems: 'flex-end' }} onSubmit={(e) => { e.preventDefault(); loadUsers(q); }}>
+        <label className="field" style={{ flex: 1 }}><span>Search by display name</span><input value={q} onChange={(e) => setQ(e.target.value)} /></label>
         <button className="btn glass press">Search</button>
       </form>
       <div className="rows" style={{ marginTop: 10 }}>
@@ -77,7 +77,7 @@ export default function Admin() {
           <div key={u.id} className="session-row">
             <span style={{ minWidth: 0, flex: 1 }}><b>{u.display_name}</b><small>{u.minor ? 'Under 18 · ' : ''}{u.sessions} synced sessions · since {new Date(u.created_at).toLocaleDateString()}</small></span>
             {u.id === user.id ? <span className="tag">You · admin</span> : (
-              <select aria-label={`Role for ${u.display_name}`} value={u.role} disabled={u.minor} onChange={(e) => {
+              <select className="role-select" aria-label={`Role for ${u.display_name}`} value={u.role} disabled={u.minor} onChange={(e) => {
                 if (confirm(`Make ${u.display_name} ${e.target.value === 'athlete' ? 'an athlete' : `a${e.target.value === 'admin' ? 'n' : ''} ${e.target.value}`}?`)) act(supabase!.rpc('set_role', { target: u.id, new_role: e.target.value }));
               }}>{(['athlete', 'coach', 'admin'] as const).map((r) => <option key={r} value={r}>{r[0]!.toUpperCase() + r.slice(1)}</option>)}</select>
             )}

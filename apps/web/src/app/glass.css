@@ -1,7 +1,7 @@
 /*
- * Fitzen design system, after Apple Fitness+ (tokens from the "Fitness+ Reference" and "Apple Native"
- * systems): black ground, flat #1c1c1e content, Liquid Glass only on the navigation layer, ring hues
- * reserved for activity data, white "Let's Go" capsules, SF Pro / SF Rounded through the system stack.
+ * Fitzen design system: black ground, flat #1c1c1e content, glass only on the navigation layer, ring hues
+ * reserved for activity data, white "Let's Go" capsules, the device's own system font stack (nothing bundled).
+ * Fitzen signatures: the protractor dial on the rings, the joint-line under page titles, the FITZEN mark.
  * Green/amber/red still only judge form.
  */
 :root {
@@ -327,7 +327,7 @@ html { caret-color: var(--accent); scrollbar-color: var(--glass-strong) transpar
 .zone-legend { display: flex; gap: 14px; font-size: 0.82rem; color: var(--text-2); flex-wrap: wrap; }
 .zone-legend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; }
 
-/* ── Live session: Fitness+ metrics overlay (always dark: it sits over video) ── */
+/* ── Live session: metrics overlay (always dark: it sits over video) ── */
 .stage { position: fixed; inset: 0; z-index: 50; background: #000; overflow: hidden; color: #fff; }
 .stage video, .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .stage.contain video, .stage.contain canvas { object-fit: contain; }
@@ -454,7 +454,7 @@ table.data td { padding: 9px 6px; border-top: 0.5px solid var(--sep); }
 .field { min-width: 0; }
 .field input, .field select { width: 100%; min-width: 0; }
 
-/* ── Fitness+ pieces ───────────────────────────────────────────── */
+/* ── Training pieces ───────────────────────────────────────────── */
 .rings circle { fill: none; stroke-width: 13; stroke-linecap: round; transition: stroke-dashoffset 0.9s var(--ease); }
 .rings .val { animation: ringIn 0.9s var(--ease) 0.15s backwards; }
 .rings .closed { animation: ringIn 0.9s var(--ease) 0.15s backwards, ringPulse 0.6s var(--spring) 1.05s; }
@@ -519,7 +519,7 @@ table.data td { padding: 9px 6px; border-top: 0.5px solid var(--sep); }
 .rows .ic svg { width: 18px; height: 18px; }
 @media (hover: hover) { .rows > a:hover, .rows > button:hover { background: var(--bg-3); } }
 
-/* ── Exercise detail (Fitness+ workout page) ───────────────────── */
+/* ── Exercise detail ───────────────────────────────────────────── */
 .detail { padding-top: 0 !important; }
 .detail-hero {
   position: relative; isolation: isolate; overflow: hidden; color: #fff; margin: 0 calc(-1 * var(--gutter));
@@ -648,3 +648,26 @@ table.data td { padding: 9px 6px; border-top: 0.5px solid var(--sep); }
   backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
   animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important;
 }
+
+/* ── Fitzen signatures ─────────────────────────────────────────── */
+/* Protractor dial and joint glyph on the rings (Rings.tsx). */
+.rings .dial line { stroke: var(--text-2); stroke-width: 1.2; stroke-linecap: round; opacity: 0.55; }
+.rings .dial path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.rings .dial .joint { stroke: var(--text); stroke-width: 2.4; }
+.rings .dial .arc { stroke: var(--accent); stroke-width: 1.4; }
+.rings .dial .dot { fill: var(--accent); stroke: none; }
+.rings .dial circle { transition: none; }
+/* Joint-line under page titles: three joints and two segments, like a tracked limb. */
+.page-head .large-title::after {
+  content: ''; display: block; width: 46px; height: 8px; margin-top: 6px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 46 8'%3E%3Cpath d='M4 6 21 2l21 3' fill='none' stroke='%2388888c' stroke-width='1.6' stroke-linecap='round'/%3E%3Ccircle cx='4' cy='6' r='2.4' fill='%23a6ff00'/%3E%3Ccircle cx='21' cy='2' r='2.4' fill='%2300d9ff'/%3E%3Ccircle cx='42' cy='5' r='2.4' fill='%23a6ff00'/%3E%3C/svg%3E") no-repeat left center / contain;
+}
+/* FITZEN mark, top-left on wide screens (the tab bar sits top-centre there). */
+.app-brand { display: none; }
+@media (min-width: 900px) {
+  .app-brand {
+    display: inline-flex; align-items: center; gap: 8px; position: fixed; z-index: 41; top: 28px; left: 40px;
+    font-weight: 800; font-size: 0.95rem; letter-spacing: 0.14em; color: var(--text);
+  }
+}
+.role-select { background: var(--fill); color: var(--text); border: 0; border-radius: 999px; padding: 8px 12px; font: inherit; font-size: 0.875rem; }

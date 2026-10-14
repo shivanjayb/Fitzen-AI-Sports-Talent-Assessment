@@ -149,15 +149,15 @@ export default function Exercise() {
           <div className="measure">
             {(mine?.def ?? ex).checks.map((c, i) => {
               const r = rangeOf(ex, c), std = rangeOf(ex, ex.checks[i]!);
-              return <div key={i}><span className="when">{c.when}</span><span>{r.label}<span className="cue">{c.cue}</span></span><b className="num z-good">{r.range}{std.range !== r.range && <small className="faint" style={{ display: 'block', fontWeight: 400 }}>standard {std.range}</small>}</b></div>;
+              return <div key={i}><span className="when">{c.when}</span><span>{r.label}<span className="cue">{c.cue}</span></span><b className="num z-good">{r.range}{std.range !== r.range && <small className="faint" style={{ display: 'block', fontWeight: 400, fontSize: '.72rem' }}>standard {std.range}</small>}</b></div>;
             })}
           </div>
+          <div className="zone-legend" style={{ marginTop: 12 }}><span><i style={{ background: 'var(--good)' }} />Correct</span><span><i style={{ background: 'var(--ok)' }} />Moderate</span><span><i style={{ background: 'var(--bad)' }} />Fix it</span></div>
           {mine && mine.reasons.length > 0 && <div className="glass panel fitted" style={{ marginTop: 12 }}>
             <b>Fitted to you</b>
             <ul style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: '.85rem' }}>{mine.reasons.map((x) => <li key={x}>{x}</li>)}</ul>
             <Link to="/profile" className="faint" style={{ fontSize: '.8rem' }}>Change in Profile · leaderboards use standard ranges</Link>
           </div>}
-          <div className="zone-legend" style={{ marginTop: 12 }}><span><i style={{ background: 'var(--good)' }} />Correct</span><span><i style={{ background: 'var(--ok)' }} />Moderate</span><span><i style={{ background: 'var(--bad)' }} />Fix it</span></div>
 
           <h2 className="section-title">Equipment</h2>
           <div className="pills">{(ex.equipment.length ? ex.equipment : ['none needed']).map((m) => <span key={m}>{m}</span>)}</div>

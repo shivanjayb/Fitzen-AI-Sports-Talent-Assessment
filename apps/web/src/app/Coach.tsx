@@ -76,16 +76,16 @@ function Squads() {
   return (<>
     <h2 className="section-title">Squads</h2>
     {squads === null ? <div className="spinner" aria-label="Loading squads" /> : (
-      <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
-        {squads.map((s) => <button key={s.id} className={`btn ${s.id === sel ? 'primary' : 'glass press'}`} onClick={() => setSel(s.id)}>{s.name}</button>)}
-        <form className="row" style={{ gap: 8 }} onSubmit={(e) => { e.preventDefault(); void supabase!.from('groups').insert({ name: name.trim(), kind: 'squad' }).select('id').single().then(({ data, error }) => {
+      <>
+        {squads.length > 0 && <div className="chips">{squads.map((s) => <button key={s.id} className={`chip ${s.id === sel ? 'on' : ''}`} onClick={() => setSel(s.id)}>{s.name}</button>)}</div>}
+        <form className="row" style={{ gap: 8, marginTop: 10, alignItems: 'flex-end' }} onSubmit={(e) => { e.preventDefault(); void supabase!.from('groups').insert({ name: name.trim(), kind: 'squad' }).select('id').single().then(({ data, error }) => {
           if (error) { setMsg(errText(error)); return; }
           setName(''); setSel((data as { id: string }).id); void load();
         }); }}>
-          <input aria-label="New squad name" required maxLength={40} value={name} placeholder="New squad name" onChange={(e) => setName(e.target.value)} style={{ minWidth: 160 }} />
+          <label className="field" style={{ flex: 1 }}><span>New squad</span><input required maxLength={40} value={name} placeholder="e.g. U16 Sprint Squad" onChange={(e) => setName(e.target.value)} /></label>
           <button className="btn glass press" disabled={!name.trim()}>Create</button>
         </form>
-      </div>
+      </>
     )}
     {msg && <p role="alert">{msg}</p>}
     {squads?.length === 0 && <p className="muted">Create a squad, then share its invite code. Athletes join from Compete → Invite code. Joining is their consent to share full reports with you; under-18s appear only after a parent confirms, and always as initials.</p>}
@@ -107,10 +107,10 @@ function Roster({ squad }: { squad: Squad }) {
         <div><b>{squad.name}</b><div className="muted" style={{ fontSize: '.85rem' }}>Invite code <b className="num" style={{ letterSpacing: '.08em' }}>{squad.invite_code}</b></div></div>
         <button className="btn glass press" onClick={() => void navigator.clipboard?.writeText(`Join my Fitzen squad "${squad.name}" with code ${squad.invite_code}: ${location.origin}/compete`)}>Copy invite</button>
       </div>
-      <div className="tiles">
-        <div className="tile move"><span>Athletes</span><small>in this squad</small><b className="num">{n}</b></div>
-        <div className="tile exercise"><span>Active</span><small>trained in the last 30 days</small><b className="num">{active}</b></div>
-        <div className="tile stand"><span>Suspect sessions</span><small>all time, visible athletes</small><b className="num">{suspect}</b></div>
+      <div className="kv" style={{ marginTop: 12, gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' }}>
+        <div><span>Athletes</span><b className="num">{n}</b></div>
+        <div><span>Active</span><b className="num">{active}</b><small>last 30 days</small></div>
+        <div><span>Suspect</span><b className="num" style={suspect ? { color: 'var(--bad)' } : { color: 'var(--text)' }}>{suspect}</b><small>sessions</small></div>
       </div>
     </section>
     {err && <p role="alert">{err}</p>}
@@ -181,13 +181,13 @@ function ApiKeys() {
   useEffect(load, []);
   const curl = `curl -X POST '${publicApi.url}/rest/v1/rpc/api_squad_report' \\\n  -H 'apikey: ${publicApi.key}' -H 'Content-Type: application/json' \\\n  -d '{"api_key": "${fresh || 'fz_…'}"}'`;
   return (<>
-    <h2 className="section-title">API keys<small>read your squads from a spreadsheet or your own tools</small></h2>
+    <h2 className="section-title">API keys<small>for your own tools</small></h2>
     <section className="glass panel" style={{ display: 'grid', gap: 12 }}>
-      <form className="row" style={{ gap: 8, flexWrap: 'wrap' }} onSubmit={(e) => { e.preventDefault(); setMsg(''); void supabase!.rpc('create_api_key', { name: name.trim() }).then(({ data, error }) => {
+      <form className="row" style={{ gap: 8, alignItems: 'flex-end' }} onSubmit={(e) => { e.preventDefault(); setMsg(''); void supabase!.rpc('create_api_key', { name: name.trim() }).then(({ data, error }) => {
         if (error) { setMsg(errText(error)); return; }
         setFresh(data as string); setName(''); load();
       }); }}>
-        <input aria-label="Key name" required maxLength={40} value={name} placeholder="Key name, e.g. Squad sheet" onChange={(e) => setName(e.target.value)} style={{ flex: 1, minWidth: 180 }} />
+        <label className="field" style={{ flex: 1 }}><span>Key name</span><input required maxLength={40} value={name} placeholder="e.g. Squad sheet" onChange={(e) => setName(e.target.value)} /></label>
         <button className="btn primary" disabled={!name.trim()}>Create key</button>
       </form>
       {fresh && <div role="status"><b>Copy this key now. It won't be shown again.</b><div className="row" style={{ gap: 8, marginTop: 6 }}><code className="num" style={{ overflowWrap: 'anywhere', flex: 1 }}>{fresh}</code><button className="btn glass press" onClick={() => void navigator.clipboard?.writeText(fresh)}>Copy</button></div></div>}

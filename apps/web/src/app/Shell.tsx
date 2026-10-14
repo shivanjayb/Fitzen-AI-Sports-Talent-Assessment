@@ -1,12 +1,12 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { IconBack, IconPeople, IconRings, IconRun, IconSearch, IconSparkle } from './icons';
+import { FitzenMark, IconBack, IconPeople, IconRings, IconRun, IconSearch, IconSparkle } from './icons';
 import Assistant from './Assistant';
 import { openAssistant } from './openAssistant';
 import { getProfile } from './store';
 import { t as translate } from './language';
 
-// Fitness app tabs: Summary, Fitness+ (our Train) and Sharing (our Compete), with search in its own glass button.
+// Three tabs (Summary, Train, Compete) with search in its own glass button.
 const TABS = [
   { to: '/progress', label: 'Summary', icon: <IconRings /> },
   { to: '/app', label: 'Train', icon: <IconRun /> },
@@ -44,6 +44,7 @@ export default function Shell() {
   }, [loc.pathname]);
   return (
     <div className="app">
+      <Link to="/" className="app-brand no-print" aria-label="Fitzen home" translate="no"><FitzenMark size={22} />FITZEN</Link>
       <Outlet />
       <div className="tabdock no-print">
         <nav ref={bar} className="tabbar glassy" aria-label="Main">

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CATEGORIES, EXERCISES, MotionSession, exerciseById, simulateExercise, type ExerciseDef, type LiveState, type PoseFrame, type SessionReport, type Zone } from '@fitzen/engines';
 import { Thumb, drawAthlete } from './Figure';
+import { FitzenMark } from './icons';
 import './landing.css';
 
 /** Sports the hero athlete cycles through. */
@@ -30,10 +31,7 @@ const Arrow = () => (
 function Wordmark() {
   return (
     <span className="lp-mark" aria-label="Fitzen" translate="no">
-      <svg viewBox="0 0 28 28" width="24" height="24" aria-hidden>
-        <circle cx="17" cy="5.5" r="3.2" fill="var(--lime)" />
-        <path d="M17 9.5 13 16l5 3.5-2 6.5M13 16l-6 1.5M15.5 12.5l6 1" stroke="currentColor" strokeWidth="2.8" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
+      <FitzenMark />
       FITZEN
     </span>
   );
