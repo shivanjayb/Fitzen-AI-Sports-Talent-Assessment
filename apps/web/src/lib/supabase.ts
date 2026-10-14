@@ -37,6 +37,9 @@ export const useUser = (): User | null => useIdentity().user;
 export const accessToken = async (): Promise<string | null> =>
   (await supabase?.auth.getSession())?.data.session?.access_token ?? null;
 
+/** PostgREST/Postgres codes for a table, column or function that doesn't exist: the project is missing a migration. */
+export const isMissingSchema = (e: unknown) => ['PGRST202', 'PGRST204', 'PGRST205', '42703', '42883', '42P01'].includes((e as { code?: string } | null)?.code ?? '');
+
 /** Row of public.profiles. */
 export interface Account {
   id: string; display_name: string; birth_year: number; sex: 'male' | 'female' | null;

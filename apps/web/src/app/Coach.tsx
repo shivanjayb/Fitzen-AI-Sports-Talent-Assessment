@@ -31,6 +31,8 @@ export default function Coach() {
   if (!user) return <main className="page">{head}<section className="glass panel"><p style={{ marginTop: 0 }}>Sign in with your coach account to see your squads.</p><Link className="btn primary" to="/auth?next=%2Fcoach">Coach sign-in</Link></section></main>;
   if (acct === undefined) return <main className="page">{head}{err ? <p role="alert">{err}</p> : <div className="spinner" aria-label="Loading" />}</main>;
   if (!acct) return <main className="page">{head}<section className="glass panel"><p style={{ marginTop: 0 }}>Create your account details first (name and birth year).</p><Link className="btn primary" to="/profile#account">Finish my account</Link></section></main>;
+  // `role` comes from migration 005; without it the portal's tables and functions don't exist yet.
+  if (acct.role === undefined) return <main className="page">{head}<section className="glass panel"><b>Coach accounts are being switched on</b><p className="muted" style={{ marginBottom: 0 }}>Squads, athlete reports and API keys open here as soon as Fitzen's account database is updated. Training, results and leaderboards work as normal.</p></section></main>;
   return <main className="page" style={{ maxWidth: 980 }}>{head}{acct.role === 'coach' || acct.role === 'admin' ? <><Squads /><ApiKeys /></> : <Apply />}</main>;
 }
 

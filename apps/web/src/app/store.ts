@@ -5,7 +5,7 @@
  * Offline changes wait in local flags (synced, backedUp, profile dirty, deletions) and go up on the next syncHistory().
  */
 import { bestJumpCm, isAssessedReport, percentileFor, personalize, standardReps, usualExtreme, type AthleteProfile, type ExerciseDef, type Personalized, type TrainingLevel, type ForensicsReport, type IntegrityReport, type NormResult, type ReadinessInput, type SessionReport } from '@fitzen/engines';
-import { storageOwner, supabase } from '../lib/supabase';
+import { isMissingSchema, storageOwner, supabase } from '../lib/supabase';
 import { isLowEndDevice } from '../pose/poseSource';
 
 export interface Profile {
@@ -121,6 +121,10 @@ export function verdictOf(s: SavedSession): Verdict {
   return 'genuine';
 }
 
+// Projects without migration 005 have no sessions/athlete_data tables: stop trying (and stop counting it as pending) for this page load.
+let cloudCopy = true;
+const noCloudCopy = (e: unknown) => { if (isMissingSchema(e)) cloudCopy = false; return !!e; };
+
 /** True when the signed-in session still belongs to `owner` (account switches mid-request never write across users). */
 const stillOwner = async (owner: string) =>
   !!supabase && owner !== 'guest' && storageOwner() === owner && (await supabase.auth.getSession()).data.session?.user.id === owner;
@@ -130,7 +134,7 @@ const markHistory = (owner: string, id: string, patch: Partial<SavedSession>) =>
 /** Save the full session (report, integrity, forensics, check-in) to the account. Demos stay local. Never throws. */
 async function backupSession(s: SavedSession): Promise<boolean> {
   const owner = storageOwner();
-  if (s.source === 'demo' || !s.cloudId) return false;
+  if (s.source === 'demo' || !s.cloudId || !cloudCopy) return false;
   try {
     if (!(await stillOwner(owner))) return false;
     const { cloudId, synced: _s, backedUp: _b, ...data } = s;
@@ -138,7 +142,7 @@ async function backupSession(s: SavedSession): Promise<boolean> {
       id: cloudId, user_id: owner, exercise_id: s.report.exerciseId, source: s.source, started_at: s.report.startedAt,
       verdict: verdictOf(s), form_score: Math.round(s.report.formScore), data,
     }, { onConflict: 'id' });
-    if (!error) markHistory(owner, s.id, { backedUp: true, cloudId });
+    if (!noCloudCopy(error)) markHistory(owner, s.id, { backedUp: true, cloudId });
     return !error;
   } catch { return false; }
 }
@@ -146,10 +150,10 @@ async function backupSession(s: SavedSession): Promise<boolean> {
 async function pushProfile(): Promise<void> {
   const owner = storageOwner();
   try {
-    if (!read<boolean>(key(DIRTY, owner), false) || !(await stillOwner(owner))) return;
+    if (!cloudCopy || !read<boolean>(key(DIRTY, owner), false) || !(await stillOwner(owner))) return;
     const { updatedAt, ...profile } = read<Profile>(key(PROFILE, owner), DEFAULT_PROFILE);
     const { error } = await supabase!.from('athlete_data').upsert({ user_id: owner, profile, updated_at: updatedAt ?? new Date().toISOString() }, { onConflict: 'user_id' });
-    if (!error) write(key(DIRTY, owner), false);
+    if (!noCloudCopy(error)) write(key(DIRTY, owner), false);
   } catch { /* offline: stays dirty for the next sync */ }
 }
 
@@ -159,7 +163,7 @@ async function pullCloud(owner: string): Promise<void> {
     supabase!.from('athlete_data').select('profile, updated_at').eq('user_id', owner).maybeSingle(),
     supabase!.from('sessions').select('id, data').eq('user_id', owner).order('started_at', { ascending: false }).limit(MAX),
   ]);
-  if (storageOwner() !== owner) return;
+  if (noCloudCopy(rows.error) || storageOwner() !== owner) return;
   const local = read<Partial<Profile>>(key(PROFILE, owner), {});
   const remote = prof.data as { profile: Partial<Profile>; updated_at: string } | null;
   let changed = false;
@@ -195,7 +199,7 @@ export function syncHistory(): Promise<{ uploaded: number; pending: number }> {
   return inflight;
 }
 const needsResult = (x: SavedSession) => { const m = measureOf(x.report); return isEligibleSession(x) && m !== null && isCloudMetric(x, m) && !x.synced; };
-const needsBackup = (x: SavedSession) => x.source !== 'demo' && !x.backedUp;
+const needsBackup = (x: SavedSession) => cloudCopy && x.source !== 'demo' && !x.backedUp;
 async function runSync(): Promise<{ uploaded: number; pending: number }> {
   const owner = storageOwner();
   let uploaded = 0;
@@ -222,7 +226,7 @@ async function runSync(): Promise<{ uploaded: number; pending: number }> {
     }
   }
   const pending = read<SavedSession[]>(key(HISTORY, owner), []).filter((x) => needsResult(x) || needsBackup(x)).length
-    + read<string[]>(k, []).length + (read<boolean>(key(DIRTY, owner), false) ? 1 : 0);
+    + read<string[]>(k, []).length + (cloudCopy && read<boolean>(key(DIRTY, owner), false) ? 1 : 0);
   return { uploaded, pending };
 }
 export function importGuestHistory(): boolean {

@@ -29,6 +29,7 @@ export default function Admin() {
   if (!supabase) return <main className="page">{head}<p className="muted">Online accounts are not switched on yet.</p></main>;
   if (!user) return <main className="page">{head}<Link className="btn primary" to="/auth?next=%2Fadmin">Admin sign-in</Link></main>;
   if (acct === undefined) return <main className="page">{head}{msg ? <p role="alert">{msg}</p> : <div className="spinner" aria-label="Loading" />}</main>;
+  if (acct && acct.role === undefined) return <main className="page">{head}<section className="glass panel"><b>Admin tools are being switched on</b><p className="muted" style={{ marginBottom: 0 }}>They open here once Fitzen's account database is updated.</p></section></main>;
   if (!admin) return <main className="page">{head}<section className="glass panel"><p style={{ margin: 0 }}>This page is for Fitzen admins. Coaches use the <Link to="/coach">coach portal</Link>.</p></section></main>;
 
   const pending = users?.filter((u) => u.coach_request === 'pending') ?? [];
