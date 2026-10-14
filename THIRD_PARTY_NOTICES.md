@@ -43,3 +43,30 @@ SOFTWARE.
 (named on each lesson card); they are not made by, endorsed by or affiliated with Fitzen, SAI,
 Khelo India or Fit India. Each ID was confirmed public and embeddable through YouTube oEmbed on
 2026-10-13.
+
+---
+
+## Exercise photos
+
+`apps/web/public/exercises/` holds photos of real people doing each exercise, listed in
+`apps/web/src/app/photos.ts`. Each exercise page credits its photo. The photos were resized and
+cropped; nothing else was changed. The people shown are not affiliated with Fitzen, SAI, Khelo
+India or Fit India, and they do not endorse it.
+
+- **free-exercise-db** (https://github.com/yuhonas/free-exercise-db). The dataset is released
+  into the public domain under the Unlicense. Its README does not say where the images were
+  first taken.
+- **Wikimedia Commons**: each file keeps the licence stated on its file page.
+
+  | Exercise | File | Author | Licence |
+  |---|---|---|---|
+  | Tree, Chair, Cobra, Triangle, Boat, Mountain pose | `Vriksasana_`, `Utkatasana_`, `Bhujangasana_`, `Trikonasana_`, `Paripurna-Navasana_`, `Tadasana_Yoga-Asana_Nina-Mel.jpg` | Kennguru | CC BY 3.0 |
+  | Warrior II | `Virabhadrasana_II_-_Warrior_II_Pose.jpg` | lululemon athletica | CC BY 2.0 |
+  | Downward dog | `Downward-Facing-Dog.JPG` | Iveto | CC BY 3.0 |
+  | Warrior I | `Rocket-yoga-01-4000px.jpg` | Lilian White | CC BY 4.0 |
+  | Straight punch | `Frederick_Cornelius_Jab.jpg` | Angria1 | CC BY-SA 3.0 |
+  | Sit and reach | `An_art_of_Paschimottanasana_1.JPG` | Thamizhpparithi Maari | CC BY-SA 3.0 |
+  | Fast bowling | `Cambridge_University_CC_v_MCC_at_Cambridge,_England_069.jpg` | Acabashi | CC BY-SA 4.0 |
+  | Burpee, L-sit, Flamingo balance | `Airborne_Burpee.jpg`, `West_Point_male_gymnast_L-sit.jpg`, `USMC-09294.jpg` | US Marine Corps / West Point Public Affairs | Public domain (US government work) |
+
+  The CC BY-SA files may be shared or adapted only under the same licence.

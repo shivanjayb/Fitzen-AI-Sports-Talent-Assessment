@@ -61,6 +61,7 @@ No camera? Each exercise has Watch demo (synthetic athlete) and Analyse video. V
 
 - Working and tested locally: web app, 90 exercises, camera/demo/video paths, evidence-aware reports, guided four-test battery, profile, Progress/goals, History, coach validation CSV, fake-video checks, installable PWA shell and partial Hindi navigation/instructions.
 - UI (2026-10-14, live on fitzen-ai.vercel.app via PR #4): unofficial Apple Fitness+ style built from the "Fitness+ Reference" and "Apple Native" design-system artifacts. Tabs Summary · Train · Compete + search; `/exercise/:id` pages; every exercise drawn as a shaded human from the engine's synthetic athlete (`Figure.tsx`); one embedded YouTube lesson per exercise (`lessons.ts`, youtube-nocookie, loads on tap). See `apps/web/DESIGN.md`.
+- Exercise media (branch `claude/real-photos-movement-fix`, 2026-10-14): 77/90 exercises show real photos of people (`photos.ts`, vendored in `apps/web/public/exercises/`; free-exercise-db public domain + 15 credited Wikimedia Commons files, see THIRD_PARTY_NOTICES). The rest use the drawn demonstrator, which now moves correctly for all 90: per-exercise poses in `packages/engines/src/motion/puppetStyle.ts` (bench on a bench, bar on the back, stepping lunge, planted split stances, straight-line punches/pushes, ballistic jump shot) and drawn equipment. Audit: no exercise flags itself; every demo counts reps/holds/events.
 - Not yet verified: live camera accuracy on real athletes (all thresholds tuned on the synthetic athlete).
 - Built, not yet live: optional Supabase magic-link accounts, scoped result sync, delete-everywhere queue, Compete tab (group/city/state/India/world leaderboards, invite groups, parent consent). A new/staging Supabase project must apply `002_compete.sql` then `003_audit_hardening.sql`; never apply migrations to the live project from an agent. Parent email matching is still not verifiable parental identity.
 - Coaching is now deterministic and on-device; hosted Gemini/Anthropic processing is disabled. `api/ai.ts` returns 503 so youth data cannot be forwarded accidentally.
@@ -78,7 +79,7 @@ No camera? Each exercise has Watch demo (synthetic athlete) and Analyse video. V
 5. Live anti-cheat: wire AKCR signing + liveness prompts into the live flow.
 6. Scout/coach dashboard with report export.
 7. Device-test PWA/offline model preparation and finish Hindi/regional translations.
-8. Engine gaps: unilateral side detection, left-handed throws, weaker lying poses, more projected metrics.
+8. Engine gaps: unilateral side detection, left-handed throws, more projected metrics. Release checks for pushes and strikes (shot put, chest pass, punch, jump shot) read the elbow mid-extension at 30 fps, so even a correct demo scores those red; consider sampling at lock-out. Holds whose checks also pass standing (tree, toe touch) flag the step into position as movement.
 9. UI/UX polish pass (mobile first).
 10. Paperwork: IEEE paper, copyright consistency.
 

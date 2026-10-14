@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CATEGORIES, EXERCISES, MotionSession, exerciseById, simulateExercise, type LiveState, type PoseFrame, type SessionReport, type Zone } from '@fitzen/engines';
+import { CATEGORIES, EXERCISES, MotionSession, exerciseById, simulateExercise, type ExerciseDef, type LiveState, type PoseFrame, type SessionReport, type Zone } from '@fitzen/engines';
 import { Thumb, drawAthlete } from './Figure';
 import './landing.css';
 
@@ -68,7 +68,7 @@ function Magnetic({ to, children, className = '' }: { to: string; children: Reac
  * broadcast analysis — strobe trail, solid body, zone-coloured joints and
  * leader-line callouts.
  */
-function draw(cv: HTMLCanvasElement, f: PoseFrame, trail: PoseFrame[], l: LiveState, labels: Record<string, string>, s: number, dpr: number) {
+function draw(cv: HTMLCanvasElement, f: PoseFrame, trail: PoseFrame[], l: LiveState, labels: Record<string, string>, s: number, dpr: number, def?: ExerciseDef) {
   const ctx = cv.getContext('2d');
   if (!ctx) return;
   const W = cv.width, H = cv.height;
@@ -97,7 +97,7 @@ function draw(cv: HTMLCanvasElement, f: PoseFrame, trail: PoseFrame[], l: LiveSt
   });
 
   // The athlete, with the bones the engine is judging tinted over it
-  drawAthlete(ctx, f.landmarks, floorY / H);
+  drawAthlete(ctx, f.landmarks, floorY / H, def);
   for (const [i, j] of LIMBS) {
     const z = l.boneZones[`${Math.min(i, j)}-${Math.max(i, j)}`];
     if (!z) continue;
@@ -168,7 +168,7 @@ function Telestrator({ index, paused }: { index: number; paused: boolean }) {
     let raf = 0, i = 0, t0 = performance.now(), lastDraw = 0, lastTrail = 0, lastHud = 0;
     const reduce = paused || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const show = (f: PoseFrame, l: LiveState) => {
-      draw(cv, f, trail, l, labels, sc, dpr);
+      draw(cv, f, trail, l, labels, sc, dpr, def);
       const e = l.events[l.events.length - 1];
       setHud({ count: def.mode === 'event' ? l.events.length : l.reps, valid: l.validReps, extra: e?.jumpHeightCm !== undefined ? `${e.jumpHeightCm.toFixed(1)} cm` : e?.releaseAngle !== undefined ? `${Math.round(e.releaseAngle)}° release` : '' });
     };
@@ -194,7 +194,7 @@ function Telestrator({ index, paused }: { index: number; paused: boolean }) {
         const fr = { ...f, timestampMs: t0 + f.timestampMs };
         const l = session.push(fr, aspect);
         if (now - lastTrail > 60) { trail.push(f); if (trail.length > 9) trail.shift(); lastTrail = now; }
-        if (now - lastDraw > 16) { draw(cv, f, trail, l, labels, sc, dpr); lastDraw = now; }
+        if (now - lastDraw > 16) { draw(cv, f, trail, l, labels, sc, dpr, def); lastDraw = now; }
         if (now - lastHud > 120) { show(f, l); lastHud = now; }
       }
       raf = requestAnimationFrame(step);

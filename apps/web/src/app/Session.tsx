@@ -177,7 +177,7 @@ export default function Session() {
         } else okSince.current = null;
       }
     }
-    if (cv) drawOverlay(cv, f, l, mirror, src === 'demo' ? (ctx, fr) => drawAthlete(ctx, fr.landmarks, DEMO_GROUND) : undefined);
+    if (cv) drawOverlay(cv, f, l, mirror, src === 'demo' ? (ctx, fr) => drawAthlete(ctx, fr.landmarks, DEMO_GROUND, def) : undefined);
     setLive(l);
   }, [def, src, mirror]);
 

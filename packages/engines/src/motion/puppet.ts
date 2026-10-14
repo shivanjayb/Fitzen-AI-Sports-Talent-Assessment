@@ -121,7 +121,7 @@ function skeleton(p: Pose, front: boolean): Body {
 const legLow = (b: Body, s: 0 | 1) => Math.max(b.ankle[s].y, b.foot[s].y, b.heel[s].y);
 
 /** Figure → 33 landmarks (normalised image coords). */
-function render(p: Pose, aspect: number, jitter: () => number, ground = 0.93, front = false, hands?: number): PoseFrame['landmarks'] {
+function render(p: Pose, aspect: number, jitter: () => number, ground = 0.93, front = false, hands?: number, anchor?: number): PoseFrame['landmarks'] {
   const S = 0.72 * (ground / 0.93); // body height as a fraction of frame height, shrunk with a raised floor
   const b = skeleton(p, front);
   // Bounds in one pass; points are scaled on output (body units → frame), as some are shared between sides.
@@ -133,7 +133,8 @@ function render(p: Pose, aspect: number, jitter: () => number, ground = 0.93, fr
   const k = Math.min(1, (0.8 * aspect) / ((x1 - x0) * S || 1)), sk = S * k;
   const lowest = y1 * sk, highest = y0 * sk;
   const dy = hands !== undefined ? hands - Math.min(b.wrist[0].y, b.wrist[1].y) * sk : lowest - highest > 0.86 ? 0.5 - (lowest + highest) / 2 : ground - lowest;
-  const cx = k < 1 ? ((x1 + x0) / 2) * sk : 0; // hip-centred so moving limbs never shift the body
+  // Hip-centred so moving limbs never shift the body; a stepping athlete is held by the rear (planted) foot instead.
+  const cx = anchor !== undefined ? (Math.min(b.ankle[0].x, b.ankle[1].x) - anchor) * sk : k < 1 ? ((x1 + x0) / 2) * sk : 0;
   const T = (q: P2, depth: number, vis: number) => ({
     x: (q.x * sk - cx + p.shift * S * Math.min(1, aspect / 1.6) + aspect / 2 + depth) / aspect + jitter(),
     y: q.y * sk + dy - p.lift + jitter(),
@@ -195,16 +196,20 @@ function plant(p: Pose, gap: number, from?: [number, number]): Pose {
   return { ...p, hipR: h, kneeR: k };
 }
 
-/** Pushes and punches drive the hand along a straight line: solve the arm (two-link IK) for each point of it. */
-function straight(a: Pose, b: Pose, r: boolean) {
+/**
+ * Pushes and punches drive the hand along a straight line: solve the arm (two-link IK) for each point of it,
+ * keeping the elbow on the side the blended pose has it. `over` aims past the end hand (strikes lock out early).
+ */
+function straight(a: Pose, b: Pose, r: boolean, over = 1) {
   const s = r ? 1 : 0, U = SEG.upper, F = SEG.fore;
   const hand = (p: Pose) => { const k = skeleton(resolveArm(p), false); return { x: k.wrist[s].x - k.shoulder[s].x, y: k.wrist[s].y - k.shoulder[s].y }; };
-  // Aim 15 % past the follow-through hand: the arm locks out just before the move ends, at peak hand speed.
-  const A = hand(a), B0 = hand(b), B = { x: A.x + (B0.x - A.x) * 1.15, y: A.y + (B0.y - A.y) * 1.15 };
+  const A = hand(a), B0 = hand(b), B = { x: A.x + (B0.x - A.x) * over, y: A.y + (B0.y - A.y) * over };
   const acos = (v: number) => (Math.acos(Math.max(-1, Math.min(1, v))) * 180) / Math.PI;
   return (q: Pose, u: number): Pose => {
     const x = A.x + (B.x - A.x) * u, y = A.y + (B.y - A.y) * u, d = Math.min(Math.hypot(x, y), (U + F) * 0.9999);
-    const arm = (Math.atan2(x, -y) * 180) / Math.PI + acos((U * U + d * d - F * F) / (2 * U * d)), elbow = acos((U * U + F * F - d * d) / (2 * U * F));
+    const phi = (Math.atan2(x, -y) * 180) / Math.PI, beta = acos((U * U + d * d - F * F) / (2 * U * d)), eps = acos((U * U + F * F - d * d) / (2 * U * F));
+    const near = (r ? q.armR : q.arm) ?? q.arm!, off = (v: number) => Math.abs(((v - near + 540) % 360) - 180);
+    const [arm, elbow] = off(phi + beta) <= off(phi - beta) ? [phi + beta, eps] : [phi - beta, -eps];
     return r ? { ...q, armR: arm, elbowR: elbow } : { ...q, arm, elbow };
   };
 }
@@ -276,7 +281,8 @@ export function simulateExercise(def: ExerciseDef, opts: PuppetOptions = {}): Po
   };
   const frames: PoseFrame[] = [];
   let t = 0;
-  const emit = (p: Pose) => { frames.push({ timestampMs: t, landmarks: render(finish(p), aspect, jitter, opts.ground, front, st.hands) }); t += 1000 / fps; };
+  const rearFoot = st.step ? Math.min(...skeleton(top, false).ankle.map((a) => a.x)) : undefined;
+  const emit = (p: Pose) => { frames.push({ timestampMs: t, landmarks: render(finish(p), aspect, jitter, opts.ground, front, st.hands, rearFoot) }); t += 1000 / fps; };
   const hold = (p: Pose, sec: number) => { for (let i = 0; i < sec * fps; i++) emit(p); };
   // Speed peaks a fraction `p` of the way through a move: 0.5 is the plain cosine ease; strikes peak late, near lock-out.
   const ease = (s: number, p: number) => (s < p ? p * (1 - Math.cos((Math.PI / 2) * (s / p))) : p + (1 - p) * Math.sin((Math.PI / 2) * ((s - p) / (1 - p))));
@@ -308,16 +314,24 @@ export function simulateExercise(def: ExerciseDef, opts: PuppetOptions = {}): Po
     const n = opts.reps ?? 6, rs = opts.repSec ?? 2.4;
     // Jumping into and out of a split: the feet leave the floor instead of skating.
     const hop = st.hop ? (q: Pose, u: number) => ({ ...q, lift: q.lift + st.hop! * Math.sin(Math.PI * u) }) : undefined;
+    const swap = (p: Pose): Pose => ({ ...p, hip: p.hipR ?? p.hip, knee: p.kneeR ?? p.knee, ankle: p.ankleR, hipR: p.hip, kneeR: p.knee, ankleR: p.ankle });
+    const arc = (lead: 0 | 1) => (q: Pose, u: number): Pose => {
+      const s = Math.sin(Math.PI * u), hip = (lead ? q.hipR ?? q.hip : q.hip) - 25 * s, knee = (lead ? q.kneeR ?? q.knee : q.knee) - 45 * s;
+      return lead ? { ...q, hipR: hip, kneeR: knee } : { ...q, hip, knee };
+    };
     // Alternating drills: the trailing leg runs half a cycle behind the counted (near) leg.
-    const alt = (a: Pose, b: Pose) => !r.alternating || st.alternate === false ? [a, b] : [
+    const alt = (a: Pose, b: Pose) => !r.alternating || st.alternate === false || st.step ? [a, b] : [
       { ...a, hipR: b.hip, kneeR: b.knee, ankleR: b.ankle },
       { ...b, hipR: a.hip, kneeR: a.knee, ankleR: a.ankle },
     ] as const;
     for (let i = 0; i < n; i++) {
       // Last rep deliberately shallow so the demo shows a red/yellow rep.
       const deep = i === n - 1 ? lerp(hi, lo, 0.55) : lo;
-      const [h, d] = alt(hi, deep);
-      move(h!, d!, rs * 0.55, 0.5, hop); hold(d!, 0.15); move(d!, h!, rs * 0.4, 0.5, hop); hold(h!, 0.35);
+      // Lunges lead with each leg in turn; the stepping foot clears the floor on the way out and back.
+      const lead = st.step && i % 2 ? 1 : 0;
+      const [h, d] = alt(hi, lead ? swap(deep) : deep);
+      const step = st.step ? arc(lead) : hop;
+      move(h!, d!, rs * 0.55, 0.5, step); hold(d!, 0.15); move(d!, h!, rs * 0.4, 0.5, step); hold(h!, 0.35);
     }
   } else if (def.mode === 'hold') {
     move(top, bottom, 1.2);
@@ -359,7 +373,7 @@ export function simulateExercise(def: ExerciseDef, opts: PuppetOptions = {}): Po
         }
       } else {
         move(top, wind, 0.9); hold(wind, 0.2);
-        move(wind, follow, rs, st.peak, st.linear ? straight(wind, follow, rightArm) : undefined);
+        move(wind, follow, rs, st.peak, st.linear ? straight(wind, follow, rightArm, 1.15) : undefined);
       }
       move(follow, top, 0.9); hold(top, 0.8);
     }
