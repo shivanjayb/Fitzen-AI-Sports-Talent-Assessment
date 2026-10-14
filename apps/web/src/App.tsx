@@ -12,6 +12,8 @@ import { useLanguage } from './app/language';
 // Sessions stay on this device. Optional accounts (Supabase magic link, src/lib/supabase.ts) add leaderboards and groups.
 const Session = lazy(() => import('./app/Session'));
 const Results = lazy(() => import('./app/Results'));
+const Coach = lazy(() => import('./app/Coach'));
+const Admin = lazy(() => import('./app/Admin'));
 const History = lazy(() => import('./app/History'));
 const Profile = lazy(() => import('./app/Profile'));
 const Progress = lazy(() => import('./app/Progress'));
@@ -65,6 +67,8 @@ export default function App() {
               <Route path="/validation" element={<Validation />} />
               <Route path="/guided" element={<Guided />} />
               <Route path="/results/:id" element={<Results />} />
+              <Route path="/coach" element={<Coach />} />
+              <Route path="/admin" element={<Admin />} />
             </Route>
             <Route path="/train/:id" element={<Session />} />
             <Route path="/consent" element={<Consent />} />

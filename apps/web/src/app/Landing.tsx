@@ -291,7 +291,7 @@ export default function Landing() {
           <a href="#how">How it works</a>
           <a href="#mission">Why Fitzen</a>
         </nav>
-        <div className="row" style={{ gap: 14 }}><Link to="/auth" className="lp-link">Sign in</Link><Link to="/app" className="lp-nav-cta">Try now</Link></div>
+        <div className="row" style={{ gap: 14 }}><Link to="/auth?next=%2Fcoach" className="lp-link">Coaches</Link><Link to="/auth" className="lp-link">Sign in</Link><Link to="/app" className="lp-nav-cta">Try now</Link></div>
       </header>
 
       <main id="main">

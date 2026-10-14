@@ -637,3 +637,8 @@ table.data td { padding: 9px 6px; border-top: 0.5px solid var(--sep); }
 .session-row small { color: var(--text-2); font-size: 0.8125rem; }
 .rows > .session-row > svg:last-child { margin-left: 4px; }
 .session-row .score { margin-left: auto; font: 600 1.25rem var(--rounded); color: var(--exercise); }
+
+/* Admin: verdict share bar */
+.verdict-bar { display: flex; height: 10px; border-radius: 99px; overflow: hidden; margin-top: 10px; background: var(--bg-2); }
+.verdict-bar i { display: block; min-width: 2px; }
+.verdict-bar .v-genuine { background: var(--good); } .verdict-bar .v-review { background: var(--ok); } .verdict-bar .v-suspect { background: var(--bad); }

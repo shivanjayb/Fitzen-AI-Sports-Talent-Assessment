@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { assessDiet, maturityOffset, type DietPattern } from '@fitzen/engines';
-import { getHistory, getProfile, INDIAN_STATES, saveProfile, toAthlete, syncHistory, importGuestHistory, type Profile as P } from './store';
+import { getHistory, getProfile, INDIAN_STATES, saveProfile, toAthlete, syncHistory, importGuestHistory, SYNCED, type Profile as P } from './store';
 import { getAccount, isMinor, supabase, useUser, type Account as Acct } from '../lib/supabase';
 import { applyTheme, getTheme, THEME, type Theme } from './theme';
 import Offline from './Offline';
 import { getLanguage, setLanguage, t, type Language } from './language';
 import { PageHeader } from './Shell';
-import { signOut } from '../lib/auth';
+import { setPassword, signOut } from '../lib/auth';
 
 function Stepper({ label, value, set, min = 0, max = 10, step = 1, unit = '' }: { label: string; value: number; set: (v: number) => void; min?: number; max?: number; step?: number; unit?: string }) {
   return (
@@ -27,6 +27,7 @@ export default function Profile() {
   const [theme, setTheme] = useState<Theme>(getTheme());
   const [saveFailed, setSaveFailed] = useState(false);
   useEffect(() => { setSaveFailed(!saveProfile(p)); }, [p]);
+  useEffect(() => { const f = () => setP(getProfile()); window.addEventListener(SYNCED, f); return () => window.removeEventListener(SYNCED, f); }, []);
   useEffect(() => { applyTheme(theme); try { localStorage.setItem(THEME, theme); } catch { /* private mode */ } }, [theme]);
   const num = (k: 'weightKg' | 'heightCm' | 'age' | 'sittingHeightCm') => (e: React.ChangeEvent<HTMLInputElement>) => setP({ ...p, [k]: e.target.value ? Number(e.target.value) : null });
   const diet = (k: keyof P['diet']) => (v: number) => setP({ ...p, diet: { ...p.diet, [k]: v } });
@@ -226,9 +227,21 @@ function Account({ p }: { p: P }) {
       )}
       <button className="btn primary" disabled={busy || !d.display_name.trim() || !(by >= 1920)} onClick={save}>{acct ? 'Save changes' : 'Create my account'}</button>
       {status}
-      <p className="faint" style={{ margin: 0, fontSize: '.8rem' }}>What we upload: for each camera or video session, only the exercise, your best number, your form score and the date. Never video, never your camera feed. Demo runs are not uploaded.</p>
+      <p className="faint" style={{ margin: 0, fontSize: '.8rem' }}>Leaderboards get only the exercise, your best number, your form score and the date. Your profile and full session reports are kept privately in your account so you can sign in on any device; a coach sees them only if you join their squad. Never video, never your camera feed. Demo runs stay on this device.</p>
     </section>
-    <div style={{ marginTop: 14 }}>{logout}</div>
+    <div className="row" style={{ marginTop: 14, gap: 10, flexWrap: 'wrap' }}>
+      {logout}
+      <Link className="btn glass press" to="/coach">{acct?.role === 'athlete' || !acct?.role ? 'Coach portal' : 'Open coach portal'}</Link>
+      {acct?.role === 'admin' && <Link className="btn glass press" to="/admin">Admin portal</Link>}
+    </div>
+    <form className="glass panel" style={{ display: 'grid', gap: 10, marginTop: 10 }} onSubmit={(e) => {
+      e.preventDefault();
+      const input = e.currentTarget.elements.namedItem('pw') as HTMLInputElement;
+      void run(async () => { await setPassword(supabase, input.value); input.value = ''; return 'Password saved. Use it to sign in on any device.'; });
+    }}>
+      <label className="field"><span>Set a password (sign in anywhere without an email link)</span><input name="pw" type="password" minLength={8} maxLength={72} autoComplete="new-password" required /></label>
+      <button className="btn glass press" disabled={busy}>Save password</button>
+    </form>
     {acct && (
       <section className="glass panel" style={{ display: 'grid', gap: 10, marginTop: 10 }}>
         <button className="btn glass press" disabled={busy} onClick={() => run(async () => {
@@ -241,8 +254,10 @@ function Account({ p }: { p: P }) {
         }}>Import my guest sessions</button>
         <div className="row" style={{ flexWrap: 'wrap' }}>
           <button className="btn danger" disabled={busy} onClick={() => {
-            if (!confirm('Delete your account data? Your uploaded scores, groups you own and memberships are removed. Sessions on this phone stay.')) return;
+            if (!confirm('Delete your account data? Your uploaded scores, synced reports, groups you own and memberships are removed. Sessions on this phone stay.')) return;
             void run(async () => {
+              // Synced sessions and the profile copy belong to the login, not the public profile: remove them too.
+              for (const t of ['sessions', 'athlete_data'] as const) { const { error } = await supabase!.from(t).delete().eq('user_id', user.id); if (error) throw error; }
               const { error } = await supabase!.from('profiles').delete().eq('id', user.id);
               if (error) throw error;
               setAcct(null);
