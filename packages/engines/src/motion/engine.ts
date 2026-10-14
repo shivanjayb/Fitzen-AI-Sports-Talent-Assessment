@@ -14,6 +14,7 @@
 import type { PoseFrame } from '../jump/types.js';
 import type { AngleDef, Check, ExerciseDef, Range, SegmentName } from './types.js';
 import { simulateExercise } from './puppet.js';
+import { exerciseById } from './catalog/index.js';
 
 export type Zone = 'good' | 'ok' | 'bad';
 
@@ -282,8 +283,10 @@ const OVERSHOOT = 55;
 const OUT_OF_PLANE = 0.5;
 
 const refCache = new Map<string, RepSignature | null>();
-function referenceSignature(def: ExerciseDef): RepSignature | null {
-  if (refCache.has(def.id)) return refCache.get(def.id)!;
+function referenceSignature(session: ExerciseDef): RepSignature | null {
+  if (refCache.has(session.id)) return refCache.get(session.id)!;
+  // The reference is the catalog movement: a personalized copy (wider bands, same id) must not change it.
+  const def = exerciseById(session.id) ?? session;
   const s = new MotionSession(def, { checkMovement: false });
   for (const f of simulateExercise(def, { reps: 3, seed: 1 })) s.push(f);
   const sigs = def.mode === 'reps' ? s.signatures().slice(0, 2) : s.signatures(); // the demo's last rep is deliberately shallow
