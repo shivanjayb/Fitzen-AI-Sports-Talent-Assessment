@@ -253,6 +253,14 @@ html { caret-color: var(--accent); scrollbar-color: var(--glass-strong) transpar
 .figure, .figure-live { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; }
 .figure-live canvas { display: block; width: 100%; height: 100%; }
 .figure img { width: 100%; height: 100%; object-fit: contain; display: block; animation: fade 0.5s var(--ease) both; }
+/* Real photos: start and end positions stacked; the end shows, and they crossfade in heroes and on card hover. */
+.photo { position: absolute; inset: 0; z-index: 1; background: #fff; }
+.photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 35%; display: block; animation: fade 0.5s var(--ease) both; }
+.photo.tall img { object-fit: contain; }
+.photo.cycle img + img { animation: swap 4.4s var(--ease) infinite; }
+@media (hover: hover) { .ex-card:hover .photo.two img + img { animation: swap 2.6s var(--ease) infinite; } }
+@keyframes swap { 0%, 38% { opacity: 1; } 50%, 88% { opacity: 0; } 100% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .photo img, .photo.cycle img + img, .ex-card:hover .photo.two img + img { animation: none; } }
 .art .badge {
   position: absolute; z-index: 3; left: 10px; bottom: 8px; font: 700 0.6875rem var(--font); letter-spacing: 0.02em; text-transform: uppercase;
   color: #fff; text-shadow: 0 1px 6px rgba(0, 0, 0, 0.5);
@@ -468,6 +476,7 @@ table.data td { padding: 9px 6px; border-top: 0.5px solid var(--sep); }
   background: radial-gradient(100% 75% at 62% 22%, color-mix(in srgb, var(--hue) 90%, #fff) 0%, var(--hue) 20%, var(--hue-2) 62%, #000 100%);
 }
 .feat .figure-live, .feat .figure { inset: 3% 0 44% 0; width: auto; height: auto; }
+.feat .photo, .detail-hero .photo { bottom: 30%; -webkit-mask-image: linear-gradient(180deg, #000 72%, transparent); mask-image: linear-gradient(180deg, #000 72%, transparent); }
 .feat::before { content: ""; position: absolute; inset: 0; z-index: 2; background: linear-gradient(180deg, transparent 42%, rgba(0, 0, 0, 0.55) 68%, rgba(0, 0, 0, 0.85)); pointer-events: none; }
 .feat-body { position: relative; z-index: 3; max-width: 520px; }
 .feat-kicker { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; color: rgba(255, 255, 255, 0.8); }
@@ -482,6 +491,7 @@ table.data td { padding: 9px 6px; border-top: 0.5px solid var(--sep); }
   .feat { aspect-ratio: 21 / 8; min-height: 400px; max-height: 540px; padding: 48px 56px; justify-content: center;
     background: radial-gradient(70% 110% at 72% 30%, color-mix(in srgb, var(--hue) 90%, #fff) 0%, var(--hue) 18%, var(--hue-2) 58%, #000 100%); }
   .feat .figure-live, .feat .figure { inset: 6% 2% 4% 38%; }
+  .feat .photo, .detail-hero .photo { inset: 0 0 0 34%; -webkit-mask-image: linear-gradient(90deg, transparent, #000 22%); mask-image: linear-gradient(90deg, transparent, #000 22%); }
   .feat::before { background: linear-gradient(90deg, rgba(0, 0, 0, 0.72), rgba(0, 0, 0, 0.25) 45%, transparent 70%); }
   .feat-body { max-width: 40%; }
   .feat p { -webkit-line-clamp: 4; }

@@ -4,7 +4,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { CATEGORIES, EXERCISES, exerciseById, type Category, type ExerciseDef } from '@fitzen/engines';
 import { getHistory, isEligibleSession } from './store';
 import { IconChevron, IconFlag, IconHistory, IconSearch, IconTrophy } from './icons';
-import Figure, { FigureArt } from './Figure';
+import { ExerciseArt } from './Figure';
 import { PageHeader } from './Shell';
 import { LESSONS } from './lessons';
 
@@ -14,18 +14,16 @@ export const catLabel = (c: Category) => CATEGORIES.find((x) => x.id === c)?.lab
 const badgeOf = (ex: ExerciseDef) => ex.mode === 'hold' ? `Hold · ${ex.hold?.targetSec ?? 30} s` : MODE[ex.mode];
 /** Representative exercise drawn on each workout-type tile. */
 const TYPE_ART: Record<Category, string> = {
-  gym: 'back-squat', calisthenics: 'push-up', athletics: 'sprint-start-set', throws: 'javelin-release',
+  gym: 'back-squat', calisthenics: 'push-up', athletics: 'sprint-start-set', throws: 'fast-bowling-delivery',
   olympic: 'split-jerk', sai: 'sai-vertical-jump', yoga: 'warrior-i', mobility: 'deep-squat-hold',
 };
 
 /** Fitness+ workout card: artwork with a mode badge, title, then type and level. */
 export function ExerciseCard({ ex }: { ex: ExerciseDef }) {
-  const [live, setLive] = useState(false);
   return (
-    <Link to={`/exercise/${ex.id}`} className="ex-card press" data-cat={ex.category}
-      onPointerEnter={(e) => { if (e.pointerType === 'mouse') setLive(true); }} onPointerLeave={() => setLive(false)}>
+    <Link to={`/exercise/${ex.id}`} className="ex-card press" data-cat={ex.category}>
       <div className="art">
-        {live ? <Figure def={ex} /> : <FigureArt def={ex} />}
+        <ExerciseArt def={ex} />
         <span className="badge">{badgeOf(ex)}</span>
       </div>
       <div className="ex-name">{ex.name}</div>
@@ -52,7 +50,7 @@ function Featured({ slides }: { slides: Slide[] }) {
       <div ref={box} className="featured" onScroll={(e) => { const el = e.currentTarget; setI(Math.round(el.scrollLeft / Math.max(1, el.clientWidth))); }}>
         {slides.map((s, n) => (
           <article key={s.title} className="feat" data-cat={s.ex.category} aria-roledescription="slide" aria-label={`${n + 1} of ${slides.length}`}>
-            {n === i ? <Figure def={s.ex} /> : <FigureArt def={s.ex} w={800} h={640} />}
+            <ExerciseArt def={s.ex} play={n === i} w={800} h={640} />
             <div className="feat-body on-media">
               <span className="feat-kicker">{s.kicker}</span>
               <h2>{s.title}</h2>
@@ -71,7 +69,7 @@ function Featured({ slides }: { slides: Slide[] }) {
 }
 
 const byId = (id: string) => exerciseById(id) ?? EXERCISES[0]!;
-const LESSON_PICKS = ['back-squat', 'push-up', 'countermovement-jump', 'javelin-release', 'power-clean', 'warrior-ii', 'pull-up', 'sai-sit-and-reach', 'shot-put', 'deep-squat-hold'];
+const LESSON_PICKS = ['back-squat', 'push-up', 'countermovement-jump', 'fast-bowling-delivery', 'power-clean', 'warrior-ii', 'pull-up', 'sai-sit-and-reach', 'boxing-straight-punch', 'deep-squat-hold'];
 const Cards = ({ list, shelf = true }: { list: ExerciseDef[]; shelf?: boolean }) => <div className={shelf ? 'shelf' : 'grid'}>{list.map((e) => <ExerciseCard key={e.id} ex={e} />)}</div>;
 
 /** Lesson cards open the exercise page at its video lesson. */
@@ -79,7 +77,7 @@ const LessonShelf = ({ list }: { list: ExerciseDef[] }) => (
   <div className="shelf lessons">
     {list.map((ex) => (
       <Link key={ex.id} to={`/exercise/${ex.id}#lesson`} className="ex-card press" data-cat={ex.category}>
-        <div className="art"><FigureArt def={ex} frame="mid" /><span className="play small" aria-hidden><svg viewBox="0 0 24 24"><path d="M7 4v16l13-8z" /></svg></span></div>
+        <div className="art"><ExerciseArt def={ex} /><span className="play small" aria-hidden><svg viewBox="0 0 24 24"><path d="M7 4v16l13-8z" /></svg></span></div>
         <div className="ex-name">{LESSONS[ex.id]!.title}</div>
         <div className="ex-meta">{LESSONS[ex.id]!.channel} · {ex.name}</div>
       </Link>
@@ -138,7 +136,7 @@ function TypeTile({ type }: { type: Category }) {
   const n = EXERCISES.filter((e) => e.category === type).length;
   return (
     <button className="type-tile press" data-cat={type} onClick={() => (location.pathname === '/app' ? setParams({ type }) : nav(`/app?type=${type}`))}>
-      <div className="art"><FigureArt def={byId(TYPE_ART[type])} /></div>
+      <div className="art"><ExerciseArt def={byId(TYPE_ART[type])} /></div>
       <span className="label"><b>{catLabel(type)}</b><small>{n} exercises</small></span>
     </button>
   );
@@ -158,7 +156,7 @@ export default function Home({ search = false }: { search?: boolean }) {
     last
       ? { ex: last, kicker: t('Go again'), title: last.name, text: last.summary, go: `/train/${last.id}?src=camera`, more: `/exercise/${last.id}` }
       : { ex: byId('back-squat'), kicker: 'Featured', title: 'Back Squat', text: byId('back-squat').summary, go: '/train/back-squat?src=camera', more: '/exercise/back-squat' },
-    { ex: byId('javelin-release'), kicker: 'Throws & Strikes', title: 'Javelin release', text: 'Release angle and arm speed, read from your own throw.', go: '/train/javelin-release?src=camera', more: '/exercise/javelin-release' },
+    { ex: byId('fast-bowling-delivery'), kicker: 'Throws & Strikes', title: 'Fast bowling', text: 'Front-knee brace, arm path and trunk flexion, read from your own delivery.', go: '/train/fast-bowling-delivery?src=camera', more: '/exercise/fast-bowling-delivery' },
     { ex: byId('warrior-i'), kicker: 'Yoga', title: 'Warrior I', text: byId('warrior-i').summary, go: '/train/warrior-i?src=camera', more: '/exercise/warrior-i' },
   ];
   const lessons = LESSON_PICKS.map(byId).filter((e) => LESSONS[e.id]);

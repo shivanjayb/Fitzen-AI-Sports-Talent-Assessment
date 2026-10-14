@@ -4,7 +4,8 @@ import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { EXERCISES, exerciseById, type Check, type ExerciseDef } from '@fitzen/engines';
 import { IconBack, IconCamera, IconCheck, IconPlay, IconSearch, IconShare, IconUpload } from './icons';
 import { setPendingVideo } from './pendingVideo';
-import Figure, { FigureArt } from './Figure';
+import Figure, { ExerciseArt, FigureArt } from './Figure';
+import { photoOf } from './photos';
 import { ExerciseCard, LEVEL, catLabel } from './Home';
 import { LESSONS, lessonSearchUrl } from './lessons';
 
@@ -48,7 +49,7 @@ function Lesson({ ex }: { ex: ExerciseDef }) {
         ? <iframe src={`https://www.youtube-nocookie.com/embed/${l.v}?autoplay=1&rel=0&playsinline=1`} title={l.title}
           allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowFullScreen referrerPolicy="strict-origin-when-cross-origin" />
         : <button className="lesson-facade" onClick={() => setOn(true)} aria-label={`Play video lesson: ${l.title}`}>
-          <div className="art"><FigureArt def={ex} frame="mid" w={960} h={540} /></div>
+          <div className="art"><ExerciseArt def={ex} frame="mid" w={960} h={540} /></div>
           <span className="play"><svg viewBox="0 0 24 24" aria-hidden><path d="M7 4v16l13-8z" /></svg></span>
           <span className="lesson-meta"><small>YouTube · {l.channel}</small><b>{l.title}</b></span>
         </button>}
@@ -78,6 +79,7 @@ export default function Exercise() {
     ex.mode === 'hold' ? `${ex.hold?.targetSec ?? 30} s` : ex.event?.releaseAngle ? `${ex.event.releaseAngle.good[0]}–${ex.event.releaseAngle.good[1]}°` : ex.event?.trigger === 'jump' ? 'Max height' : 'Peak speed';
   const targetLabel = ex.mode === 'reps' && ex.reps ? `${ex.angles.find((a) => a.id === ex.reps!.driver)?.label ?? 'Joint'} at depth` : ex.mode === 'hold' ? 'Hold target' : ex.event?.releaseAngle ? 'Release angle' : 'Measures';
   const more = EXERCISES.filter((e) => e.category === ex.category && e.id !== ex.id);
+  const photo = photoOf(ex.id);
 
   return (
     <main className="page detail" data-cat={ex.category}>
@@ -87,7 +89,7 @@ export default function Exercise() {
       </div>
 
       <section className="detail-hero">
-        <Figure def={ex} />
+        <ExerciseArt def={ex} play w={960} h={720} />
         <div className="detail-title">
           <span className="feat-kicker">{catLabel(ex.category)}</span>
           <h1>{t(ex.name)}</h1>
@@ -119,7 +121,8 @@ export default function Exercise() {
           <div className="howto">
             {stepsOf(ex).map((s, i) => (
               <article key={s.frame} className="step-card">
-                <div className="art"><FigureArt def={ex} frame={s.frame} w={480} h={360} /></div>
+                {/* Real photos for the start and end positions; the moving demonstrator in between. */}
+                <div className="art">{s.frame === 'mid' ? <Figure def={ex} /> : photo && (s.frame === 'key' || photo.frames.length > 1) ? <ExerciseArt def={ex} frame={s.frame} /> : <FigureArt def={ex} frame={s.frame} w={480} h={360} />}</div>
                 <div className="txt">
                   <span className="n">Step {i + 1}</span>
                   <b>{s.title}</b>
@@ -129,6 +132,8 @@ export default function Exercise() {
               </article>
             ))}
           </div>
+
+          {photo && <p className="lesson-note"><a href={photo.href} target="_blank" rel="noopener noreferrer">{photo.credit}</a></p>}
 
           <h2 className="section-title" id="lesson" style={{ scrollMarginTop: 80 }}>{t('Video lesson')}</h2>
           <Lesson ex={ex} />
