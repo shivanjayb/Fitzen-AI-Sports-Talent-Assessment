@@ -11,12 +11,13 @@ const BONES: Array<[number, number]> = [
 ];
 const COLORS: Record<Zone, string> = { good: '#30d158', ok: '#ffd60a', bad: '#ff453a' };
 
-export function drawOverlay(canvas: HTMLCanvasElement, frame: PoseFrame | null, live: LiveState | null, mirror: boolean): void {
+export function drawOverlay(canvas: HTMLCanvasElement, frame: PoseFrame | null, live: LiveState | null, mirror: boolean, under?: (ctx: CanvasRenderingContext2D, frame: PoseFrame) => void): void {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
   const W = canvas.width, H = canvas.height;
   ctx.clearRect(0, 0, W, H);
   if (!frame) return;
+  under?.(ctx, frame);
   const s = Math.max(1, Math.min(W, H) / 540);
   const P = (i: number) => {
     const p = frame.landmarks[i];

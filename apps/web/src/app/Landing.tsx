@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CATEGORIES, EXERCISES, MotionSession, exerciseById, simulateExercise, type LiveState, type PoseFrame, type SessionReport, type Zone } from '@fitzen/engines';
-import Pictogram from './Pictogram';
+import { Thumb, drawAthlete } from './Figure';
 import './landing.css';
 
 /** Sports the hero athlete cycles through. */
@@ -96,25 +96,15 @@ function draw(cv: HTMLCanvasElement, f: PoseFrame, trail: PoseFrame[], l: LiveSt
     }
   });
 
-  // Torso
-  const sh = [P(f, 11), P(f, 12)], hp = [P(f, 23), P(f, 24)];
-  ctx.fillStyle = 'rgba(244,244,242,0.9)';
-  ctx.strokeStyle = 'rgba(244,244,242,0.9)'; ctx.lineWidth = 22 * s;
-  ctx.beginPath(); ctx.moveTo(sh[0]!.x, sh[0]!.y); ctx.lineTo(sh[1]!.x, sh[1]!.y); ctx.lineTo(hp[1]!.x, hp[1]!.y); ctx.lineTo(hp[0]!.x, hp[0]!.y); ctx.closePath(); ctx.fill(); ctx.stroke();
-
-  // Limbs, tinted where judged
-  for (const [i, j, w] of LIMBS) {
-    const p = P(f, i), q = P(f, j);
+  // The athlete, with the bones the engine is judging tinted over it
+  drawAthlete(ctx, f.landmarks, floorY / H);
+  for (const [i, j] of LIMBS) {
     const z = l.boneZones[`${Math.min(i, j)}-${Math.max(i, j)}`];
-    ctx.strokeStyle = z ? ZONE[z] : 'rgba(244,244,242,0.9)';
-    ctx.lineWidth = 16 * w * s;
+    if (!z) continue;
+    const p = P(f, i), q = P(f, j);
+    ctx.strokeStyle = ZONE[z]; ctx.lineWidth = 5 * s;
     ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y); ctx.stroke();
   }
-  // Head
-  const nose = P(f, 0), mid = { x: (sh[0]!.x + sh[1]!.x) / 2, y: (sh[0]!.y + sh[1]!.y) / 2 };
-  const hr = Math.max(16 * s, Math.hypot(nose.x - mid.x, nose.y - mid.y) * 0.42);
-  ctx.fillStyle = 'rgba(244,244,242,0.95)';
-  ctx.beginPath(); ctx.arc(nose.x + (nose.x - mid.x) * 0.15, nose.y + (nose.y - mid.y) * 0.15, hr, 0, Math.PI * 2); ctx.fill();
 
   // Joints + callouts
   const calls: Array<{ x: number; y: number; z: Zone; v: number; label: string }> = [];
@@ -234,7 +224,7 @@ function ExerciseRail({ cat }: { cat: string | null }) {
       <div className="lp-rail-track">
         {[...fill, ...fill].map((e, k) => (
           <Link key={`${e.id}-${k}`} to={`/train/${e.id}?src=demo`} className="lp-tile" aria-hidden={k >= fill.length} tabIndex={k >= fill.length ? -1 : undefined}>
-            <Pictogram def={e} size={56} />
+            <Thumb def={e} size={56} />
             <span className="lp-tile-name">{e.name}</span>
             <span className="lp-tile-meta">{e.mode === 'reps' ? 'Reps' : e.mode === 'hold' ? 'Hold' : 'Power'} · {e.camera === 'side' ? 'side view' : 'front view'}</span>
           </Link>

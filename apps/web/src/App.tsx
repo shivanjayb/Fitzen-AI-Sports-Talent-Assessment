@@ -20,6 +20,7 @@ const Consent = lazy(() => import('./app/Consent'));
 const Validation = lazy(() => import('./app/Validation'));
 const Guided = lazy(() => import('./app/Guided'));
 const Auth = lazy(() => import('./app/Auth'));
+const Exercise = lazy(() => import('./app/Exercise'));
 
 applyTheme(getTheme());
 
@@ -55,6 +56,8 @@ export default function App() {
               <Route path="/auth" element={<Auth />} />
               <Route path="/auth/callback" element={<Auth />} />
               <Route path="/app" element={<Home />} />
+              <Route path="/search" element={<Home search />} />
+              <Route path="/exercise/:id" element={<Exercise />} />
               <Route path="/progress" element={<Progress />} />
               <Route path="/compete" element={<Compete />} />
               <Route path="/history" element={<History />} />

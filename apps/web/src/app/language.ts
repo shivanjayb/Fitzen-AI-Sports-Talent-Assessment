@@ -13,7 +13,7 @@ export function setLanguage(value: Language) {
   listeners.forEach((f) => f());
 }
 const HI: Record<string, string> = {
-  Train: 'अभ्यास', Progress: 'प्रगति', Compete: 'मुकाबला', History: 'इतिहास', Profile: 'प्रोफ़ाइल',
+  Train: 'अभ्यास', Summary: 'सारांश', Search: 'खोजें', Back: 'वापस', "Let's Go": 'शुरू करें', 'See All': 'सभी देखें', 'Video lesson': 'वीडियो पाठ', 'How to do it': 'कैसे करें', Progress: 'प्रगति', Compete: 'मुकाबला', History: 'इतिहास', Profile: 'प्रोफ़ाइल',
   'Guided assessment': 'निर्देशित मूल्यांकन', 'Start guided assessment': 'मूल्यांकन शुरू करें',
   'Coach validation': 'कोच द्वारा सत्यापन', 'Start this test': 'यह परीक्षण शुरू करें',
   'Follow this protocol': 'इन निर्देशों का पालन करें', 'Back to exercise library': 'अभ्यास सूची पर लौटें',

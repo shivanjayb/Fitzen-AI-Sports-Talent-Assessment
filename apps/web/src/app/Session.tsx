@@ -5,6 +5,7 @@ import { MotionSession, analyseIntegrity, exerciseById, filtfiltLandmarks, inspe
 import { CameraPoseSource, VideoFilePoseSource, MAX_VIDEO_BYTES, type PoseSource } from '../pose/poseSource';
 import { playRepCompletedSound } from '../lib/audioFeedback';
 import { drawOverlay } from './overlay';
+import { drawAthlete } from './Figure';
 import { getProfile, saveSession } from './store';
 import { getPendingVideo, setPendingVideo } from './pendingVideo';
 import { IconAlert, IconBulb, IconCamera, IconClose, IconFlip, IconVolume } from './icons';
@@ -12,6 +13,7 @@ import { IconAlert, IconBulb, IconCamera, IconClose, IconFlip, IconVolume } from
 // Demo canvas matches the screen's shape so the figure is never cropped.
 const DEMO_H = 900;
 const DEMO_W = typeof window === 'undefined' ? 1600 : Math.round(DEMO_H * Math.max(0.5, Math.min(2, window.innerWidth / window.innerHeight)));
+const DEMO_GROUND = DEMO_W < DEMO_H ? 0.74 : 0.86;
 
 type Stage = 'loading' | 'framing' | 'countdown' | 'active' | 'error';
 type Src = 'camera' | 'video' | 'demo';
@@ -175,7 +177,7 @@ export default function Session() {
         } else okSince.current = null;
       }
     }
-    if (cv) drawOverlay(cv, f, l, mirror);
+    if (cv) drawOverlay(cv, f, l, mirror, src === 'demo' ? (ctx, fr) => drawAthlete(ctx, fr.landmarks, DEMO_GROUND) : undefined);
     setLive(l);
   }, [def, src, mirror]);
 
@@ -235,7 +237,7 @@ export default function Session() {
       clearInterval(t);
       beginActive();
       if (src === 'demo' && def) {
-        source.current = new PuppetSource(simulateExercise(def, { reps: 6, aspect: DEMO_W / DEMO_H, ground: DEMO_W < DEMO_H ? 0.74 : 0.86 }), (f) => onFrameRef.current(f), () => finishRef.current());
+        source.current = new PuppetSource(simulateExercise(def, { reps: 6, aspect: DEMO_W / DEMO_H, ground: DEMO_GROUND }), (f) => onFrameRef.current(f), () => finishRef.current());
         void source.current.start(null);
       }
     }, 1000);
@@ -251,7 +253,7 @@ export default function Session() {
   const cueZone = live?.checkZones.includes('bad') ? 'bad' : 'ok';
 
   return (
-    <div className={`stage ${src === 'video' ? 'contain' : ''}`}>
+    <div className={`stage ${src === 'video' ? 'contain' : ''}`} data-cat={def.category}>
       {src === 'demo' ? <div className="demo-bg" /> : <video ref={video} playsInline muted autoPlay style={mirror ? { transform: 'scaleX(-1)' } : undefined} />}
       <canvas ref={canvas} />
       <div className="vignette" />

@@ -3,7 +3,7 @@ import { t } from './language';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { localAdvice } from './assistantContext';
-import { IconClose, IconSparkle } from './icons';
+import { IconClose } from './icons';
 import { ASSISTANT_EVENT, type AssistantContext, type AssistantOpen } from './openAssistant';
 
 const STARTERS: Record<AssistantContext['kind'], string[]> = {
@@ -41,7 +41,6 @@ export default function Assistant() {
   const [answer, setAnswer] = useState('');
   const sheet = useRef<HTMLDivElement>(null);
   const opener = useRef<HTMLElement | null>(null);
-  const fab = useRef<HTMLButtonElement>(null);
   const close = () => { setOpen(false); opener.current?.focus(); };
   useEffect(() => {
     const on = (e: Event) => {
@@ -70,9 +69,6 @@ export default function Assistant() {
     return () => { document.removeEventListener('keydown', k); if (root) root.inert = wasInert ?? false; };
   }, [open]);
   return (<>
-    {!open && <button ref={fab} className="btn primary press ai-fab no-print" onClick={() => {
-      opener.current = fab.current; setCtx({ kind: 'help' }); setAnswer(localAdvice({ kind: 'help' }, '')); setOpen(true);
-    }} aria-label="Open local coach"><IconSparkle /><span>{t('Local coach')}</span></button>}
     {open && createPortal(<>
       <div className="scrim" onClick={close} />
       <div ref={sheet} className="sheet glass ai-sheet" role="dialog" aria-modal="true" aria-labelledby="coach-title">

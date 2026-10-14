@@ -33,3 +33,13 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+---
+
+## YouTube video lessons
+
+`apps/web/src/app/lessons.ts` lists one public YouTube video per exercise, embedded through
+`youtube-nocookie.com` only after the user taps play. The videos belong to their channels
+(named on each lesson card); they are not made by, endorsed by or affiliated with Fitzen, SAI,
+Khelo India or Fit India. Each ID was confirmed public and embeddable through YouTube oEmbed on
+2026-10-13.

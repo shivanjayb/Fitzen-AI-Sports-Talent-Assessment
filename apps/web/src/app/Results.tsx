@@ -3,12 +3,13 @@ import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { exerciseById, isAssessedReport, mentalReport, readiness, summarizeFuture, type MetricProjection, type ReadinessInput, type SessionReport } from '@fitzen/engines';
-import { deleteSession, getHistory, getProfile, getSession, glow, isEligibleSession, isSessionPersistent, measureOf, normOf, saveReadiness, saveSession, toAthlete, type SavedSession } from './store';
+import { deleteSession, getHistory, getProfile, getSession, isEligibleSession, isSessionPersistent, measureOf, normOf, saveReadiness, saveSession, toAthlete, type SavedSession } from './store';
 import { IconAlert, IconBack, IconCheck, IconFolder, IconShare, IconSparkle, IconStop } from './icons';
 import { openAssistant } from './openAssistant';
 import { download } from './download';
 import { ReferenceCheck } from './Validation';
 import { BATTERY } from './battery';
+import Rings from './Rings';
 
 const ORD = new Intl.PluralRules('en', { type: 'ordinal' });
 const ord = (x: number) => { const n = Math.round(x); return `${n}${({ one: 'st', two: 'nd', few: 'rd' } as Record<string, string>)[ORD.select(n)] ?? 'th'}`; };
@@ -242,6 +243,9 @@ export default function Results() {
 
   const exportJson = () => download(`fitzen-${r.exerciseId}-${r.startedAt.slice(0, 10)}.json`, JSON.stringify(saved, null, 2), 'application/json');
 
+  // Third ring: share of the goal reached (correct reps, hold target or mean attempt quality).
+  const goal = rp ? { value: rp.count ? rp.valid / rp.count : 0, label: 'correct' } : r.hold ? { value: Math.min(1, r.hold.bestSec / Math.max(1, r.hold.targetSec)), label: 'of hold goal' }
+    : { value: r.events?.length ? r.events.reduce((a, e) => a + e.score, 0) / r.events.length : 0, label: 'attempt quality' };
   const headline = rp ? `${rp.count} reps · ${rp.valid} correct` : r.hold ? `${f(r.hold.bestSec)} s best hold` :
     r.events?.length ? (r.events.some((e) => e.jumpHeightCm !== undefined) ? `${f(Math.max(...r.events.map((e) => e.jumpHeightCm ?? 0)))} cm best jump` : `${r.events.length} attempts`) : 'No attempts detected';
 
@@ -269,14 +273,19 @@ export default function Results() {
         </div>
       )}
 
-      <section className="glass result-hero" onPointerMove={glow}>
-        <div className={`grade ${assessed ? r.grade : 'unassessed'}`}>{assessed ? r.grade : 'N/A'}</div>
-        <div>
+      <section className="glass result-hero">
+        <Rings values={[assessed ? r.formScore / 100 : 0, r.trackedPct / 100, goal.value]} size={104} />
+        <div style={{ minWidth: 0 }}>
           <div className="faint" style={{ fontSize: '.8rem', fontWeight: 600 }}>{new Date(r.startedAt).toLocaleString()} · {saved.source === 'demo' ? 'Demo athlete' : saved.source === 'video' ? 'Video analysis' : 'Live camera'}</div>
-          <h1 className="large-title" style={{ fontSize: '2rem' }}>{r.name}</h1>
-          <div style={{ fontSize: '1.1rem', fontWeight: 700 }}>{headline}</div>
-          <div className="muted" style={{ fontSize: '.9rem' }}>{assessed ? <>Form score <b style={{ color: 'var(--text)' }}>{r.formScore}</b>/100</> : 'Form not assessed'}</div>
+          <h1 className="large-title" style={{ fontSize: '1.75rem' }}>{r.name}</h1>
+          <div style={{ fontSize: '1.0625rem', fontWeight: 600 }}>{headline}</div>
+          <div className="ring-legend">
+            <span><b className="num" style={{ color: 'var(--move)' }}>{assessed ? r.formScore : '—'}</b> form</span>
+            <span><b className="num" style={{ color: 'var(--exercise)' }}>{Math.round(r.trackedPct)}%</b> tracked</span>
+            <span><b className="num" style={{ color: 'var(--stand)' }}>{Math.round(goal.value * 100)}%</b> {goal.label}</span>
+          </div>
         </div>
+        <div className={`grade ${assessed ? r.grade : 'unassessed'}`}>{assessed ? r.grade : 'N/A'}</div>
       </section>
 
       <section className="glass panel no-print" style={{ marginTop: 14 }}>

@@ -21,3 +21,7 @@ export const IconFolder = () => <svg {...P}><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a
 export const IconTrophy = () => <svg {...P}><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0zM7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4" /></svg>;
 export const IconPodium = () => <svg {...P}><path d="M9 21V9h6v12M3 21v-7h6M15 21v-5h6v5M2 21h20" /></svg>;
 export const IconSparkle = () => <svg {...P}><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 16l.7 2.3L22 19l-2.3.7L19 22l-.7-2.3L16 19l2.3-.7z" /></svg>;
+export const IconRings = () => <svg {...P}><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5.5" /><circle cx="12" cy="12" r="2" /></svg>;
+export const IconRun = () => <svg {...P}><circle cx="14" cy="4.5" r="1.8" /><path d="m9 21 2.5-5.5L14 17v4M7 11l3-3.5h4l2.5 3.5 3 1M11.5 15.5 13 10" /></svg>;
+export const IconPeople = () => <svg {...P}><circle cx="9" cy="8" r="3.5" /><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.2a6.5 6.5 0 0 1 3.5 5.8" /></svg>;
+export const IconChevron = () => <svg {...P}><path d="m9 6 6 6-6 6" /></svg>;
