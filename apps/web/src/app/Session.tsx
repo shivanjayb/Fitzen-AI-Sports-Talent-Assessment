@@ -1,12 +1,12 @@
 import { t } from './language';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { MotionSession, analyseIntegrity, exerciseById, filtfiltLandmarks, inspectContainer, simulateExercise, type ForensicsReport, type LiveState, type PoseFrame } from '@fitzen/engines';
 import { CameraPoseSource, VideoFilePoseSource, MAX_VIDEO_BYTES, type PoseSource } from '../pose/poseSource';
 import { playRepCompletedSound } from '../lib/audioFeedback';
 import { drawOverlay } from './overlay';
 import { drawAthlete } from './Figure';
-import { getProfile, saveSession } from './store';
+import { getProfile, personalFor, saveSession } from './store';
 import { getPendingVideo, setPendingVideo } from './pendingVideo';
 import { IconAlert, IconBulb, IconCamera, IconClose, IconFlip, IconVolume } from './icons';
 
@@ -71,7 +71,9 @@ export default function Session() {
   const [params] = useSearchParams();
   const src = (params.get('src') ?? 'camera') as Src;
   const batteryRun = params.get('battery') ?? undefined;
-  const def = exerciseById(id);
+  const catalogDef = exerciseById(id);
+  // The guided battery is a standard test: personal ranges only apply to free training.
+  const def = useMemo(() => catalogDef && !batteryRun ? personalFor(catalogDef)?.def ?? catalogDef : catalogDef, [catalogDef, batteryRun]);
   const nav = useNavigate();
   const profile = useRef(getProfile()).current;
   const selectedVideo = useRef(getPendingVideo());
@@ -237,7 +239,7 @@ export default function Session() {
       clearInterval(t);
       beginActive();
       if (src === 'demo' && def) {
-        source.current = new PuppetSource(simulateExercise(def, { reps: 6, aspect: DEMO_W / DEMO_H, ground: DEMO_GROUND }), (f) => onFrameRef.current(f), () => finishRef.current());
+        source.current = new PuppetSource(simulateExercise(catalogDef ?? def, { reps: 6, aspect: DEMO_W / DEMO_H, ground: DEMO_GROUND }), (f) => onFrameRef.current(f), () => finishRef.current());
         void source.current.start(null);
       }
     }, 1000);

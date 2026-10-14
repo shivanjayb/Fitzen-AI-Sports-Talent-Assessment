@@ -187,6 +187,7 @@ function Groups({ me, groups, reload }: { me: string; groups: Group[]; reload: (
       }); }}>
         <label className="field"><span>Invite code</span><input required maxLength={12} autoCapitalize="characters" autoComplete="off" value={code} onChange={(e) => setCode(e.target.value)} /></label>
         <button className="btn glass press" disabled={busy || !code.trim()}>Join group</button>
+        <p className="faint" style={{ margin: 0, fontSize: '.78rem' }}>Codes from a coach join their squad: that shares your full session reports with the coach (under-18s only after a parent confirms). Leave any time.</p>
       </form>
     </div>
     {msg && <p role="status" aria-live="polite" className="muted" style={{ fontSize: '.9rem' }}>{msg}</p>}

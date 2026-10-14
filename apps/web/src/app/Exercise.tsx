@@ -1,6 +1,6 @@
 import { t, setupFor } from './language';
-import { useEffect, useRef, useState } from 'react';
-import { Navigate, useNavigate, useParams } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { EXERCISES, exerciseById, type Check, type ExerciseDef } from '@fitzen/engines';
 import { IconBack, IconCamera, IconCheck, IconPlay, IconSearch, IconShare, IconUpload } from './icons';
 import { setPendingVideo } from './pendingVideo';
@@ -8,6 +8,7 @@ import Figure, { ExerciseArt, FigureArt } from './Figure';
 import { photoOf } from './photos';
 import { ExerciseCard, LEVEL, catLabel } from './Home';
 import { LESSONS, lessonSearchUrl } from './lessons';
+import { personalFor } from './store';
 
 const MODE = { reps: 'Reps', hold: 'Hold', event: 'Power' } as const;
 const KEY: Check['when'][] = ['bottom', 'hold', 'release', 'active'];
@@ -61,6 +62,7 @@ function Lesson({ ex }: { ex: ExerciseDef }) {
 export default function Exercise() {
   const { id = '' } = useParams();
   const ex = exerciseById(id);
+  const mine = useMemo(() => ex ? personalFor(ex) : null, [ex]);
   const nav = useNavigate();
   const file = useRef<HTMLInputElement>(null);
   const [copied, setCopied] = useState(false);
@@ -145,12 +147,17 @@ export default function Exercise() {
 
           <h2 className="section-title">{t('What we measure')}</h2>
           <div className="measure">
-            {ex.checks.map((c, i) => {
-              const r = rangeOf(ex, c);
-              return <div key={i}><span className="when">{c.when}</span><span>{r.label}<span className="cue">{c.cue}</span></span><b className="num z-good">{r.range}</b></div>;
+            {(mine?.def ?? ex).checks.map((c, i) => {
+              const r = rangeOf(ex, c), std = rangeOf(ex, ex.checks[i]!);
+              return <div key={i}><span className="when">{c.when}</span><span>{r.label}<span className="cue">{c.cue}</span></span><b className="num z-good">{r.range}{std.range !== r.range && <small className="faint" style={{ display: 'block', fontWeight: 400, fontSize: '.72rem' }}>standard {std.range}</small>}</b></div>;
             })}
           </div>
           <div className="zone-legend" style={{ marginTop: 12 }}><span><i style={{ background: 'var(--good)' }} />Correct</span><span><i style={{ background: 'var(--ok)' }} />Moderate</span><span><i style={{ background: 'var(--bad)' }} />Fix it</span></div>
+          {mine && mine.reasons.length > 0 && <div className="glass panel fitted" style={{ marginTop: 12 }}>
+            <b>Fitted to you</b>
+            <ul style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: '.85rem' }}>{mine.reasons.map((x) => <li key={x}>{x}</li>)}</ul>
+            <Link to="/profile" className="faint" style={{ fontSize: '.8rem' }}>Change in Profile · leaderboards use standard ranges</Link>
+          </div>}
 
           <h2 className="section-title">Equipment</h2>
           <div className="pills">{(ex.equipment.length ? ex.equipment : ['none needed']).map((m) => <span key={m}>{m}</span>)}</div>

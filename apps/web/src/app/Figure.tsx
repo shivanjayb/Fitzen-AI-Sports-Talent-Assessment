@@ -237,15 +237,16 @@ export function FigureArt({ def, frame = 'key', w, h }: { def: ExerciseDef; fram
 
 /**
  * Exercise artwork: a real photo of a person doing it (start and end positions crossfade when `play`, or on hover
- * in cards), else the drawn demonstrator (animated when `play`).
+ * in cards), else (or when the photo can't load offline) the drawn demonstrator (animated when `play`).
  */
 export function ExerciseArt({ def, frame = 'key', play = false, w, h }: { def: ExerciseDef; frame?: 'key' | 'start' | 'mid'; play?: boolean; w?: number; h?: number }) {
   const p = photoOf(def.id);
-  if (!p) return play ? <Figure def={def} /> : <FigureArt def={def} frame={frame} w={w} h={h} />;
+  const [failed, setFailed] = useState(false); // offline and not cached yet: the drawn demonstrator needs no network
+  if (!p || failed) return play ? <Figure def={def} /> : <FigureArt def={def} frame={frame} w={w} h={h} />;
   const frames = frame === 'start' ? p.frames.slice(0, 1) : p.frames;
   return (
     <div className={`photo${frames.length > 1 ? ' two' : ''}${play ? ' cycle' : ''}${p.tall ? ' tall' : ''}`}>
-      {frames.map((src) => <img key={src} src={src} alt="" draggable={false} loading={play ? 'eager' : 'lazy'} decoding="async" />)}
+      {frames.map((src) => <img key={src} src={src} alt="" draggable={false} loading={play ? 'eager' : 'lazy'} decoding="async" onError={() => setFailed(true)} />)}
     </div>
   );
 }

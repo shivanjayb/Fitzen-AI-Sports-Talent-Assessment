@@ -25,3 +25,11 @@ export const IconRings = () => <svg {...P}><circle cx="12" cy="12" r="9" /><circ
 export const IconRun = () => <svg {...P}><circle cx="14" cy="4.5" r="1.8" /><path d="m9 21 2.5-5.5L14 17v4M7 11l3-3.5h4l2.5 3.5 3 1M11.5 15.5 13 10" /></svg>;
 export const IconPeople = () => <svg {...P}><circle cx="9" cy="8" r="3.5" /><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.2a6.5 6.5 0 0 1 3.5 5.8" /></svg>;
 export const IconChevron = () => <svg {...P}><path d="m9 6 6 6-6 6" /></svg>;
+
+/** Fitzen mark: an athlete in motion, head in the brand accent. */
+export const FitzenMark = ({ size = 24 }: { size?: number }) => (
+  <svg viewBox="0 0 28 28" width={size} height={size} aria-hidden>
+    <circle cx="17" cy="5.5" r="3.2" fill="var(--accent)" />
+    <path d="M17 9.5 13 16l5 3.5-2 6.5M13 16l-6 1.5M15.5 12.5l6 1" stroke="currentColor" strokeWidth="2.8" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);

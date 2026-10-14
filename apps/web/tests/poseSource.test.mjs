@@ -7,7 +7,7 @@ const source = await readFile(new URL('../src/pose/poseSource.ts', import.meta.u
 const compiled = ts.transpileModule(source.replace("await import('@mediapipe/tasks-vision')", 'globalThis.__poseVision'), {
   compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
 }).outputText;
-const { CameraPoseSource, VideoFilePoseSource, MAX_VIDEO_BYTES } = await import(`data:text/javascript;base64,${Buffer.from(compiled).toString('base64')}`);
+const { CameraPoseSource, VideoFilePoseSource, MAX_VIDEO_BYTES, isLowEndDevice } = await import(`data:text/javascript;base64,${Buffer.from(compiled).toString('base64')}`);
 const deferred = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; };
 let frameLoop;
 const originals = new Map(['navigator', 'window', 'requestAnimationFrame', 'cancelAnimationFrame', '__poseVision'].map(k => [k, Object.getOwnPropertyDescriptor(globalThis, k)]));
@@ -100,4 +100,22 @@ test('video preserves portrait aspect after completion releases decoded media', 
   Object.defineProperty(v, 'currentTime', { get() { return 0; }, set() { queueMicrotask(() => v.dispatch('seeked')); } });
   const source = new VideoFilePoseSource(cb, new File(['clip'], 'test.mp4')); await source.start(v);
   assert.equal(v.videoWidth, 0); assert.equal(source.aspect, 900 / 1600);
+});
+
+test('falls back to the CPU delegate when GPU init fails, and uses a lighter camera on low-end devices', async () => {
+  const delegates = [], constraints = [];
+  setup({
+    getUserMedia: async (c) => { constraints.push(c.video); return stream(); },
+    create: async (_f, o) => { delegates.push(o.baseOptions.delegate); if (o.baseOptions.delegate === 'GPU') throw Error('no WebGL2'); return model(); },
+  });
+  navigator.hardwareConcurrency = 2;
+  assert.equal(isLowEndDevice(), true);
+  const cb = callbacks(), source = new CameraPoseSource(cb);
+  await source.start(video());
+  assert.deepEqual(delegates, ['GPU', 'CPU']);
+  assert.deepEqual(cb.errors, []);
+  assert.equal(constraints[0].width.ideal, 640);
+  source.stop();
+  navigator.hardwareConcurrency = 8;
+  assert.equal(isLowEndDevice(), false);
 });

@@ -18,7 +18,7 @@ const TYPE_ART: Record<Category, string> = {
   olympic: 'split-jerk', sai: 'sai-vertical-jump', yoga: 'warrior-i', mobility: 'deep-squat-hold',
 };
 
-/** Fitness+ workout card: artwork with a mode badge, title, then type and level. */
+/** Workout card: artwork with a mode badge, title, then type and level. */
 export function ExerciseCard({ ex }: { ex: ExerciseDef }) {
   return (
     <Link to={`/exercise/${ex.id}`} className="ex-card press" data-cat={ex.category}>

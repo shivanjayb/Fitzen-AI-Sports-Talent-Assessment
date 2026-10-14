@@ -1,7 +1,7 @@
 /**
  * Accounts (Supabase Auth, email magic link) and the signed-in user's profile row.
  * Without VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY the app stays local-only and `supabase` is null.
- * Schema and privacy rules: supabase/migrations/002_compete.sql.
+ * Schema and privacy rules: supabase/migrations/002_compete.sql and 004_portals_sync.sql (roles, sync, coach/admin).
  */
 import { createClient, type User } from '@supabase/supabase-js';
 import { useSyncExternalStore } from 'react';
@@ -10,6 +10,8 @@ const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const key = (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY) as string | undefined;
 
 // implicit flow: a magic link opened on another device (a parent's phone) still signs in; PKCE would need this browser.
+/** Public by design (shipped in the bundle): shown to coaches for the API-key example. */
+export const publicApi = { url: url ?? '', key: key ?? '' };
 export const supabase = url && key ? createClient(url, key, { auth: { flowType: 'implicit', persistSession: true } }) : null;
 
 /** Current user, kept in sync with sign-in / sign-out. */
@@ -40,6 +42,8 @@ export interface Account {
   id: string; display_name: string; birth_year: number; sex: 'male' | 'female' | null;
   city: string | null; state: string | null; country: string;
   public_boards: boolean; parent_email: string | null; parent_consent_at: string | null;
+  /** Migration 004. Missing on projects that only have 002/003. */
+  role?: 'athlete' | 'coach' | 'admin';
 }
 
 // With year-only data adulthood is not established until the entire eighteenth-birthday year has passed.

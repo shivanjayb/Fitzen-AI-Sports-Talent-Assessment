@@ -37,11 +37,19 @@ export type PoseModel = 'lite' | 'full' | 'heavy';
 async function createLandmarker(model: PoseModel = 'lite'): Promise<import('@mediapipe/tasks-vision').PoseLandmarker> {
   const vision = await import('@mediapipe/tasks-vision');
   const fileset = await vision.FilesetResolver.forVisionTasks(MEDIAPIPE_WASM_BASE);
-  return vision.PoseLandmarker.createFromOptions(fileset, {
-    baseOptions: { modelAssetPath: POSE_MODEL_URL(model), delegate: 'GPU' },
+  const make = (delegate: 'GPU' | 'CPU') => vision.PoseLandmarker.createFromOptions(fileset, {
+    baseOptions: { modelAssetPath: POSE_MODEL_URL(model), delegate },
     runningMode: 'VIDEO',
     numPoses: 1,
   });
+  // Phones without usable WebGL2 fail on GPU; the CPU (wasm) path is slower but runs everywhere, offline included.
+  try { return await make('GPU'); } catch { return make('CPU'); }
+}
+
+/** Rough device tier from what the browser exposes: ≤ 4 cores, ≤ 3 GB RAM (Chromium only) or Data Saver on. */
+export function isLowEndDevice(): boolean {
+  const n = globalThis.navigator as (Navigator & { deviceMemory?: number; connection?: { saveData?: boolean } }) | undefined;
+  return !!n && ((n.hardwareConcurrency ?? 8) <= 4 || (n.deviceMemory ?? 8) <= 3 || n.connection?.saveData === true);
 }
 
 const MEDIAPIPE_WASM_BASE =
@@ -67,7 +75,8 @@ export class CameraPoseSource implements PoseSource {
     let stage = 'camera';
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: this.opts.facingMode ?? 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+        // The pose model sees 256 px; 640×360 halves decode work on weak phones without losing landmarks.
+        video: { facingMode: this.opts.facingMode ?? 'environment', ...(isLowEndDevice() ? { width: { ideal: 640 }, height: { ideal: 360 } } : { width: { ideal: 1280 }, height: { ideal: 720 } }) },
         audio: false,
       });
       if (run !== this.generation) { stream.getTracks().forEach(t => t.stop()); return; }

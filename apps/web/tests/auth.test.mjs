@@ -5,7 +5,7 @@ import ts from 'typescript';
 
 const source = await readFile(new URL('../src/lib/auth.ts', import.meta.url), 'utf8');
 const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText;
-const { authDestination, callbackError, requestSignIn, signOut } = await import(`data:text/javascript;base64,${Buffer.from(compiled).toString('base64')}`);
+const { authDestination, callbackError, requestSignIn, passwordAuth, signOut } = await import(`data:text/javascript;base64,${Buffer.from(compiled).toString('base64')}`);
 
 test('sign-in destinations reject external, encoded and unknown routes', () => {
   for (const path of [null, '//evil.example', 'https://evil.example', '/auth', '/auth/callback', '/profile/../../evil', '/profile\\evil', '/%2f%2fevil', '/profile\n']) assert.equal(authDestination(path), '/profile');
@@ -42,4 +42,20 @@ test('sign-out is scoped to this device and surfaces failures', async () => {
   await signOut(client); assert.equal(scope, 'local');
   await signOut(null);
   await assert.rejects(signOut({ auth: { signOut: async () => ({ error: Error('Offline') }) } }), /Offline/);
+});
+
+test('password sign-in and sign-up validate before the network and keep a safe callback', async () => {
+  const calls = [];
+  const client = { auth: {
+    signInWithPassword: async (p) => { calls.push(['in', p]); return { error: p.password === 'right-pass' ? null : { message: 'Invalid login credentials' } }; },
+    signUp: async (p) => { calls.push(['up', p]); return { data: { session: null }, error: null }; },
+  } };
+  await assert.rejects(passwordAuth(client, 'a@b.co', 'short', false, 'https://f.app', '/coach'), /8 characters/);
+  await assert.rejects(passwordAuth(client, 'nope', 'long-enough', false, 'https://f.app', '/coach'), /valid email/);
+  assert.equal(calls.length, 0);
+  assert.equal(await passwordAuth(client, ' A@B.co ', 'right-pass', false, 'https://f.app', '/coach'), 'signed-in');
+  await assert.rejects(passwordAuth(client, 'a@b.co', 'wrong-pass', false, 'https://f.app', '/coach'), /Wrong email or password/);
+  assert.equal(await passwordAuth(client, 'a@b.co', 'long-enough', true, 'https://f.app', '//evil'), 'confirm-email');
+  assert.equal(calls.at(-1)[1].options.emailRedirectTo, 'https://f.app/auth/callback?next=%2Fprofile');
+  assert.equal(authDestination('/admin'), '/admin');
 });
