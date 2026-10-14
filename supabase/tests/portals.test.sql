@@ -1,4 +1,4 @@
--- Behaviour tests for 004 (roles, coach approval, squads, synced sessions, API keys, admin). Run via run.sh.
+-- Behaviour tests for 005 (roles, coach approval, squads, synced sessions, API keys, admin). Run via run.sh.
 -- a = admin, c = coach applicant, s = adult athlete, m = minor athlete, x = outsider.
 \set a '''00000000-0000-0000-0000-00000000000a'''
 \set c '''00000000-0000-0000-0000-00000000000c'''

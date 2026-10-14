@@ -32,14 +32,14 @@ their account. The web app works fully offline and signed out; signing in adds s
 | Genuineness | `integrity.ts`, `forensics.ts`, wrong-movement check, `verdictOf()` | Shown to coaches with the evidence; a screening signal, not proof |
 | Storage + sync | `apps/web/src/app/store.ts` | Local first. Profile: newest edit wins. Sessions: union by `cloudId`, local-only deletions never pulled back, delete-everywhere queue. One sync at a time; retried on sign-in and `online` |
 | Accounts | `lib/auth.ts`, Supabase Auth | Email + password or magic link; same login on any device |
-| Roles | migration 004 | Athlete by default; adults apply to coach, an admin approves; first admin set by the owner in SQL |
+| Roles | migration 005 | Athlete by default; adults apply to coach, an admin approves; first admin set by the owner in SQL |
 | Coach access | `squad_athletes`, `athlete_sessions` | Only squads the coach owns; joining a squad is the athlete's consent; minors only after parent consent, always initials |
 | API | `api_squad_report(api_key)` | 192-bit keys, SHA-256 stored, shown once, 5 active max, revocable; same visibility as the portal |
 | Low-end devices | `poseSource.ts`, `main.tsx` | ≤ 4 cores / ≤ 3 GB / Data Saver: 640×360 camera, lite model default, Lite mode (no blur/motion) |
 | Offline | `offline-sw.js` | App shell precached; pose model, wasm and exercise photos cached on use; photos fall back to the drawn demonstrator |
 
 Testing: engine unit tests (vitest), web unit tests (`node --test`), and `supabase/tests/run.sh`, which applies migrations
-002–004 to a throwaway local Postgres 16 with an auth stub and checks RLS, roles, coach visibility, API keys and admin RPCs.
+002–005 to a throwaway local Postgres 16 with an auth stub and checks RLS, roles, coach visibility, API keys and admin RPCs.
 
 The sections below describe the original signed-assessment server design (`apps/server`), kept for the copyright
 filing and the Flutter path. The current web app does not use that server.

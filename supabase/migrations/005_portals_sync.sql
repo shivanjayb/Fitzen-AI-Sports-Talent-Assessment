@@ -1,5 +1,5 @@
--- 004: one account on every device, coach and admin portals, coach API keys.
--- Apply after 003 on the fresh Fitzen project only (never the old live one). Tested locally with supabase/tests/run.sh.
+-- 005: one account on every device, coach and admin portals, coach API keys.
+-- Apply after 004 on the fresh Fitzen project only (never the old live one). Tested locally with supabase/tests/run.sh.
 --
 -- Roles: everyone starts as 'athlete'. An adult asks to coach (request_coach); an admin approves (review_coach).
 -- The first admin is set once by the project owner in the SQL editor:

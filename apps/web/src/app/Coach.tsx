@@ -1,6 +1,6 @@
 /**
  * Coach portal: apply to coach, run squads (invite code), read each athlete's full session reports with a
- * genuine / needs review / suspect verdict and its evidence, and manage API keys. Data rules: migration 004.
+ * genuine / needs review / suspect verdict and its evidence, and manage API keys. Data rules: migration 005.
  */
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';

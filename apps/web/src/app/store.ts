@@ -1,6 +1,6 @@
 /**
  * Persistence: profile + session history live on this device first, so everything works offline. When signed in
- * (lib/supabase.ts) they are also kept in the account (athlete_data, sessions: migration 004), so the same login works
+ * (lib/supabase.ts) they are also kept in the account (athlete_data, sessions: migration 005), so the same login works
  * on any device, and each camera/video session's headline number goes to the leaderboards. Video never leaves the device.
  * Offline changes wait in local flags (synced, backedUp, profile dirty, deletions) and go up on the next syncHistory().
  */

@@ -1,4 +1,4 @@
-/** Admin portal: platform analytics, coach approvals and roles. Every call is admin-checked in SQL (migration 004). */
+/** Admin portal: platform analytics, coach approvals and roles. Every call is admin-checked in SQL (migration 005). */
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { exerciseById } from '@fitzen/engines';

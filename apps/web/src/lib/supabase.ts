@@ -1,7 +1,7 @@
 /**
  * Accounts (Supabase Auth, email magic link) and the signed-in user's profile row.
  * Without VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY the app stays local-only and `supabase` is null.
- * Schema and privacy rules: supabase/migrations/002_compete.sql and 004_portals_sync.sql (roles, sync, coach/admin).
+ * Schema and privacy rules: supabase/migrations/002_compete.sql and 005_portals_sync.sql (roles, sync, coach/admin).
  */
 import { createClient, type User } from '@supabase/supabase-js';
 import { useSyncExternalStore } from 'react';
@@ -42,7 +42,7 @@ export interface Account {
   id: string; display_name: string; birth_year: number; sex: 'male' | 'female' | null;
   city: string | null; state: string | null; country: string;
   public_boards: boolean; parent_email: string | null; parent_consent_at: string | null;
-  /** Migration 004. Missing on projects that only have 002/003. */
+  /** Migration 005. Missing on projects that only have 002–004. */
   role?: 'athlete' | 'coach' | 'admin';
 }
 

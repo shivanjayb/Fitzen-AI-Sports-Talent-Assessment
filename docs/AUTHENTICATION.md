@@ -6,7 +6,7 @@ Fitzen uses Supabase Auth with email + password or an email magic link (same acc
 
 Use a new Fitzen Supabase project. Do not migrate the legacy live project. The project must be active before authentication can work.
 
-1. For profiles, groups and result sync, apply `supabase/migrations/002_compete.sql`, then `003_audit_hardening.sql`, then `004_portals_sync.sql` (roles, cross-device sync, coach squads, API keys, admin) to the new project. Run `supabase/tests/run.sh` locally first. Authentication alone does not require these tables, but account onboarding does.
+1. For profiles, groups and result sync, apply `supabase/migrations/002_compete.sql`, then `003_audit_hardening.sql`, then `004_auth_function_permissions.sql`, then `005_portals_sync.sql` (roles, cross-device sync, coach squads, API keys, admin) to the new project. Run `supabase/tests/run.sh` locally first. Authentication alone does not require these tables, but account onboarding does.
    - Make yourself the first admin once, in the SQL editor: `update public.profiles set role = 'admin' where id = (select id from auth.users where email = 'you@example.com');` (create your account profile in the app first). Admins then approve coaches at `/admin`.
 2. Enable Email authentication and signups in Supabase, with "Confirm email" on (password sign-ups then confirm by link). Minimum password length 8. Configure a production SMTP sender before inviting users; verify delivery and provider rate limits.
 3. Set the Site URL to `https://fitzen-ai.vercel.app`. Coaches use `/auth?next=/coach`; `/coach` and `/admin` are allowed return routes. Allow redirects to `https://fitzen-ai.vercel.app/auth/callback`, `/profile` (older links), and `/consent` (guardian links). Add exact callback URLs for any other verified production aliases. For local QA allow `http://localhost:5174/auth/callback` and `/consent`. Preview links need their own allowed redirect URLs.
@@ -28,3 +28,7 @@ Automated authentication tests cover redirects, email normalization, provider er
 ## Coach API keys
 
 Coaches create keys at `/coach` (shown once). Tools call `POST <VITE_SUPABASE_URL>/rest/v1/rpc/api_squad_report` with header `apikey: <publishable key>` and body `{"api_key": "fz_..."}`. Only the SHA-256 of a key is stored. Keys return the coach's squads, visible athletes (minors as initials, only after parent consent) and their last 90 days of sessions. Add rate limiting at the edge (Supabase or a proxy) before publishing the API widely.
+
+## Connected deployment
+
+Project `rmaheshfcwbwspgujghe` (Free plan, Tokyo `ap-northeast-1`) is connected to production and preview with the modern publishable key; the production Site URL and exact redirects are saved (2026-10-09). Migrations 002, 003 and 004 are applied there. **Apply `005_portals_sync.sql` next** (SQL editor → paste → run), then set the first admin. Custom SMTP is not configured, so real email delivery and onboarding are not yet verified.
