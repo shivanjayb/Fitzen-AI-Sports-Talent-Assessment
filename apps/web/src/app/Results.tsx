@@ -2,7 +2,7 @@ import { t } from './language';
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { exerciseById, isAssessedReport, mentalReport, readiness, summarizeFuture, type MetricProjection, type ReadinessInput, type SessionReport } from '@fitzen/engines';
+import { exerciseById, isAssessedReport, standardReps, mentalReport, readiness, summarizeFuture, type MetricProjection, type ReadinessInput, type SessionReport } from '@fitzen/engines';
 import { deleteSession, getHistory, getProfile, getSession, isEligibleSession, isSessionPersistent, measureOf, normOf, saveReadiness, saveSession, toAthlete, type SavedSession } from './store';
 import { IconAlert, IconBack, IconCheck, IconFolder, IconShare, IconSparkle, IconStop } from './icons';
 import { openAssistant } from './openAssistant';
@@ -315,6 +315,7 @@ export default function Results() {
         <div><span>Duration</span><b className="num">{f(r.durationSec)} s</b></div>
         {rp && (<>
           <div><span>Reps</span><b className="num">{rp.count}</b><small>{rp.valid} correct · {rp.partial} partial{rp.rejected ? ` · ${rp.rejected} rejected` : ''}{rp.mismatched?.length ? ` · ${rp.mismatched.length} wrong exercise` : ''}</small></div>
+          {ex?.reps && <div><span>Depth target</span><b className="num">{ex.reps.start === 'high' ? '≤' : '≥'} {rp.target}°</b><small>{rp.target !== ex.reps.target ? `personal · standard ${ex.reps.target}° · ${standardReps(r)} reps meet it` : 'standard range'}</small></div>}
           <div><span>Cadence</span><b className="num">{f(rp.perMin)}/min</b><small>{f(rp.perSec, 2)} reps/s</small></div>
           <div><span>Tempo</span><b className="num">{f(rp.avgEccentricSec)}–{f(rp.avgConcentricSec)}</b><small>eccentric–concentric s</small></div>
           <div><span>Time under tension</span><b className="num">{f(rp.tutSec)} s</b></div>

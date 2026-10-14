@@ -2,7 +2,7 @@
  * Persistence: profile + session history live on this device. When signed in (lib/supabase.ts), each camera/video
  * session's headline number is also uploaded for leaderboards; video never leaves the device.
  */
-import { bestJumpCm, isAssessedReport, percentileFor, type AthleteProfile, type ForensicsReport, type IntegrityReport, type NormResult, type ReadinessInput, type SessionReport } from '@fitzen/engines';
+import { bestJumpCm, isAssessedReport, percentileFor, personalize, standardReps, usualExtreme, type AthleteProfile, type ExerciseDef, type Personalized, type TrainingLevel, type ForensicsReport, type IntegrityReport, type NormResult, type ReadinessInput, type SessionReport } from '@fitzen/engines';
 import { storageOwner, supabase } from '../lib/supabase';
 
 export interface Profile {
@@ -10,6 +10,7 @@ export interface Profile {
   sex: 'male' | 'female'; sittingHeightCm: number | null; city: string; state: string; sport: string;
   diet: AthleteProfile['diet']; sleepHours: number; trainingDaysPerWeek: number; hasCoach: boolean;
   model: 'lite' | 'full' | 'heavy'; voice: boolean;
+  level: TrainingLevel; personalRanges: boolean;
 }
 export interface SavedSession {
   id: string; report: SessionReport; source: 'camera' | 'video' | 'demo';
@@ -43,6 +44,7 @@ export const DEFAULT_PROFILE: Profile = {
   name: 'Athlete', weightKg: null, heightCm: null, age: null, sex: 'male', sittingHeightCm: null, city: '', state: '', sport: '',
   diet: { pattern: 'vegetarian', mealsPerDay: 3, proteinServingsPerDay: 1, milkServingsPerDay: 1, fruitVegServingsPerDay: 2 },
   sleepHours: 8, trainingDaysPerWeek: 2, hasCoach: false, model: 'full', voice: true,
+  level: 'beginner', personalRanges: true,
 };
 // Old profiles only had name/weight/height/age/model/voice; spreading over the defaults migrates them.
 export const getProfile = (): Profile => {
@@ -83,7 +85,8 @@ export async function uploadResult(s: SavedSession): Promise<boolean> {
     if (!write(historyKey, current.map((x) => x.id === s.id ? { ...x, cloudId } : x))) return false;
     const { error } = await supabase.from('results').upsert({
       id: cloudId, user_id: owner,
-      exercise_id: s.report.exerciseId, metric: m.metric, value: m.value, form_score: Math.round(s.report.formScore),
+      // Personal ranges never inflate a board: reps are recounted against the standard catalog target.
+      exercise_id: s.report.exerciseId, metric: m.metric, value: standardReps(s.report) ?? m.value, form_score: Math.round(s.report.formScore),
       source: s.source, created_at: s.report.startedAt,
     }, { onConflict: 'id', ignoreDuplicates: true });
     if (!error) write(historyKey, read<SavedSession[]>(historyKey, []).map((x) => x.id === s.id ? { ...x, cloudId, synced: true } : x));
@@ -141,6 +144,13 @@ export function saveReference(id: string, reference: NonNullable<SavedSession['r
 export interface TrainingGoal { exerciseId: string; target: number; unit: string; date: string; createdAt: string; baseline: number | null }
 export const getGoal = () => read<TrainingGoal | null>(key('fitzen.goal'), null);
 export const saveGoal = (goal: TrainingGoal) => write(key('fitzen.goal'), goal);
+
+/** This person's ranges for an exercise (body, level and usual depth), or null when they chose standard ranges. */
+export function personalFor(def: ExerciseDef, p = getProfile()): Personalized | null {
+  if (!p.personalRanges) return null;
+  const usual = usualExtreme(def, getHistory().filter((s) => s.source !== 'demo').map((s) => s.report));
+  return personalize(def, { ageYears: p.age, sex: p.sex, heightCm: p.heightCm, weightKg: p.weightKg, sittingHeightCm: p.sittingHeightCm, level: p.level, usualExtreme: usual });
+}
 
 /** Engine profile, or null until age, height and weight are filled in. */
 export function toAthlete(p: Profile): AthleteProfile | null {

@@ -1,6 +1,6 @@
 import { t } from './language';
 import { Link } from 'react-router-dom';
-import { bestJumpCm, evaluateBadges, exerciseById, projectGrowth, type AthleteStats } from '@fitzen/engines';
+import { bestJumpCm, evaluateBadges, exerciseById, projectGrowth, responseProfile, type AthleteStats } from '@fitzen/engines';
 import type { CSSProperties } from 'react';
 import { getHistory, getProfile, isEligibleSession, measureOf, normOf, toAthlete, type SavedSession } from './store';
 import { GrowthChart } from './Results';
@@ -45,6 +45,7 @@ const sub = (s: SavedSession) => s.report.reps ? `${s.report.reps.count} reps` :
 
 export default function Progress() {
   const h = getHistory().filter(isEligibleSession);
+  const resp = responseProfile(h.map((s) => s.report));
   const p = getProfile(), a = toAthlete(p);
   if (!h.length) return (
     <main className="page">
@@ -126,6 +127,20 @@ export default function Progress() {
           );
         })}
       </div>
+
+      {resp.length > 0 && <>
+        <h2 className="section-title">How your body responds<small>3+ sessions each</small></h2>
+        <div className="rows">
+          {resp.slice(0, 6).map((x) => (
+            <Link key={x.exerciseId} to={`/exercise/${x.exerciseId}`} className="session-row">
+              <span style={{ minWidth: 0 }}><b>{x.name}</b><small>{x.sessions} sessions · form {x.formChange >= 0 ? '+' : ''}{x.formChange}</small></span>
+              <span className={`score num ${x.response === 'responding' ? 'z-good' : x.response === 'declining' ? 'z-bad' : 'z-ok'}`}>{x.changePct >= 0 ? '+' : ''}{x.changePct}%</span>
+              <IconChevron />
+            </Link>
+          ))}
+        </div>
+        <p className="faint" style={{ fontSize: '.8125rem', margin: '10px 2px 0' }}>Change in your own headline number, first third vs latest third of sessions. Bodies respond differently: put more time into what is working, and check form or recovery where you are flat or dropping.</p>
+      </>}
 
       <h2 className="section-title">Awards<small>{earned} earned</small></h2>
       <div className="awards">

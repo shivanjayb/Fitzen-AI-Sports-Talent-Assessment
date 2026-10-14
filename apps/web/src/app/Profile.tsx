@@ -61,6 +61,12 @@ export default function Profile() {
 
       <h2 className="section-title">Training & sleep</h2>
       <section className="glass panel" style={{ display: 'grid', gap: 12 }}>
+        <div className="row between"><span style={{ fontSize: '.92rem' }}>Experience</span>
+          <div className="segmented glass">{(['beginner', 'intermediate', 'advanced'] as const).map((v) => <button key={v} className={p.level === v ? 'on' : ''} onClick={() => setP({ ...p, level: v })}>{v[0]!.toUpperCase() + v.slice(1)}</button>)}</div>
+        </div>
+        <div className="row between"><div><span style={{ fontSize: '.92rem' }}>Personal ranges</span><div className="faint" style={{ fontSize: '.8rem' }}>Depth targets fitted to your BMI, age, build, experience and usual depth. Leaderboards always use standard ranges.</div></div>
+          <div className="segmented glass">{[true, false].map((v) => <button key={String(v)} className={p.personalRanges === v ? 'on' : ''} onClick={() => setP({ ...p, personalRanges: v })}>{v ? 'On' : 'Off'}</button>)}</div>
+        </div>
         <Stepper label="Training days a week" value={p.trainingDaysPerWeek} set={(v) => setP({ ...p, trainingDaysPerWeek: v })} max={7} />
         <Stepper label="Sleep per night" value={p.sleepHours} set={(v) => setP({ ...p, sleepHours: v })} min={3} max={12} step={0.5} unit=" h" />
         <div className="row between"><span style={{ fontSize: '.92rem' }}>Have a coach?</span>
