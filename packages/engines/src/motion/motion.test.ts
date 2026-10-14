@@ -55,7 +55,7 @@ describe('motion engine', () => {
       expect(s.finish().formScore).toBeGreaterThanOrEqual(0);
     }
     expect(EXERCISES.length).toBeGreaterThanOrEqual(80);
-  });
+  }, 30_000); // simulates and scores the whole catalog
 
   describe('foreshortening gate', () => {
     const squat = simulateExercise(exerciseById('back-squat')!);

@@ -37,6 +37,10 @@ export interface PuppetStyle {
   forearm?: 'up' | 'down';
   /** Turn this right-side angle so the trailing foot stays on the floor (split stances). */
   level?: 'hipR' | 'kneeR';
+  /** Keep the trailing foot planted where the start pose puts it (split stances that don't step). */
+  plant?: boolean;
+  /** Reps: rise this far (frame heights) mid-move, jumping into and out of a split instead of sliding the feet. */
+  hop?: number;
   /** Facing view: open both hips so the feet stay this many shoulder widths apart. */
   fitSpread?: boolean;
   /** Hands fixed at this height (fraction of frame) instead of feet on the floor: hanging and support work. */
@@ -49,6 +53,10 @@ export interface PuppetStyle {
   windup?: Partial<Pose>; follow?: Partial<Pose>;
   /** Throws: seconds from wind-up to follow-through (default 0.26). */
   release?: number;
+  /** Throws: fraction of the swing at peak hand speed (default 0.5; punches and shots peak near lock-out). */
+  peak?: number;
+  /** Throws: the hand travels a straight line (punches, chest passes) instead of swinging. */
+  linear?: boolean;
   props?: Prop[];
 }
 
@@ -69,7 +77,7 @@ export const STYLES: Record<string, PuppetStyle> = {
   'sumo-squat': { base: { hip: 166, hipR: 166, kneeR: 176, shoulder: -8, shoulderR: -8, elbow: 176 }, fitSpread: true, props: ['dumbbell'] },
   'bench-press': { base: { trunk: -90, hip: 200, knee: 90 }, forearm: 'up', props: ['barbell', 'bench'] },
   'incline-bench-press': { base: { trunk: -58, hip: 168, knee: 90 }, forearm: 'up', props: ['barbell', 'incline-bench'] },
-  'overhead-press': { top: { elbow: 40 }, forearm: 'up', props: ['barbell'] },
+  'overhead-press': { top: { elbow: 25 }, forearm: 'up', props: ['barbell'] },
   'conventional-deadlift': { props: ['barbell'] },
   'romanian-deadlift': { props: ['barbell'] },
   'bent-over-row': { base: { trunk: 60, knee: 150 }, forearm: 'down', props: ['barbell'] },
@@ -79,7 +87,7 @@ export const STYLES: Record<string, PuppetStyle> = {
   'lateral-raise': { base: { shoulderR: 15, elbow: 168 }, props: ['dumbbells'] },
   'front-raise': { props: ['dumbbells'] },
   'forward-lunge': {
-    alternate: false, level: 'hipR',
+    alternate: false, level: 'hipR', plant: true,
     top: { hip: 168, hipR: 200, kneeR: 172 }, bottom: { hip: 98, hipR: 178, kneeR: 92 }, props: ['dumbbells'],
   },
   'bulgarian-split-squat': {
@@ -124,28 +132,34 @@ export const STYLES: Record<string, PuppetStyle> = {
   'butt-kicks': { top: { ...RUN_ARMS_TOP }, bottom: { ...RUN_ARMS_BOTTOM } },
   'countermovement-jump': { base: HANDS_ON_HIPS, takeoff: { arm: null, ...HANDS_ON_HIPS } },
   'squat-jump': { base: HANDS_ON_HIPS, takeoff: { arm: null, ...HANDS_ON_HIPS } },
-  'standing-broad-jump': { crouch: { arm: 235, elbow: 176, trunk: 45 }, takeoff: { trunk: 42, arm: 55 }, travel: 1.3 },
+  'standing-broad-jump': { crouch: { arm: 235, elbow: 176, trunk: 45 }, takeoff: { trunk: 32, arm: 55 }, travel: 1.3 },
   'box-jump': { crouch: { arm: 235, elbow: 176 }, props: ['box'] },
   'lateral-bound': { topDriver: 0.7, bottomDriver: 3.4, fitSpread: true, base: { hipR: 176, kneeR: 176, shoulder: 35, shoulderR: 35 } },
 
   // ── Throws & strikes ──
   'javelin-release': {
     level: 'hipR', base: { hip: 165, hipR: 205, kneeR: 150 },
-    windup: { arm: 70, elbow: 176 }, follow: { arm: 175, elbow: 150 }, props: ['javelin'],
+    plant: true, windup: { arm: 100, elbow: 176 }, follow: { arm: 160, elbow: 150 }, props: ['javelin'],
   },
-  'shot-put': { level: 'hipR', base: { hip: 165, hipR: 205, kneeR: 150 }, windup: { arm: 90, elbow: 150 }, follow: { arm: 180, elbow: 120 }, props: ['shot'] },
-  'discus-release': { level: 'hipR', base: { hip: 165, hipR: 205, kneeR: 150 }, windup: { armR: 205, arm: 60 }, follow: { armR: -15, arm: 150 }, props: ['discus'] },
-  'fast-bowling-delivery': { level: 'hipR', base: { hip: 160, hipR: 210, kneeR: 165 }, windup: { armR: 215, arm: 20 }, follow: { armR: 535, arm: 200 }, props: ['cricket-ball'] },
-  'basketball-jump-shot': { windup: { arm: 110, elbow: 60 }, follow: { arm: -10, elbow: 178 }, props: ['basketball'] },
-  'overhead-smash': { windup: { arm: 220, elbow: 120 }, follow: { arm: 520, elbow: 176 }, props: ['racket'] },
-  'boxing-straight-punch': { base: { hipR: 200, kneeR: 165 }, level: 'hipR', windup: { arm: 125, elbow: 95 }, follow: { arm: 58, elbow: 179 }, props: ['gloves'] },
+  'shot-put': { level: 'hipR', plant: true, base: { hip: 165, hipR: 205, kneeR: 150 }, windup: { arm: 110, elbow: 150 }, follow: { arm: 165, elbow: 120 }, props: ['shot'] },
+  'discus-release': { level: 'hipR', plant: true, base: { hip: 165, hipR: 205, kneeR: 150 }, windup: { armR: 200, elbowR: 178, arm: 60 }, follow: { armR: -10, elbowR: 178, arm: 150 }, release: 0.45, props: ['discus'] },
+  'fast-bowling-delivery': { level: 'hipR', plant: true, base: { hip: 160, hipR: 210, kneeR: 165 }, windup: { armR: -130, arm: 20 }, follow: { armR: 170, arm: 200 }, props: ['cricket-ball'] },
+  'basketball-jump-shot': {
+    base: { arm: 170, elbow: 50 }, crouch: { knee: 115, hip: 115, trunk: 20, lift: 0, arm: 170, elbow: 50 },
+    windup: { arm: 30, elbow: 60 }, follow: { arm: 30, elbow: 179 }, release: 0.12, props: ['basketball'],
+  },
+  'overhead-smash': { windup: { arm: -40, elbow: 110 }, follow: { arm: 120, elbow: 179 }, release: 0.14, props: ['racket'] },
+  'boxing-straight-punch': {
+    level: 'hipR', plant: true, base: { hipR: 200, kneeR: 165, arm: 150, elbow: 40, armR: 150, elbowR: 30 }, linear: true,
+    windup: { arm: 150, elbow: 25 }, follow: { arm: 86, elbow: 179 }, release: 0.1, peak: 0.6, props: ['gloves'],
+  },
 
   // ── Olympic lifts ──
   'power-clean': { top: { trunk: 40, hip: 70, knee: 92, arm: 180 }, bottom: { trunk: 10, hip: 150, ...FRONT_RACK, elbow: 56 }, props: ['barbell'] },
   'hang-clean': { top: { trunk: 22, hip: 150, knee: 160, arm: 180 }, bottom: { hip: 150, elbow: 56 }, props: ['barbell'] },
   snatch: { topDriver: 40, top: { trunk: 40, hip: 70, knee: 92 }, bottom: { trunk: 15, hip: 95, knee: 95 }, props: ['barbell'] },
-  'push-jerk': { topDriver: 100, top: { elbow: 40 }, bottom: { knee: 150 }, props: ['barbell'] },
-  'split-jerk': { topDriver: 100, level: 'hipR', top: { elbow: 40, hipR: 176, kneeR: 176 }, bottom: { hip: 105, knee: 112, hipR: 205, kneeR: 160 }, props: ['barbell'] },
+  'push-jerk': { top: { elbow: 40 }, bottom: { knee: 150 }, props: ['barbell'] },
+  'split-jerk': { level: 'hipR', hop: 0.05, top: { elbow: 40, hipR: 176, kneeR: 176 }, bottom: { hip: 105, knee: 112, hipR: 205, kneeR: 160 }, props: ['barbell'] },
   'split-jerk-catch-hold': { level: 'hipR', base: { arm: 7, elbow: 176 }, top: { hip: 172, knee: 176, hipR: 182, kneeR: 176 }, bottom: { hip: 105, hipR: 205, kneeR: 160 }, props: ['barbell'] },
 
   // ── SAI battery ──
@@ -154,23 +168,26 @@ export const STYLES: Record<string, PuppetStyle> = {
   'sai-sit-and-reach': { top: { trunk: 0, hip: 90, arm: 120, elbow: 176 }, bottom: { trunk: 60, arm: 100 }, props: ['reach-box'] },
   'sai-flamingo-balance': { base: { hipR: 176, kneeR: 32, shoulder: 70, shoulderR: 15 } },
   'sai-push-up': { forearm: 'down' },
-  'sai-medicine-ball-throw': { base: { hip: 90, knee: 172 }, windup: { arm: 140, elbow: 30 }, follow: { arm: -20, elbow: 178 }, props: ['medicine-ball', 'wall'] },
+  'sai-medicine-ball-throw': { base: { hip: 90, knee: 172, arm: 180, elbow: 35 }, linear: true, windup: { arm: 180, elbow: 35 }, follow: { arm: 65, elbow: 179 }, release: 0.12, peak: 0.7, props: ['medicine-ball', 'wall'] },
   'sai-vertical-jump': { crouch: { arm: 235, elbow: 176 } },
-  'sai-broad-jump': { crouch: { arm: 235, elbow: 176, trunk: 50 }, takeoff: { trunk: 50, arm: 55 }, travel: 1.3 },
+  'sai-broad-jump': { crouch: { arm: 235, elbow: 176, trunk: 50 }, takeoff: { trunk: 32, arm: 55 }, travel: 1.3 },
 
   // ── Yoga ──
-  'tree-pose': { base: { hipR: 120, kneeR: 40, ...ARMS_OVERHEAD, shoulderR: 172 }, top: { hipR: 176, kneeR: 176, shoulder: 10, shoulderR: 10 } },
+  'tree-pose': { base: { hipR: 120, kneeR: 40, ...ARMS_OVERHEAD, shoulderR: 172 } }, // starts in the pose: its checks also pass standing, so stepping in reads as movement
   'warrior-ii': {
-    level: 'hipR', base: { hip: 98, knee: 100, hipR: 140, kneeR: 176, shoulder: 90, shoulderR: 90 },
-    top: { hip: 160, knee: 176, hipR: 160, kneeR: 176, shoulder: 10, shoulderR: 10 },
+    level: 'hipR', base: { kneeR: 176 }, top: { hip: 160, knee: 176, hipR: 160, shoulder: 10, shoulderR: 10 },
+    bottom: { hip: 112, knee: 100, hipR: 140, shoulder: 90, shoulderR: 90 },
   },
-  'warrior-i': { level: 'hipR', base: { hip: 100, hipR: 215, kneeR: 176, ...ARMS_OVERHEAD }, top: { hip: 172, knee: 176, hipR: 190, kneeR: 176, shoulder: 10 } },
+  'warrior-i': { level: 'hipR', base: { kneeR: 176 }, top: { hip: 172, knee: 176, hipR: 190, shoulder: 10 }, bottom: { hip: 100, hipR: 215, ...ARMS_OVERHEAD } },
   'chair-pose': { top: { shoulder: 10 } },
-  'downward-dog': { base: { trunk: 130 }, top: { trunk: 70, hip: 176, knee: 176 } },
+  'downward-dog': { top: { trunk: 70, hip: 176, knee: 176 }, bottom: { trunk: 130 } },
   'cobra-pose': { base: { hip: 215, arm: 162, elbow: 172 }, top: { trunk: 88, hip: 182, arm: 200, elbow: 90 }, props: ['mat'] },
-  'triangle-pose': { base: { hip: 85, hipR: 205, kneeR: 176, arm: 182, armR: 120, elbowR: 176 }, top: { trunk: 0, hip: 150, hipR: 150, arm: 120, armR: 120 } },
+  'triangle-pose': {
+    level: 'hipR', base: { kneeR: 176, elbowR: 176 }, top: { trunk: 0, hip: 150, hipR: 150, arm: 160, armR: 160 },
+    bottom: { hip: 85, hipR: 185, arm: 180, armR: 100 }, // lower hand to the shin, top arm stacked straight up
+  },
   'boat-pose': { supine: true, top: { trunk: -10, hip: 95, knee: 90 }, props: ['mat'] },
-  'bridge-pose': { base: { trunk: -110, arm: 92 }, top: { trunk: -90, hip: 130, knee: 70 }, props: ['mat'] },
+  'bridge-pose': { base: { arm: 92 }, top: { trunk: -90, hip: 130, knee: 70 }, bottom: { trunk: -110 }, props: ['mat'] },
   'mountain-pose': { fitSpread: true, base: { hipR: 176, kneeR: 176, shoulder: 8, shoulderR: 8, elbow: 176 } },
 
   // ── Mobility ──
@@ -178,6 +195,6 @@ export const STYLES: Record<string, PuppetStyle> = {
   'overhead-reach-test': {},
   'hip-hinge-drill': { base: BAR_ON_BACK, props: ['dowel'] },
   'standing-toe-touch': { base: { trunk: 140, arm: 182 }, top: { trunk: 2, hip: 176, arm: 180 } },
-  'knee-to-wall': { level: 'hipR', base: { hip: 100, knee: 61, hipR: 190, kneeR: 95, shoulder: 70, elbow: 100 }, props: ['wall-front'] },
+  'knee-to-wall': { level: 'hipR', plant: true, base: { hip: 100, knee: 61, hipR: 190, kneeR: 95, shoulder: 70, elbow: 100 }, props: ['wall-front'] },
   'arm-circles': {},
 };
