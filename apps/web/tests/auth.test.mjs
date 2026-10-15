@@ -59,3 +59,8 @@ test('password sign-in and sign-up validate before the network and keep a safe c
   assert.equal(calls.at(-1)[1].options.emailRedirectTo, 'https://f.app/auth/callback?next=%2Fprofile');
   assert.equal(authDestination('/admin'), '/admin');
 });
+
+test('sign-up with an address that already has an account explains instead of claiming an email was sent', async () => {
+  const client = { auth: { signUp: async () => ({ data: { user: { id: 'x', identities: [] }, session: null }, error: null }) } };
+  await assert.rejects(passwordAuth(client, 'a@b.co', 'long-enough', true, 'https://f.app', '/profile'), /already has a Fitzen account/);
+});

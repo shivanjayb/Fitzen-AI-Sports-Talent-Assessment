@@ -27,12 +27,19 @@ begin if ok is not true then raise exception 'FAILED: %', what; end if; end $$;
 insert into auth.users (id, email, email_confirmed_at) values
   (:a, 'a@t.in', now()), (:c, 'c@t.in', now()), (:s, 's@t.in', now()), (:m, 'm@t.in', now()), (:x, 'x@t.in', now());
 
+-- 006: the owner's first profile becomes admin while no admin exists; an unconfirmed owner email never does.
+insert into auth.users (id, email, email_confirmed_at) values ('00000000-0000-0000-0000-0000000000f0', 'ShivanjayPrakashBajpai@gmail.com', now());
+select pg_temp.login('00000000-0000-0000-0000-0000000000f0'); insert into profiles (display_name, birth_year) values ('Owner', 1990);
+reset role; select pg_temp.check((select role from profiles where id = '00000000-0000-0000-0000-0000000000f0') = 'admin', 'owner bootstrap admin');
+delete from auth.users where id = '00000000-0000-0000-0000-0000000000f0';
+
 select pg_temp.login(:a); insert into profiles (display_name, birth_year) values ('Asha Admin', 1985);
 select pg_temp.login(:c); insert into profiles (display_name, birth_year) values ('Chetan Coach', 1980);
 select pg_temp.login(:s); insert into profiles (display_name, birth_year) values ('Sunil Singh', 1999);
 select pg_temp.login(:m); insert into profiles (display_name, birth_year, parent_email) values ('Meera Kumari', extract(year from now())::int - 14, 'parent@t.in');
 select pg_temp.login(:x); insert into profiles (display_name, birth_year) values ('Xavier', 1990);
 reset role; update profiles set role = 'admin' where id = :a; -- owner bootstrap
+select pg_temp.check((select role from profiles where id = :c) = 'athlete', 'bootstrap does not promote others');
 
 -- Roles can't be self-assigned.
 select pg_temp.login(:s);
