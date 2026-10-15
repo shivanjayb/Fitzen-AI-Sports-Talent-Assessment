@@ -113,8 +113,8 @@ revoke all on public.sessions from anon;
 -- Squads: a coach's invite-code group. Joining uses join_group() from 002/003.
 -- ---------------------------------------------------------------------------
 alter table public.groups add column kind text not null default 'group' check (kind in ('group', 'squad'));
-drop policy "groups: create own" on public.groups;
-create policy "groups: create own" on public.groups for insert
+-- Only coaches/admins may create squads. alter (not drop + create) keeps the change non-destructive.
+alter policy "groups: create own" on public.groups
   with check (owner = auth.uid() and (kind = 'group' or public.my_role() in ('coach', 'admin')));
 
 -- True when the caller owns squad g as a coach/admin and athlete a is a member they may see.
