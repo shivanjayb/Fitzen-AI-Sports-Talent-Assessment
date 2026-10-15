@@ -163,7 +163,7 @@ function Account({ p }: { p: P }) {
   if (!user) return (<>
     <h2 className="section-title">Account <small>optional</small></h2>
     <section className="glass panel" style={{ display: 'grid', gap: 12 }}>
-      <p style={{ margin: 0 }}>Sign in to join leaderboards and groups. No password: we email you a link.</p>
+      <p style={{ margin: 0 }}>Sign in with a password or an email link to keep your profile and sessions on every device, and to join leaderboards, groups and coaches.</p>
       <Link className="btn primary" to="/auth?next=%2Fprofile">Sign in or create an account</Link>
       {status}
     </section>
