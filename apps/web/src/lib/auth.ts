@@ -44,6 +44,8 @@ export async function passwordAuth(client: SupabaseClient | null, email: string,
   redirect.searchParams.set('next', authDestination(next));
   const { data, error } = await client.auth.signUp({ email: normalized, password, options: { emailRedirectTo: redirect.href } });
   if (error) throw error;
+  // Supabase answers an existing address with a placeholder user (no identities) and sends no email.
+  if (data.user && data.user.identities?.length === 0) throw new Error('This email already has a Fitzen account. Tap Sign in, or use Email link if you never set a password.');
   return data.session ? 'signed-in' : 'confirm-email';
 }
 

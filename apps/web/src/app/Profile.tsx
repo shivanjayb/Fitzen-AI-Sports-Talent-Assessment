@@ -179,7 +179,8 @@ function Account({ p }: { p: P }) {
 
   const save = () => run(async () => {
     const parent = d.parent_email?.trim() || null;
-    if (!Number.isInteger(by) || by < 1920 || by > new Date().getFullYear()) return 'Enter a valid birth year.';
+    if (!d.display_name.trim()) return 'Add the name shown to others.';
+    if (!Number.isInteger(by) || by < 1920 || by > new Date().getFullYear()) return 'Add your birth year (for example 2008).';
     if (minor && !parent) return 'Age 18 or younger: add a parent or guardian email first.';
     if (parent && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(parent)) return 'Enter a valid parent or guardian email.';
     if (parent && parent.toLowerCase() === user.email?.toLowerCase()) return 'The parent email must be different from your own.';
@@ -194,9 +195,9 @@ function Account({ p }: { p: P }) {
   });
 
   return (<>
-    <h2 className="section-title" id="account">Account <small>{user.email}</small></h2>
+    <h2 className="section-title" id="account">{acct ? 'Account' : 'Finish your account'} <small>{user.email}</small></h2>
     <section className="glass panel" style={{ display: 'grid', gap: 14 }}>
-      {!acct && <p style={{ margin: 0 }}>Signed in. Check these details, then save to join leaderboards and groups.</p>}
+      {!acct && <p style={{ margin: 0 }}>You're signed in. One last step: add the name others see and your birth year (it keeps under-18s protected), then tap <b>Finish my account</b>. This unlocks leaderboards, groups and coaches.</p>}
       <label className="field"><span>Name shown to others</span><input required maxLength={40} value={d.display_name} onChange={(e) => set('display_name', e.target.value)} /></label>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
         <label className="field"><span>Birth year</span><input type="number" inputMode="numeric" min={1920} max={new Date().getFullYear()} value={d.birth_year} onChange={(e) => set('birth_year', e.target.value)} /></label>
@@ -225,7 +226,7 @@ function Account({ p }: { p: P }) {
           )}
         </div>
       )}
-      <button className="btn primary" disabled={busy || !d.display_name.trim() || !(by >= 1920)} onClick={save}>{acct ? 'Save changes' : 'Create my account'}</button>
+      <button className="btn primary" disabled={busy} onClick={save}>{acct ? 'Save changes' : 'Finish my account'}</button>
       {status}
       <p className="faint" style={{ margin: 0, fontSize: '.8rem' }}>Leaderboards get only the exercise, your best number, your form score and the date. Your profile and full session reports are kept privately in your account so you can sign in on any device; a coach sees them only if you join their squad. Never video, never your camera feed. Demo runs stay on this device.</p>
     </section>
