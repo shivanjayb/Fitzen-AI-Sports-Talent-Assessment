@@ -287,9 +287,9 @@
   background: #000;
 }
 :root:has(.lp) body { background: #000; }
-/* Phones: nav actions stay on one line; Coaches is reached from Sign in ("I'm a coach"). */
+/* Phones: nav keeps language + Try now on one line; Sign in and Coaches are reached from Profile. */
 .lp-nav .row { flex-wrap: nowrap; white-space: nowrap; }
-@media (max-width: 420px) { .lp-nav .lp-hide-sm { display: none; } .lp-nav .row { gap: 12px !important; } }
+@media (max-width: 420px) { .lp-nav .row .lp-hide-sm { display: none; } .lp-nav .row { gap: 12px !important; } }
 .lp-lang { appearance: none; background: transparent; color: var(--text-2); border: 1px solid var(--sep); border-radius: 999px; padding: 6px 12px; font: inherit; font-size: .85rem; min-height: 36px; }
 .lp-lang option { background: #1c1c1e; color: #fff; }
 .lp-nav .lp-link, .lp-nav-cta { min-height: 40px; display: inline-flex; align-items: center; }

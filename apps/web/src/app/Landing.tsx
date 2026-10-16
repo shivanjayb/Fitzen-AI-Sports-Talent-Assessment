@@ -290,7 +290,7 @@ export default function Landing() {
           <a href="#how">{t("How it works")}</a>
           <a href="#mission">{t("Why Fitzen")}</a>
         </nav>
-        <div className="row" style={{ gap: 14 }}><select className="lp-lang" aria-label="Language / भाषा" value={getLanguage()} onChange={(e) => void setLanguage(e.target.value as Language)}>{LANGUAGES.map(([code, name]) => <option key={code} value={code}>{name}</option>)}</select><Link to="/auth?next=%2Fcoach" className="lp-link lp-hide-sm">{t("Coaches")}</Link><Link to="/auth" className="lp-link">{t("Sign in")}</Link><Link to="/app" className="lp-nav-cta">{t("Try now")}</Link></div>
+        <div className="row" style={{ gap: 14 }}><select className="lp-lang" aria-label="Language / भाषा" value={getLanguage()} onChange={(e) => void setLanguage(e.target.value as Language)}>{LANGUAGES.map(([code, name]) => <option key={code} value={code}>{name}</option>)}</select><Link to="/auth?next=%2Fcoach" className="lp-link lp-hide-sm">{t("Coaches")}</Link><Link to="/auth" className="lp-link lp-hide-sm">{t("Sign in")}</Link><Link to="/app" className="lp-nav-cta">{t("Try now")}</Link></div>
       </header>
 
       <main id="main">
@@ -311,7 +311,7 @@ export default function Landing() {
             <div className="lp-switch" role="tablist" aria-label={t("Switch sport")}>
               {REEL.map((r, k) => (
                 <button key={r.id} role="tab" aria-selected={k === index} className={k === index ? 'on' : ''} onClick={() => pick(k)}>
-                  {r.sport}
+                  {t(r.sport)}
                   {k === index && auto && !paused && <i className="lp-switch-timer" />}
                 </button>
               ))}

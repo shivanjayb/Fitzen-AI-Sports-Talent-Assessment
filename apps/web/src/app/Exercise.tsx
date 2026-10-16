@@ -127,8 +127,8 @@ export default function Exercise() {
                 <div className="art">{s.frame === 'mid' ? <Figure def={ex} /> : photo && (s.frame === 'key' || photo.frames.length > 1) ? <ExerciseArt def={ex} frame={s.frame} /> : <FigureArt def={ex} frame={s.frame} w={480} h={360} />}</div>
                 <div className="txt">
                   <span className="n">{t('Step {n}', { n: i + 1 })}</span>
-                  <b>{s.title}</b>
-                  <p>{s.text}</p>
+                  <b>{t(s.title)}</b>
+                  <p>{t(s.text)}</p>
                   {s.target && <span className="target">{s.target.label} {s.target.range}</span>}
                 </div>
               </article>
