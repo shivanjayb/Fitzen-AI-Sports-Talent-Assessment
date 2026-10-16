@@ -1,3 +1,4 @@
+import { LANGUAGES, getLanguage, setLanguage, t, type Language } from './language';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CATEGORIES, EXERCISES, MotionSession, exerciseById, simulateExercise, type ExerciseDef, type LiveState, type PoseFrame, type SessionReport, type Zone } from '@fitzen/engines';
@@ -209,7 +210,7 @@ function Telestrator({ index, paused }: { index: number; paused: boolean }) {
         <span className="lp-tele-count">{hud.count}</span>
         <span className="lp-tele-sub">{def.mode === 'event' ? (hud.extra || 'attempts') : `reps · ${hud.valid} correct`}</span>
       </div>
-      <span className="lp-tele-note">Synthetic demo athlete · real Fitzen engine</span>
+      <span className="lp-tele-note">{t("Synthetic demo athlete · real Fitzen engine")}</span>
     </div>
   );
 }
@@ -281,33 +282,33 @@ export default function Landing() {
   return (
     <div className={`lp ${paused ? 'lp-paused' : ''}`}>
       <div className="lp-progress" aria-hidden />
-      <a href="#main" className="lp-skip">Skip to content</a>
+      <a href="#main" className="lp-skip">{t("Skip to content")}</a>
       <header className="lp-nav">
-        <Link to="/" aria-label="Fitzen home"><Wordmark /></Link>
-        <nav aria-label="Sections">
-          <a href="#library">Exercises</a>
-          <a href="#how">How it works</a>
-          <a href="#mission">Why Fitzen</a>
+        <Link to="/" aria-label={t("Fitzen home")}><Wordmark /></Link>
+        <nav aria-label={t("Sections")}>
+          <a href="#library">{t("Exercises")}</a>
+          <a href="#how">{t("How it works")}</a>
+          <a href="#mission">{t("Why Fitzen")}</a>
         </nav>
-        <div className="row" style={{ gap: 14 }}><Link to="/auth?next=%2Fcoach" className="lp-link">Coaches</Link><Link to="/auth" className="lp-link">Sign in</Link><Link to="/app" className="lp-nav-cta">Try now</Link></div>
+        <div className="row" style={{ gap: 14 }}><select className="lp-lang" aria-label="Language / भाषा" value={getLanguage()} onChange={(e) => void setLanguage(e.target.value as Language)}>{LANGUAGES.map(([code, name]) => <option key={code} value={code}>{name}</option>)}</select><Link to="/auth?next=%2Fcoach" className="lp-link lp-hide-sm">{t("Coaches")}</Link><Link to="/auth" className="lp-link">{t("Sign in")}</Link><Link to="/app" className="lp-nav-cta">{t("Try now")}</Link></div>
       </header>
 
       <main id="main">
         <section className="lp-hero">
           <div className="lp-hero-copy">
             <h1 className="lp-h1">
-              <span key={`a${pulse}`} className="lp-h1-a">Every sport.</span>
-              <span className="lp-h1-b">One coach.</span>
+              <span key={`a${pulse}`} className="lp-h1-a">{t("Every sport.")}</span>
+              <span className="lp-h1-b">{t("One coach.")}</span>
             </h1>
             <p className="lp-lede">
-              Point your phone at yourself. Fitzen reads {EXERCISES.length} exercises joint by joint and colours every angle green, amber or red as you move.
-              <span className="lp-lede-more"> Then it hands you a coach’s report on exactly what to fix.</span>
+              {t('Point your phone at yourself. Fitzen reads {n} exercises joint by joint and colours every angle green, amber or red as you move.', { n: EXERCISES.length })}
+              <span className="lp-lede-more"> {t("Then it hands you a coach’s report on exactly what to fix.")}</span>
             </p>
             <div className="lp-cta-row">
-              <Magnetic to="/app">Try now <Arrow /></Magnetic>
-              <Link to={`/train/${REEL[index]!.id}?src=demo`} className="lp-link">Watch the {REEL[index]!.sport.toLowerCase()} demo</Link>
+              <Magnetic to="/app">{t("Try now")} <Arrow /></Magnetic>
+              <Link to={`/train/${REEL[index]!.id}?src=demo`} className="lp-link">{t('Watch the {sport} demo', { sport: t(REEL[index]!.sport).toLowerCase() })}</Link>
             </div>
-            <div className="lp-switch" role="tablist" aria-label="Switch sport">
+            <div className="lp-switch" role="tablist" aria-label={t("Switch sport")}>
               {REEL.map((r, k) => (
                 <button key={r.id} role="tab" aria-selected={k === index} className={k === index ? 'on' : ''} onClick={() => pick(k)}>
                   {r.sport}
@@ -320,9 +321,9 @@ export default function Landing() {
               {paused ? 'Play motion' : 'Pause motion'}
             </button>
             <ul className="lp-facts">
-              <li>No sign-up</li>
-              <li>Runs on your phone</li>
-              <li>Video never uploaded</li>
+              <li>{t("No sign-up")}</li>
+              <li>{t("Runs on your phone")}</li>
+              <li>{t("Video never uploaded")}</li>
             </ul>
           </div>
           <Telestrator index={index} paused={paused} />
@@ -336,26 +337,26 @@ export default function Landing() {
 
         <section id="library" className="lp-library">
           <div className="lp-wrap lp-library-head">
-            <h2 className="lp-h2">{EXERCISES.length} exercises.<br />Gym floor to athletics track.</h2>
-            <div className="lp-filters" role="group" aria-label="Filter exercises by category">
-              <button className={cat === null ? 'on' : ''} aria-pressed={cat === null} onClick={() => setCat(null)}>All <b>{EXERCISES.length}</b></button>
+            <h2 className="lp-h2">{t('{n} exercises.', { n: EXERCISES.length })}<br />{t("Gym floor to athletics track.")}</h2>
+            <div className="lp-filters" role="group" aria-label={t("Filter exercises by category")}>
+              <button className={cat === null ? 'on' : ''} aria-pressed={cat === null} onClick={() => setCat(null)}>{t("All")} <b>{EXERCISES.length}</b></button>
               {counts.map((c) => (
                 <button key={c.id} className={cat === c.id ? 'on' : ''} aria-pressed={cat === c.id} onClick={() => setCat(c.id)}>{c.label} <b>{c.n}</b></button>
               ))}
             </div>
           </div>
           <ExerciseRail cat={cat} />
-          <p className="lp-wrap lp-hint">Tap any exercise to watch the demo athlete do it.</p>
+          <p className="lp-wrap lp-hint">{t("Tap any exercise to watch the demo athlete do it.")}</p>
         </section>
 
         <section id="how" className="lp-how lp-wrap">
-          <h2 className="lp-h2">Phone to feedback<br />in three moves.</h2>
+          <h2 className="lp-h2">{t("Phone to feedback")}<br />{t("in three moves.")}</h2>
           <div className="lp-stack">
             <article className="lp-panel" style={{ ['--i' as string]: 0 }}>
               <div>
                 <span className="lp-panel-n">1</span>
-                <h3>Prop your phone</h3>
-                <p>Two to three metres away, side-on or facing, whole body in frame. Fitzen tells you when it can see you, then counts you in.</p>
+                <h3>{t("Prop your phone")}</h3>
+                <p>{t("Two to three metres away, side-on or facing, whole body in frame. Fitzen tells you when it can see you, then counts you in.")}</p>
               </div>
               <svg className="lp-panel-art" viewBox="0 0 220 180" aria-hidden>
                 <rect x="60" y="14" width="100" height="152" rx="18" fill="none" stroke="currentColor" strokeOpacity=".3" strokeWidth="2" strokeDasharray="7 7" />
@@ -366,25 +367,25 @@ export default function Landing() {
             <article className="lp-panel" style={{ ['--i' as string]: 1 }}>
               <div>
                 <span className="lp-panel-n">2</span>
-                <h3>Move</h3>
-                <p>Every joint that matters lights up live. You hear your rep count, and a cue the moment your form slips.</p>
+                <h3>{t("Move")}</h3>
+                <p>{t("Every joint that matters lights up live. You hear your rep count, and a cue the moment your form slips.")}</p>
               </div>
-              <ul className="lp-zones" aria-label="Colour key">
-                <li className="good"><b>94°</b><span>Knee · correct</span></li>
-                <li className="ok"><b>112°</b><span>Knee · almost</span></li>
-                <li className="bad"><b>138°</b><span>Knee · fix it</span></li>
+              <ul className="lp-zones" aria-label={t("Colour key")}>
+                <li className="good"><b>94°</b><span>{t("Knee · correct")}</span></li>
+                <li className="ok"><b>112°</b><span>{t("Knee · almost")}</span></li>
+                <li className="bad"><b>138°</b><span>{t("Knee · fix it")}</span></li>
               </ul>
             </article>
             <article className="lp-panel" style={{ ['--i' as string]: 2 }}>
               <div>
                 <span className="lp-panel-n">3</span>
-                <h3>Read your report</h3>
-                <p>Time, reps per minute, range of motion, tempo, time under tension, fatigue, and a list of what to fix next session.</p>
+                <h3>{t("Read your report")}</h3>
+                <p>{t("Time, reps per minute, range of motion, tempo, time under tension, fatigue, and a list of what to fix next session.")}</p>
               </div>
               <dl className="lp-mini">
-                <div><dt>Grade</dt><dd className="lime">{report.grade}</dd></div>
-                <div><dt>Reps</dt><dd>{rp.count}<small>/{rp.valid} correct</small></dd></div>
-                <div><dt>Tempo</dt><dd>{rp.avgEccentricSec.toFixed(1)}<small>s down</small></dd></div>
+                <div><dt>{t("Grade")}</dt><dd className="lime">{report.grade}</dd></div>
+                <div><dt>{t("Reps")}</dt><dd>{rp.count}<small>/{t('{n} correct', { n: rp.valid })}</small></dd></div>
+                <div><dt>{t("Tempo")}</dt><dd>{rp.avgEccentricSec.toFixed(1)}<small>{t("s down")}</small></dd></div>
               </dl>
             </article>
           </div>
@@ -392,19 +393,19 @@ export default function Landing() {
 
         <section className="lp-report lp-wrap">
           <div className="lp-report-copy">
-            <h2 className="lp-h2">Not a score.<br />A coach’s notes.</h2>
-            <p className="lp-body">This report was computed on this page a moment ago, by the same engine the app runs, from the demo athlete’s squats. Yours comes from your own camera.</p>
-            <Magnetic to="/app" className="lp-cta-ghost">Get your report <Arrow /></Magnetic>
+            <h2 className="lp-h2">{t("Not a score.")}<br />{t("A coach’s notes.")}</h2>
+            <p className="lp-body">{t("This report was computed on this page a moment ago, by the same engine the app runs, from the demo athlete’s squats. Yours comes from your own camera.")}</p>
+            <Magnetic to="/app" className="lp-cta-ghost">{t("Get your report")} <Arrow /></Magnetic>
           </div>
           <div ref={reportRef} className="lp-sheet">
             <div className="lp-sheet-head">
               <span className="lp-sheet-grade">{report.grade}</span>
-              <div><b>Back squat</b><span>{rp.count} reps · {rp.valid} correct · form {report.formScore}/100</span></div>
+              <div><b>{t("Back squat")}</b><span>{rp.count} reps · {rp.valid} correct · form {report.formScore}/100</span></div>
             </div>
             <dl className="lp-sheet-stats">
-              <div><dt>Cadence</dt><dd>{rp.perMin.toFixed(1)}<small>/min</small></dd></div>
-              <div><dt>Range</dt><dd>{Math.round(rp.romMean)}°<small>±{rp.romSd.toFixed(0)}</small></dd></div>
-              <div><dt>Under tension</dt><dd>{rp.tutSec.toFixed(1)}<small>s</small></dd></div>
+              <div><dt>{t("Cadence")}</dt><dd>{rp.perMin.toFixed(1)}<small>/min</small></dd></div>
+              <div><dt>{t("Range")}</dt><dd>{Math.round(rp.romMean)}°<small>±{rp.romSd.toFixed(0)}</small></dd></div>
+              <div><dt>{t("Under tension")}</dt><dd>{rp.tutSec.toFixed(1)}<small>s</small></dd></div>
             </dl>
             <div className="lp-sheet-bars">
               {report.checks.slice(0, 4).map((c, k) => (
@@ -422,25 +423,25 @@ export default function Landing() {
         </section>
 
         <section id="mission" className="lp-mission lp-wrap">
-          <p className="lp-quote">Talent lives in every district. <mark>Now the tryout does too.</mark></p>
+          <p className="lp-quote">{t("Talent lives in every district.")} <mark>{t("Now the tryout does too.")}</mark></p>
           <div className="lp-mission-grid">
             <p className="lp-body">
               The Sports Authority of India asked for a way to assess young athletes anywhere with nothing but a phone (Smart India Hackathon, SIH25073).
               Fitzen is our answer: a sports-science lab in your pocket that works in a village as well as a stadium, with no equipment and no account.
             </p>
             <ul className="lp-pillars">
-              <li><b>Private by design</b>Pose tracking runs on your phone. Your video is never uploaded.</li>
-              <li><b>Honest numbers</b>Every figure is measured, and the report says when the camera can’t see well enough.</li>
-              <li><b>Made for Khelo India’s scale</b>Runs in an ordinary phone’s browser. Nothing to install.</li>
+              <li><b>{t("Private by design")}</b>{t("Pose tracking runs on your phone. Your video is never uploaded.")}</li>
+              <li><b>{t("Honest numbers")}</b>{t("Every figure is measured, and the report says when the camera can’t see well enough.")}</li>
+              <li><b>{t("Made for Khelo India’s scale")}</b>{t("Runs in an ordinary phone’s browser. Nothing to install.")}</li>
             </ul>
           </div>
-          <p className="lp-fine">A final-year project by the CSD department, K. K. Wagh Institute, Nashik. Not an official SAI product.</p>
+          <p className="lp-fine">{t("A final-year project by the CSD department, K. K. Wagh Institute, Nashik. Not an official SAI product.")}</p>
         </section>
 
         <section className="lp-final">
-          <h2 className="lp-final-h">Your turn.</h2>
-          <p className="lp-body">Pick an exercise. Press start. See yourself the way a coach does.</p>
-          <Magnetic to="/app" className="lp-cta-lg">Try Fitzen now <Arrow /></Magnetic>
+          <h2 className="lp-final-h">{t("Your turn.")}</h2>
+          <p className="lp-body">{t("Pick an exercise. Press start. See yourself the way a coach does.")}</p>
+          <Magnetic to="/app" className="lp-cta-lg">{t("Try Fitzen now")} <Arrow /></Magnetic>
         </section>
       </main>
 

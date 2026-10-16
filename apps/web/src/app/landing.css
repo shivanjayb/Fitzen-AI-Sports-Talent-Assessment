@@ -276,3 +276,20 @@
 .lp-tile, .lp-panel, .lp-sheet { background: var(--bg-2) !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; box-shadow: none !important; border: 0 !important; border-radius: 18px; }
 .lp-filters button { background: var(--bg-2); box-shadow: none; color: var(--paper); }
 .lp-filters button.on { background: var(--paper); color: #000; box-shadow: none; }
+
+/* The landing page keeps its dark studio look in both app themes: its photos, outline type and glows are built
+   for black, and light-theme app tokens leaking in made its text near-invisible. */
+.lp {
+  --bg: #000; --bg-2: #1c1c1e; --bg-3: #2c2c2e; --bg-4: #3a3a3c; --text: #fff; --text-2: #8e8e93; --text-3: #636366;
+  --sep: rgba(84, 84, 88, 0.6); --fill: rgba(118, 118, 128, 0.24); --accent: #a6ff00; --accent-ink: #000;
+  --cta: #fff; --cta-ink: #000; --glass: #1c1c1e; --glass-strong: #2c2c2e;
+  --good: #34d27b; --ok: #f5c542; --bad: #ff5a4e;
+  background: #000;
+}
+:root:has(.lp) body { background: #000; }
+/* Phones: nav actions stay on one line; Coaches is reached from Sign in ("I'm a coach"). */
+.lp-nav .row { flex-wrap: nowrap; white-space: nowrap; }
+@media (max-width: 420px) { .lp-nav .lp-hide-sm { display: none; } .lp-nav .row { gap: 12px !important; } }
+.lp-lang { appearance: none; background: transparent; color: var(--text-2); border: 1px solid var(--sep); border-radius: 999px; padding: 6px 12px; font: inherit; font-size: .85rem; min-height: 36px; }
+.lp-lang option { background: #1c1c1e; color: #fff; }
+.lp-nav .lp-link, .lp-nav-cta { min-height: 40px; display: inline-flex; align-items: center; }

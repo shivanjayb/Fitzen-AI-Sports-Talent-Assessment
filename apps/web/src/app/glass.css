@@ -671,3 +671,16 @@ table.data td { padding: 9px 6px; border-top: 0.5px solid var(--sep); }
   }
 }
 .role-select { background: var(--fill); color: var(--text); border: 0; border-radius: 999px; padding: 8px 12px; font: inherit; font-size: 0.875rem; }
+
+/* ── Mobile and light-mode fixes ────────────────────────────────── */
+/* Category tiles carry white labels: keep a dark category hue behind the photo while it loads (both themes). */
+.type-tile { background: var(--hue-2, #2c2c2e); }
+.type-tile .photo { background: var(--hue-2, #2c2c2e); }
+/* Tap targets of at least 44px without changing how they look. */
+.pager button { position: relative; }
+.pager button::before { content: ""; position: absolute; inset: -18px -6px; }
+.see-all { position: relative; }
+.see-all::before { content: ""; position: absolute; inset: -11px -8px; }
+.search input { align-self: stretch; min-height: 44px; }
+/* Long labels never squeeze two buttons into wrapped text on narrow phones. */
+@media (max-width: 400px) { .btn { padding-left: 14px; padding-right: 14px; } }

@@ -73,12 +73,12 @@ export default function Assistant() {
       <div className="scrim" onClick={close} />
       <div ref={sheet} className="sheet glass ai-sheet" role="dialog" aria-modal="true" aria-labelledby="coach-title">
         <div className="row between">
-          <div><h2 id="coach-title" style={{ margin: 0 }}>{t('Fitzen local coach')}</h2><p className="faint">Guidance from your measurements. No account or internet needed.</p></div>
-          <button className="btn icon glass" onClick={close} aria-label="Close"><IconClose /></button>
+          <div><h2 id="coach-title" style={{ margin: 0 }}>{t('Fitzen local coach')}</h2><p className="faint">{t("Guidance from your measurements. No account or internet needed.")}</p></div>
+          <button className="btn icon glass" onClick={close} aria-label={t("Close")}><IconClose /></button>
         </div>
         <div className="chips">{STARTERS[ctx.kind].map((s) => <button key={s} className="chip" onClick={() => setAnswer(localAdvice(ctx, s))}>{t(s)}</button>)}</div>
         <div className="ai-log" role="status" aria-live="polite"><Md text={answer} /></div>
-        <p className="faint">Rule-based guidance stays on this device. Screening estimates, not medical advice or a selection decision.</p>
+        <p className="faint">{t("Rule-based guidance stays on this device. Screening estimates, not medical advice or a selection decision.")}</p>
       </div>
     </>, document.body)}
   </>);

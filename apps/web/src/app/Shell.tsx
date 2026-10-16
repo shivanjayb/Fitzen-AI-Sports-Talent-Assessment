@@ -4,7 +4,7 @@ import { FitzenMark, IconBack, IconPeople, IconRings, IconRun, IconSearch, IconS
 import Assistant from './Assistant';
 import { openAssistant } from './openAssistant';
 import { getProfile } from './store';
-import { t as translate } from './language';
+import { t } from './language';
 
 // Three tabs (Summary, Train, Compete) with search in its own glass button.
 const TABS = [
@@ -21,14 +21,14 @@ export function PageHeader({ title, kicker, back, children }: { title: ReactNode
   return (
     <header className="page-head">
       <div className="page-head-text">
-        {back && <button className="back-link" onClick={() => (history.length > 1 ? nav(-1) : nav('/app'))}><IconBack />{translate('Back')}</button>}
+        {back && <button className="back-link" onClick={() => (history.length > 1 ? nav(-1) : nav('/app'))}><IconBack />{t('Back')}</button>}
         {kicker && <p className="subtitle">{kicker}</p>}
         <h1 className="large-title">{title}</h1>
       </div>
       <div className="head-actions">
         {children}
-        <button className="head-btn glassy press" onClick={() => openAssistant()} aria-label="Open local coach"><IconSparkle /></button>
-        <Link to="/profile" className="avatar press" aria-label="Profile">{initials}</Link>
+        <button className="head-btn glassy press" onClick={() => openAssistant()} aria-label={t("Open local coach")}><IconSparkle /></button>
+        <Link to="/profile" className="avatar press" aria-label={t("Profile")}>{initials}</Link>
       </div>
     </header>
   );
@@ -44,18 +44,18 @@ export default function Shell() {
   }, [loc.pathname]);
   return (
     <div className="app">
-      <Link to="/" className="app-brand no-print" aria-label="Fitzen home" translate="no"><FitzenMark size={22} />FITZEN</Link>
+      <Link to="/" className="app-brand no-print" aria-label={t("Fitzen home")} translate="no"><FitzenMark size={22} />FITZEN</Link>
       <Outlet />
       <div className="tabdock no-print">
-        <nav ref={bar} className="tabbar glassy" aria-label="Main">
+        <nav ref={bar} className="tabbar glassy" aria-label={t("Main")}>
           <span className="tab-pill" style={pill} />
-          {TABS.map((t) => (
-            <NavLink key={t.to} to={t.to} className={({ isActive }) => (isActive || (t.to === '/app' && /^\/(exercise|guided|validation)/.test(loc.pathname)) ? 'active' : '')}>
-              {t.icon}<span>{translate(t.label)}</span>
+          {TABS.map((tab) => (
+            <NavLink key={tab.to} to={tab.to} className={({ isActive }) => (isActive || (tab.to === '/app' && /^\/(exercise|guided|validation)/.test(loc.pathname)) ? 'active' : '')}>
+              {tab.icon}<span>{t(tab.label)}</span>
             </NavLink>
           ))}
         </nav>
-        <NavLink to="/search" className={({ isActive }) => `tab-search glassy press ${isActive ? 'active' : ''}`} aria-label="Search exercises"><IconSearch /></NavLink>
+        <NavLink to="/search" className={({ isActive }) => `tab-search glassy press ${isActive ? 'active' : ''}`} aria-label={t("Search exercises")}><IconSearch /></NavLink>
       </div>
       <Assistant />
     </div>

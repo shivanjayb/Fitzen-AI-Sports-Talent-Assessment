@@ -16,9 +16,9 @@ export default function History() {
   }
   return (
     <main className="page">
-      <PageHeader kicker="Stored on this device" title={t('History')} back />
-      {h.length > 0 && <button className="btn glass press" style={{ marginTop: 12 }} onClick={() => openAssistant({ kind: 'progress' })}><IconSparkle /> Ask AI about my progress</button>}
-      {!h.length && <div className="empty"><div className="big"><IconFlag /></div>No sessions yet.<br /><br /><Link to="/app" className="btn primary">Start training</Link></div>}
+      <PageHeader kicker={t("Stored on this device")} title={t('History')} back />
+      {h.length > 0 && <button className="btn glass press" style={{ marginTop: 12 }} onClick={() => openAssistant({ kind: 'progress' })}><IconSparkle /> {t("Ask AI about my progress")}</button>}
+      {!h.length && <div className="empty"><div className="big"><IconFlag /></div>{t("No sessions yet.")}<br /><br /><Link to="/app" className="btn primary">{t("Start training")}</Link></div>}
       {[...byDay].map(([day, list]) => (
         <section key={day}>
           <h2 className="section-title">{day}<small>{list.length}</small></h2>

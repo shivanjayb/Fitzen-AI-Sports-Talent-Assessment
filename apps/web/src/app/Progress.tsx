@@ -52,17 +52,17 @@ export default function Progress() {
       <PageHeader kicker={today()} title={t('Summary')} />
       <section className="activity-card">
         <div>
-          <h3>Activity</h3>
-          <div className="ring-stat"><span>Training days</span><b className="num">0/3<small> this week</small></b></div>
-          <div className="ring-stat"><span>Level 1</span><b className="num">0<small> XP</small></b></div>
-          <div className="ring-stat"><span>Badges</span><b className="num">0</b></div>
+          <h3>{t("Activity")}</h3>
+          <div className="ring-stat"><span>{t("Training days")}</span><b className="num">0/3<small> {t("this week")}</small></b></div>
+          <div className="ring-stat"><span>{t("Level 1")}</span><b className="num">0<small> XP</small></b></div>
+          <div className="ring-stat"><span>{t("Badges")}</span><b className="num">0</b></div>
         </div>
         <Rings values={[0, 0, 0]} size={148} />
       </section>
       <section className="glass panel" style={{ marginTop: 12 }}>
-        <b>Close your first ring</b>
-        <p className="muted" style={{ margin: '4px 0 14px' }}>No eligible real sessions yet. Demos, unassessed and flagged results do not count. Train once to start your streak.</p>
-        <Link to="/app" className="btn primary press">Start training</Link>
+        <b>{t("Close your first ring")}</b>
+        <p className="muted" style={{ margin: '4px 0 14px' }}>{t("No eligible real sessions yet. Demos, unassessed and flagged results do not count. Train once to start your streak.")}</p>
+        <Link to="/app" className="btn primary press">{t("Start training")}</Link>
       </section>
       <TrainingGoal />
     </main>
@@ -92,28 +92,28 @@ export default function Progress() {
       <div className="summary-top">
       <section className="activity-card">
         <div>
-          <h3>Activity</h3>
-          <div className="ring-stat"><span>Training days</span><b className="num">{weeks[0]}/3<small> this week</small></b></div>
-          <div className="ring-stat"><span>Level {lv}</span><b className="num">{xp - prev}/{next - prev}<small> XP</small></b></div>
-          <div className="ring-stat"><span>Badges</span><b className="num">{earned}/{badges.length}</b></div>
+          <h3>{t("Activity")}</h3>
+          <div className="ring-stat"><span>{t("Training days")}</span><b className="num">{weeks[0]}/3<small> {t("this week")}</small></b></div>
+          <div className="ring-stat"><span>{t('Level {n}', { n: lv })}</span><b className="num">{xp - prev}/{next - prev}<small> XP</small></b></div>
+          <div className="ring-stat"><span>{t("Badges")}</span><b className="num">{earned}/{badges.length}</b></div>
         </div>
         <Rings values={[weeks[0]! / 3, (xp - prev) / (next - prev), earned / badges.length]} size={148} />
       </section>
 
       <div className="tiles">
-        <div className="tile move"><span>Streak</span><small>{st.activeDays} active days in total</small><b className="num">{st.streakDays}<small> days</small></b></div>
-        <div className="tile exercise"><span>Best form</span><small>out of 100</small><b className="num">{st.bestMovementQuality}</b></div>
-        <div className="tile stand"><span>Consistency</span><small>Aim for 3+ days a week</small>
+        <div className="tile move"><span>{t("Streak")}</span><small>{t('{n} active days in total', { n: st.activeDays })}</small><b className="num">{st.streakDays}<small> {t("days")}</small></b></div>
+        <div className="tile exercise"><span>{t("Best form")}</span><small>{t("out of 100")}</small><b className="num">{st.bestMovementQuality}</b></div>
+        <div className="tile stand"><span>{t("Consistency")}</span><small>{t("Aim for 3+ days a week")}</small>
           <div className="mini-bars" aria-label={`Training days over the last four weeks: ${[...weeks].reverse().join(', ')}`}>
             {[...weeks].reverse().map((n, i) => <i key={i} className={n >= 3 ? '' : 'low'} style={{ height: `${Math.max(8, Math.min(7, n) / 7 * 100)}%`, animationDelay: `${i * 80}ms` }} />)}
           </div>
         </div>
-        <Link to="/history" className="tile yellow press"><span>Sessions</span><small>retained on this device</small><b className="num">{h.length}</b></Link>
+        <Link to="/history" className="tile yellow press"><span>{t("Sessions")}</span><small>{t("retained on this device")}</small><b className="num">{h.length}</b></Link>
       </div>
       </div>
-      <p className="faint" style={{ fontSize: '.8125rem', margin: '10px 2px 0' }}>Based on up to 60 retained, eligible real sessions. Demos, unassessed and flagged results do not count.</p>
+      <p className="faint" style={{ fontSize: '.8125rem', margin: '10px 2px 0' }}>{t("Based on up to 60 retained, eligible real sessions. Demos, unassessed and flagged results do not count.")}</p>
 
-      <h2 className="section-title">Sessions<Link className="see-all" to="/history">Show More</Link></h2>
+      <h2 className="section-title">{t("Sessions")}<Link className="see-all" to="/history">{t("Show More")}</Link></h2>
       <div className="rows">
         {h.slice(0, 3).map((s) => {
           const ex = exerciseById(s.report.exerciseId);
@@ -129,7 +129,7 @@ export default function Progress() {
       </div>
 
       {resp.length > 0 && <>
-        <h2 className="section-title">How your body responds<small>3+ sessions each</small></h2>
+        <h2 className="section-title">{t("How your body responds")}<small>{t("3+ sessions each")}</small></h2>
         <div className="rows">
           {resp.slice(0, 6).map((x) => (
             <Link key={x.exerciseId} to={`/exercise/${x.exerciseId}`} className="session-row">
@@ -139,10 +139,10 @@ export default function Progress() {
             </Link>
           ))}
         </div>
-        <p className="faint" style={{ fontSize: '.8125rem', margin: '10px 2px 0' }}>Change in your own headline number, first third vs latest third of sessions. Bodies respond differently: put more time into what is working, and check form or recovery where you are flat or dropping.</p>
+        <p className="faint" style={{ fontSize: '.8125rem', margin: '10px 2px 0' }}>{t("Change in your own headline number, first third vs latest third of sessions. Bodies respond differently: put more time into what is working, and check form or recovery where you are flat or dropping.")}</p>
       </>}
 
-      <h2 className="section-title">Awards<small>{earned} earned</small></h2>
+      <h2 className="section-title">{t("Awards")}<small>{t('{n} earned', { n: earned })}</small></h2>
       <div className="awards">
         {badges.slice(0, 16).map((b) => {
           const [m1, m2] = MEDAL[b.tier] ?? MEDAL.bronze!;
@@ -160,9 +160,9 @@ export default function Progress() {
 
       <div className="summary-grid">
         <div>
-          <h2 className="section-title">Where you rank</h2>
+          <h2 className="section-title">{t("Where you rank")}</h2>
           <section className="glass panel">
-            {!a ? <p className="muted" style={{ margin: 0 }}>Add age, sex, height and weight in <Link to="/profile">Profile</Link> to compare with published norms.</p>
+            {!a ? <p className="muted" style={{ margin: 0 }}>{t("Add age, sex, height and weight in")} <Link to="/profile">{t("Profile")}</Link> {t("to compare with published norms.")}</p>
               : ladders.length ? ladders.map(({ s, v, unit, norm }) => (
                 <div key={s.report.exerciseId} className="check-row">
                   <div><b style={{ fontSize: '.93rem' }}>{s.report.name}</b> <span className="tag">{norm!.band}</span>
@@ -170,37 +170,37 @@ export default function Progress() {
                   <div>
                     {norm!.percentile !== null
                       ? <><div className="bar"><i style={{ width: `${norm!.percentile}%`, background: 'var(--exercise)' }} /></div><div className="faint num" style={{ fontSize: '.72rem', marginTop: 4, textAlign: 'right' }}>≈ P{Math.round(norm!.percentile)}</div></>
-                      : <div className="faint" style={{ fontSize: '.78rem', textAlign: 'right' }}>band only</div>}
+                      : <div className="faint" style={{ fontSize: '.78rem', textAlign: 'right' }}>{t("band only")}</div>}
                   </div>
                 </div>
-              )) : <p className="muted" style={{ margin: 0 }}>None of your tests has a verified norm yet. Record a vertical jump (13 y+) or push-ups (15–29 y).</p>}
-            <p className="faint" style={{ fontSize: '.76rem', marginBottom: 0 }}>Percentiles compare you with a published reference sample, not with other Fitzen users. Indian Khelo India / Fit India tables are not built in yet.</p>
+              )) : <p className="muted" style={{ margin: 0 }}>{t("None of your tests has a verified norm yet. Record a vertical jump (13 y+) or push-ups (15–29 y).")}</p>}
+            <p className="faint" style={{ fontSize: '.76rem', marginBottom: 0 }}>{t("Percentiles compare you with a published reference sample, not with other Fitzen users. Indian Khelo India / Fit India tables are not built in yet.")}</p>
           </section>
 
-          <h2 className="section-title">Leaderboards</h2>
+          <h2 className="section-title">{t("Leaderboards")}</h2>
           <nav className="rows">
-            <Link to="/compete"><span className="ic"><IconPodium /></span><span style={{ flex: 1 }}><b style={{ fontWeight: 600 }}>Compete</b><br /><small className="muted">Rank against your group, {p.city || 'your city'}, {p.state || 'your state'} and India. Needs a free account.</small></span><IconChevron /></Link>
+            <Link to="/compete"><span className="ic"><IconPodium /></span><span style={{ flex: 1 }}><b style={{ fontWeight: 600 }}>{t("Compete")}</b><br /><small className="muted">{t('Rank against your group, {city}, {state} and India. Needs a free account.', { city: p.city || t('your city'), state: p.state || t('your state') })}</small></span><IconChevron /></Link>
           </nav>
         </div>
 
         <div>
           {proj && proj.metrics.length > 0 && (<>
-            <h2 className="section-title">Expected growth <small>estimates</small></h2>
+            <h2 className="section-title">{t("Expected growth")} <small>{t("estimates")}</small></h2>
             {proj.metrics.map((m) => {
               const at = m.points[m.points.length - 1]!;
               return (
                 <section key={m.exerciseId} className="glass panel">
-                  <b>{exerciseById(m.exerciseId)?.name ?? m.exerciseId}: {m.baseline} cm now</b>
-                  <p className="muted" style={{ margin: '4px 0', fontSize: '.9rem' }}>In {at.week} weeks: {at.current.low}–{at.current.high} cm with current habits, {at.plan.low}–{at.plan.high} cm if you follow the plan.</p>
+                  <b>{exerciseById(m.exerciseId)?.name ?? m.exerciseId}: {t('{n} cm now', { n: m.baseline })}</b>
+                  <p className="muted" style={{ margin: '4px 0', fontSize: '.9rem' }}>{t('In {weeks} weeks: {a}–{b} cm with current habits, {c}–{d} cm if you follow the plan.', { weeks: at.week, a: at.current.low, b: at.current.high, c: at.plan.low, d: at.plan.high })}</p>
                   <GrowthChart m={m} />
                   {proj.talent && <p style={{ fontSize: '.9rem' }}>{proj.talent.summary}</p>}
-                  <p className="faint" style={{ fontSize: '.76rem', margin: 0 }}>{m.basis}. Ranges, not promises.</p>
+                  <p className="faint" style={{ fontSize: '.76rem', margin: 0 }}>{m.basis}. {t('Ranges, not promises.')}</p>
                 </section>
               );
             })}
           </>)}
 
-          <h2 className="section-title">Personal bests</h2>
+          <h2 className="section-title">{t("Personal bests")}</h2>
           <div className="rows">
             {[...pbs.values()].map(({ s, v, unit }) => (
               <Link key={s.id} to={`/results/${s.id}`}>

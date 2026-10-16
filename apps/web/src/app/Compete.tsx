@@ -51,9 +51,9 @@ export default function Compete() {
     return () => { live = false; };
   }, [acct, ex, scope, grp, sort]);
 
-  const head = <PageHeader kicker="Leaderboards and groups" title={t('Compete')} />;
-  if (!supabase) return <main className="page">{head}<Empty>Accounts aren't switched on yet, so there is no one to rank against. Your sessions still count on <Link to="/progress">Progress</Link>.</Empty></main>;
-  if (acct === undefined) return <main className="page">{head}{err ? <p role="alert">{err}</p> : <div className="spinner" style={{ marginTop: 40 }} aria-label="Loading" />}</main>;
+  const head = <PageHeader kicker={t("Leaderboards and groups")} title={t('Compete')} />;
+  if (!supabase) return <main className="page">{head}<Empty>{t("Accounts aren't switched on yet, so there is no one to rank against. Your sessions still count on")} <Link to="/progress">{t("Progress")}</Link>.</Empty></main>;
+  if (acct === undefined) return <main className="page">{head}{err ? <p role="alert">{err}</p> : <div className="spinner" style={{ marginTop: 40 }} aria-label={t("Loading")} />}</main>;
   if (!user || !acct) return (
     <main className="page">{head}
       <Empty>{user ? 'Save your account details to join leaderboards and groups.' : 'Sign in to compare your scores with friends, your city, your state and India.'}<br /><br />
@@ -64,33 +64,33 @@ export default function Compete() {
   const name = exerciseById(ex)?.name ?? ex;
   const fmt = (r: Row) => `${r.value.toFixed(r.metric === 'reps' ? 0 : 1)} ${UNIT[r.metric]}`;
   const others = rows?.filter((r) => !r.is_me).length ?? 0;
-  const where = { group: 'this group', city: acct.city || 'your city', state: acct.state || 'your state', country: acct.country, world: 'the world' }[scope];
+  const where = { group: t('this group'), city: acct.city || t('your city'), state: acct.state || t('your state'), country: acct.country, world: t('the world') }[scope];
 
   return (
     <main className="page" style={{ maxWidth: 720 }}>
       {head}
       <section className="glass panel" style={{ display: 'grid', gap: 12, marginTop: 18 }}>
-        <label className="field"><span>Exercise</span>
+        <label className="field"><span>{t("Exercise")}</span>
           <select value={ex} onChange={(e) => setEx(e.target.value)}>{EXERCISES.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</select>
         </label>
-        <div className="chips" role="group" aria-label="Who to compare with" style={{ padding: 0, flexWrap: 'wrap' }}>
+        <div className="chips" role="group" aria-label={t("Who to compare with")} style={{ padding: 0, flexWrap: 'wrap' }}>
           {SCOPES.map(([s, l]) => <button key={s} className={`chip ${scope === s ? 'on' : ''}`} aria-pressed={scope === s} onClick={() => setScope(s)}>{l === 'India' && acct.country !== 'India' ? acct.country : l}</button>)}
         </div>
         {scope === 'group' && groups.length > 1 && (
-          <label className="field"><span>Group</span><select value={grp ?? ''} onChange={(e) => setGrp(e.target.value)}>{groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}</select></label>
+          <label className="field"><span>{t("Group")}</span><select value={grp ?? ''} onChange={(e) => setGrp(e.target.value)}>{groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}</select></label>
         )}
-        <div className="row between"><b style={{ fontSize: '.92rem' }}>Rank by</b>
-          <div className="segmented glass" role="group" aria-label="Rank by">
+        <div className="row between"><b style={{ fontSize: '.92rem' }}>{t("Rank by")}</b>
+          <div className="segmented glass" role="group" aria-label={t("Rank by")}>
             {([['value', 'Performance'], ['form', 'Accuracy']] as const).map(([v, l]) => <button key={v} className={sort === v ? 'on' : ''} aria-pressed={sort === v} onClick={() => setSort(v)}>{l}</button>)}
           </div>
         </div>
       </section>
 
       <h2 className="section-title">{name}<small>{where}</small></h2>
-      {scope === 'group' && !groups.length ? <p className="muted">You're not in a group yet. Create one or join with a code below.</p>
-        : err ? <section className="glass panel" role="alert"><p style={{ margin: 0 }}>{err[0]!.toUpperCase() + err.slice(1)}.</p>{/profile/.test(err) && <p style={{ marginBottom: 0 }}><Link to="/profile#account">Open your account</Link></p>}</section>
-        : !rows ? <div className="spinner" aria-label="Loading leaderboard" />
-        : !rows.length ? <Empty>No scores for {name} in {where} yet. Record it with the camera or a video to post the first one.<br /><br /><Link to={`/train/${ex}`} className="btn primary">Train {name}</Link></Empty>
+      {scope === 'group' && !groups.length ? <p className="muted">{t("You're not in a group yet. Create one or join with a code below.")}</p>
+        : err ? <section className="glass panel" role="alert"><p style={{ margin: 0 }}>{err[0]!.toUpperCase() + err.slice(1)}.</p>{/profile/.test(err) && <p style={{ marginBottom: 0 }}><Link to="/profile#account">{t("Open your account")}</Link></p>}</section>
+        : !rows ? <div className="spinner" aria-label={t("Loading leaderboard")} />
+        : !rows.length ? <Empty>{t('No scores for {name} in {where} yet. Record it with the camera or a video to post the first one.', { name, where })}<br /><br /><Link to={`/train/${ex}`} className="btn primary">{t('Train {name}', { name })}</Link></Empty>
         : (<>
           <ol className="list" style={{ listStyle: 'none', padding: 0, margin: 0 }} aria-label={`${name} leaderboard`}>
             {rows.map((r, i) => (<li key={`${r.rank}-${i}`}>
@@ -98,19 +98,19 @@ export default function Compete() {
               <div className="glass list-item" aria-current={r.is_me ? 'true' : undefined} style={r.is_me ? { boxShadow: 'inset 0 0 0 1.5px var(--accent)' } : undefined}>
                 <b className="num" style={{ minWidth: 34, fontFamily: 'var(--display)', fontSize: '1.3rem', color: r.rank <= 3 ? 'var(--accent)' : undefined }}>{r.rank}</b>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <b style={{ overflowWrap: 'anywhere' }}>{r.display_name}{r.is_me && <span className="tag" style={{ marginLeft: 8 }}>You</span>}</b>
-                  <div className="muted num" style={{ fontSize: '.82rem' }}>form {r.form_score}/100</div>
+                  <b style={{ overflowWrap: 'anywhere' }}>{r.display_name}{r.is_me && <span className="tag" style={{ marginLeft: 8 }}>{t("You")}</span>}</b>
+                  <div className="muted num" style={{ fontSize: '.82rem' }}>{t('form {n}/100', { n: r.form_score })}</div>
                 </div>
                 <b className="num">{sort === 'form' ? `${r.form_score}` : fmt(r)}</b>
               </div>
             </li>))}
           </ol>
-          {!others && <p className="muted" style={{ fontSize: '.9rem' }}>Nobody else is on this board yet.{scope === 'group' ? ' Share your group code below.' : ' Invite friends or try a wider area.'}</p>}
-          {!rows.some((r) => r.is_me) && <p className="muted" style={{ fontSize: '.9rem' }}>You're not on this board yet: record {name} with the camera or a video while signed in.</p>}
+          {!others && <p className="muted" style={{ fontSize: '.9rem' }}>{t(scope === 'group' ? 'Nobody else is on this board yet. Share your group code below.' : 'Nobody else is on this board yet. Invite friends or try a wider area.')}</p>}
+          {!rows.some((r) => r.is_me) && <p className="muted" style={{ fontSize: '.9rem' }}>{t("You're not on this board yet: record {name} with the camera or a video while signed in.", { name })}</p>}
           <button className="btn glass press block" style={{ marginTop: 12 }} onClick={() => openAssistant({ kind: 'leaderboard', exerciseId: ex, scope,
-            rows: rows.map((r) => ({ rank: r.rank, name: r.display_name, value: r.value, formScore: r.form_score, isMe: r.is_me })) }, 'How can I climb this leaderboard?')}>Ask AI how to climb</button>
+            rows: rows.map((r) => ({ rank: r.rank, name: r.display_name, value: r.value, formScore: r.form_score, isMe: r.is_me })) }, 'How can I climb this leaderboard?')}>{t("Ask AI how to climb")}</button>
         </>)}
-      <p className="faint" style={{ fontSize: '.76rem' }}>Each person's best session counts. Under-18s appear on public boards only after a parent confirms, and only as initials. Scores are single-camera estimates.</p>
+      <p className="faint" style={{ fontSize: '.76rem' }}>{t("Each person's best session counts. Under-18s appear on public boards only after a parent confirms, and only as initials. Scores are single-camera estimates.")}</p>
 
       <Groups me={acct.id} groups={groups} reload={loadGroups} />
     </main>
@@ -145,15 +145,15 @@ function Groups({ me, groups, reload }: { me: string; groups: Group[]; reload: (
   };
 
   return (<>
-    <h2 className="section-title">Groups <small>{groups.length}</small></h2>
+    <h2 className="section-title">{t("Groups")} <small>{groups.length}</small></h2>
     <div className="list">
       {groups.map((g) => (
         <section key={g.id} className="glass panel" style={{ display: 'grid', gap: 10 }}>
           <div className="row between" style={{ flexWrap: 'wrap' }}>
-            <div style={{ minWidth: 0 }}><b style={{ overflowWrap: 'anywhere' }}>{g.name}</b><div className="muted" style={{ fontSize: '.85rem' }}>Code <b className="num" style={{ letterSpacing: '.08em' }}>{g.invite_code}</b></div></div>
+            <div style={{ minWidth: 0 }}><b style={{ overflowWrap: 'anywhere' }}>{g.name}</b><div className="muted" style={{ fontSize: '.85rem' }}>{t("Code")} <b className="num" style={{ letterSpacing: '.08em' }}>{g.invite_code}</b></div></div>
             <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
-              <button className="btn glass press" onClick={() => void share(g)}>Invite</button>
-              <button className="btn glass press" aria-expanded={open === g.id} onClick={() => void toggle(g)}>Members</button>
+              <button className="btn glass press" onClick={() => void share(g)}>{t("Invite")}</button>
+              <button className="btn glass press" aria-expanded={open === g.id} onClick={() => void toggle(g)}>{t("Members")}</button>
             </div>
           </div>
           {open === g.id && (<>
@@ -161,10 +161,10 @@ function Groups({ me, groups, reload }: { me: string; groups: Group[]; reload: (
             {g.owner === me
               ? <button className="btn danger" disabled={busy} onClick={() => confirm(`Delete "${g.name}" for everyone?`) && void run(async () => {
                   const { error } = await supabase!.from('groups').delete().eq('id', g.id); if (error) throw error; return `Deleted ${g.name}.`;
-                })}>Delete group</button>
+                })}>{t("Delete group")}</button>
               : <button className="btn glass press" disabled={busy} onClick={() => void run(async () => {
                   const { error } = await supabase!.from('group_members').delete().eq('group_id', g.id).eq('user_id', me); if (error) throw error; return `You left ${g.name}.`;
-                })}>Leave group</button>}
+                })}>{t("Leave group")}</button>}
           </>)}
         </section>
       ))}
@@ -176,8 +176,8 @@ function Groups({ me, groups, reload }: { me: string; groups: Group[]; reload: (
         setName('');
         return `Created ${data.name}. Share code ${data.invite_code} with your team.`;
       }); }}>
-        <label className="field"><span>New group name</span><input required maxLength={40} value={name} placeholder="e.g. School athletics team" onChange={(e) => setName(e.target.value)} /></label>
-        <button className="btn primary" disabled={busy || !name.trim()}>Create group</button>
+        <label className="field"><span>{t("New group name")}</span><input required maxLength={40} value={name} placeholder={t("e.g. School athletics team")} onChange={(e) => setName(e.target.value)} /></label>
+        <button className="btn primary" disabled={busy || !name.trim()}>{t("Create group")}</button>
       </form>
       <form className="glass panel" style={{ display: 'grid', gap: 10 }} onSubmit={(e) => { e.preventDefault(); void run(async () => {
         const { error } = await supabase!.rpc('join_group', { code: code.trim() });
@@ -185,9 +185,9 @@ function Groups({ me, groups, reload }: { me: string; groups: Group[]; reload: (
         setCode('');
         return 'Joined. Pick Group above to see the board.';
       }); }}>
-        <label className="field"><span>Invite code</span><input required maxLength={12} autoCapitalize="characters" autoComplete="off" value={code} onChange={(e) => setCode(e.target.value)} /></label>
-        <button className="btn glass press" disabled={busy || !code.trim()}>Join group</button>
-        <p className="faint" style={{ margin: 0, fontSize: '.78rem' }}>Codes from a coach join their squad: that shares your full session reports with the coach (under-18s only after a parent confirms). Leave any time.</p>
+        <label className="field"><span>{t("Invite code")}</span><input required maxLength={12} autoCapitalize="characters" autoComplete="off" value={code} onChange={(e) => setCode(e.target.value)} /></label>
+        <button className="btn glass press" disabled={busy || !code.trim()}>{t("Join group")}</button>
+        <p className="faint" style={{ margin: 0, fontSize: '.78rem' }}>{t("Codes from a coach join their squad: that shares your full session reports with the coach (under-18s only after a parent confirms). Leave any time.")}</p>
       </form>
     </div>
     {msg && <p role="status" aria-live="polite" className="muted" style={{ fontSize: '.9rem' }}>{msg}</p>}
