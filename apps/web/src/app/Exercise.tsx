@@ -42,7 +42,7 @@ function Lesson({ ex }: { ex: ExerciseDef }) {
   const l = LESSONS[ex.id];
   const [on, setOn] = useState(false);
   if (!l) return (
-    <nav className="rows"><a href={lessonSearchUrl(ex.name)} target="_blank" rel="noopener noreferrer"><span className="ic"><IconSearch /></span>Find a {ex.name} lesson on YouTube<IconShare /></a></nav>
+    <nav className="rows"><a href={lessonSearchUrl(ex.name)} target="_blank" rel="noopener noreferrer"><span className="ic"><IconSearch /></span>{t('Find a {name} lesson on YouTube', { name: ex.name })}<IconShare /></a></nav>
   );
   return (<>
     <div className="lesson">
@@ -55,7 +55,7 @@ function Lesson({ ex }: { ex: ExerciseDef }) {
           <span className="lesson-meta"><small>YouTube · {l.channel}</small><b>{l.title}</b></span>
         </button>}
     </div>
-    <p className="lesson-note">Loads from YouTube in privacy-enhanced mode only when you tap play, and needs internet. Third-party coaching content; Fitzen measures your own form.</p>
+    <p className="lesson-note">{t("Loads from YouTube in privacy-enhanced mode only when you tap play, and needs internet. Third-party coaching content; Fitzen measures your own form.")}</p>
   </>);
 }
 
@@ -96,7 +96,7 @@ export default function Exercise() {
           <span className="feat-kicker">{catLabel(ex.category)}</span>
           <h1>{t(ex.name)}</h1>
           <div className="meta-line">
-            <span>{MODE[ex.mode]}</span><span>{ex.camera === 'side' ? 'Side view' : 'Front view'}</span><span>{LEVEL[ex.difficulty]}</span>
+            <span>{t(MODE[ex.mode])}</span><span>{t(ex.camera === 'side' ? 'Side view' : 'Front view')}</span><span>{t(LEVEL[ex.difficulty])}</span>
           </div>
           <div className="detail-actions on-media">
             <button className="btn primary block press" onClick={() => go('camera')}><IconCamera /> {t("Let's Go")}</button>
@@ -113,10 +113,10 @@ export default function Exercise() {
         <div>
           <p className="lede">{ex.summary}</p>
           <div className="facts">
-            <div><span>{t('Camera')}</span><b>{ex.camera === 'side' ? 'Side-on' : 'Facing'}</b></div>
+            <div><span>{t('Camera')}</span><b>{t(ex.camera === 'side' ? 'Side-on' : 'Facing')}</b></div>
             <div><span>{targetLabel}</span><b>{target}</b></div>
-            <div><span>Joint checks</span><b>{ex.checks.length}</b></div>
-            <div><span>Effort</span><b>{ex.met} MET</b></div>
+            <div><span>{t("Joint checks")}</span><b>{ex.checks.length}</b></div>
+            <div><span>{t("Effort")}</span><b>{ex.met} MET</b></div>
           </div>
 
           <h2 className="section-title">{t('How to do it')}</h2>
@@ -126,9 +126,9 @@ export default function Exercise() {
                 {/* Real photos for the start and end positions; the moving demonstrator in between. */}
                 <div className="art">{s.frame === 'mid' ? <Figure def={ex} /> : photo && (s.frame === 'key' || photo.frames.length > 1) ? <ExerciseArt def={ex} frame={s.frame} /> : <FigureArt def={ex} frame={s.frame} w={480} h={360} />}</div>
                 <div className="txt">
-                  <span className="n">Step {i + 1}</span>
-                  <b>{s.title}</b>
-                  <p>{s.text}</p>
+                  <span className="n">{t('Step {n}', { n: i + 1 })}</span>
+                  <b>{t(s.title)}</b>
+                  <p>{t(s.text)}</p>
                   {s.target && <span className="target">{s.target.label} {s.target.range}</span>}
                 </div>
               </article>
@@ -149,24 +149,24 @@ export default function Exercise() {
           <div className="measure">
             {(mine?.def ?? ex).checks.map((c, i) => {
               const r = rangeOf(ex, c), std = rangeOf(ex, ex.checks[i]!);
-              return <div key={i}><span className="when">{c.when}</span><span>{r.label}<span className="cue">{c.cue}</span></span><b className="num z-good">{r.range}{std.range !== r.range && <small className="faint" style={{ display: 'block', fontWeight: 400, fontSize: '.72rem' }}>standard {std.range}</small>}</b></div>;
+              return <div key={i}><span className="when">{c.when}</span><span>{r.label}<span className="cue">{t(c.cue)}</span></span><b className="num z-good">{r.range}{std.range !== r.range && <small className="faint" style={{ display: 'block', fontWeight: 400, fontSize: '.72rem' }}>{t('standard {range}', { range: std.range })}</small>}</b></div>;
             })}
           </div>
-          <div className="zone-legend" style={{ marginTop: 12 }}><span><i style={{ background: 'var(--good)' }} />Correct</span><span><i style={{ background: 'var(--ok)' }} />Moderate</span><span><i style={{ background: 'var(--bad)' }} />Fix it</span></div>
+          <div className="zone-legend" style={{ marginTop: 12 }}><span><i style={{ background: 'var(--good)' }} />{t("Correct")}</span><span><i style={{ background: 'var(--ok)' }} />{t("Moderate")}</span><span><i style={{ background: 'var(--bad)' }} />{t("Fix it")}</span></div>
           {mine && mine.reasons.length > 0 && <div className="glass panel fitted" style={{ marginTop: 12 }}>
-            <b>Fitted to you</b>
+            <b>{t("Fitted to you")}</b>
             <ul style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: '.85rem' }}>{mine.reasons.map((x) => <li key={x}>{x}</li>)}</ul>
-            <Link to="/profile" className="faint" style={{ fontSize: '.8rem' }}>Change in Profile · leaderboards use standard ranges</Link>
+            <Link to="/profile" className="faint" style={{ fontSize: '.8rem' }}>{t("Change in Profile · leaderboards use standard ranges")}</Link>
           </div>}
 
-          <h2 className="section-title">Equipment</h2>
+          <h2 className="section-title">{t("Equipment")}</h2>
           <div className="pills">{(ex.equipment.length ? ex.equipment : ['none needed']).map((m) => <span key={m}>{m}</span>)}</div>
-          <h2 className="section-title">Muscles</h2>
+          <h2 className="section-title">{t("Muscles")}</h2>
           <div className="pills">{ex.muscles.map((m) => <span key={m}>{m}</span>)}</div>
         </div>
       </div>
 
-      {more.length > 0 && <><h2 className="section-title">More Like This</h2><div className="shelf">{more.map((e) => <ExerciseCard key={e.id} ex={e} />)}</div></>}
+      {more.length > 0 && <><h2 className="section-title">{t("More Like This")}</h2><div className="shelf">{more.map((e) => <ExerciseCard key={e.id} ex={e} />)}</div></>}
     </main>
   );
 }

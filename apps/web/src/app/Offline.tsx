@@ -28,8 +28,8 @@ export default function Offline() {
   };
   return <section className="glass panel" style={{ marginTop: 18 }}>
     <div className="row between"><b>{t('Offline assessment')}</b>{ready !== null && <span className={`tag ${ready ? 'z-good' : 'z-ok'}`}>{ready ? 'Ready offline' : 'Needs download'}</span>}</div>
-    <p className="muted">Download your selected model while online. Changing pose model requires preparing that model again. Sessions recorded offline are analysed on this device and sync to your account when you are back online.</p>
-    {import.meta.env.PROD && 'serviceWorker' in navigator ? <button className="btn" disabled={busy} onClick={() => void prepare()}>{busy ? 'Preparing…' : 'Prepare this device for offline use'}</button> : <p className="faint">Offline caching is available in the production build on HTTPS or localhost.</p>}
+    <p className="muted">{t("Download your selected model while online. Changing pose model requires preparing that model again. Sessions recorded offline are analysed on this device and sync to your account when you are back online.")}</p>
+    {import.meta.env.PROD && 'serviceWorker' in navigator ? <button className="btn" disabled={busy} onClick={() => void prepare()}>{busy ? 'Preparing…' : 'Prepare this device for offline use'}</button> : <p className="faint">{t("Offline caching is available in the production build on HTTPS or localhost.")}</p>}
     {message && <p role="status">{message}</p>}
   </section>;
 }

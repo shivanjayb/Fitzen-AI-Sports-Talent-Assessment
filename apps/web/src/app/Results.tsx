@@ -18,7 +18,7 @@ const Z = { good: 'var(--good)', ok: 'var(--ok)', bad: 'var(--bad)' };
 
 function AngleChart({ r }: { r: SessionReport }) {
   const s = r.series;
-  if (s.length < 2) return <p className="faint">Not enough tracked frames to chart.</p>;
+  if (s.length < 2) return <p className="faint">{t("Not enough tracked frames to chart.")}</p>;
   const W = 640, H = 200, pad = 28;
   const ex = exerciseById(r.exerciseId);
   const drv = ex?.reps?.driver ?? ex?.checks[0]?.angle;
@@ -30,7 +30,7 @@ function AngleChart({ r }: { r: SessionReport }) {
   const Y = (v: number) => 8 + (1 - (v - lo) / (hi - lo || 1)) * (H - pad - 8);
   const d = s.map((p, i) => `${i ? 'L' : 'M'}${X(p.t).toFixed(1)},${Y(p.v).toFixed(1)}`).join('');
   return (
-    <svg className="chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Angle over time">
+    <svg className="chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={t("Angle over time")}>
       <defs><linearGradient id="lg" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="var(--accent-2)" stopOpacity=".35" /><stop offset="1" stopColor="var(--accent-2)" stopOpacity="0" /></linearGradient></defs>
       {band && <rect x={pad} width={W - pad - 8} y={Y(band[1])} height={Math.max(2, Y(band[0]) - Y(band[1]))} fill="var(--good)" opacity=".13" />}
       {[lo, (lo + hi) / 2, hi].map((v) => <text key={v} x={2} y={Y(v) + 3}>{Math.round(v)}°</text>)}
@@ -48,7 +48,7 @@ function RepChart({ r }: { r: SessionReport }) {
   const W = 640, H = 170, bw = Math.min(46, (W - 40) / reps.length - 6);
   const max = Math.max(...reps.map((x) => x.durationMs)) || 1;
   return (
-    <svg className="chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Rep tempo">
+    <svg className="chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={t("Rep tempo")}>
       {reps.map((x, i) => {
         const X = 20 + i * (bw + 6), hE = (x.eccentricMs / max) * (H - 40), hC = (x.concentricMs / max) * (H - 40);
         return (
@@ -75,10 +75,10 @@ function needsBanner(s: SavedSession): 'warn' | 'bad' | null {
 }
 
 function Authenticity({ s }: { s: SavedSession }) {
-  if (s.source === 'camera') return <div className="insight good"><div className="ic"><IconCheck /></div><div><b>Recorded live on this device</b><p>Frames came straight from this device's camera during the session, so no upload checks apply.</p></div></div>;
+  if (s.source === 'camera') return <div className="insight good"><div className="ic"><IconCheck /></div><div><b>{t("Recorded live on this device")}</b><p>{t("Frames came straight from this device's camera during the session, so no upload checks apply.")}</p></div></div>;
   if (s.source !== 'video') return null;
   const { integrity: ig, forensics: fx } = s;
-  if (!ig && !fx) return <div className="insight info"><div className="ic"><IconAlert /></div><div><b>No authenticity report</b><p>This clip was analysed before authenticity checks were added.</p></div></div>;
+  if (!ig && !fx) return <div className="insight info"><div className="ic"><IconAlert /></div><div><b>{t("No authenticity report")}</b><p>{t("This clip was analysed before authenticity checks were added.")}</p></div></div>;
   const md = fx?.metadata;
   const aiC2pa = fx?.flags.some((x) => x.code === 'c2pa-ai-generated');
   const flags = [
@@ -89,17 +89,17 @@ function Authenticity({ s }: { s: SavedSession }) {
     <section className="glass panel">
       {ig && (
         <div className="row between" style={{ marginBottom: 10 }}>
-          <b>Motion plausibility</b>
+          <b>{t("Motion plausibility")}</b>
           <span className="tag" style={{ color: ig.verdict === 'ok' ? 'var(--good)' : ig.verdict === 'warn' ? 'var(--ok)' : 'var(--bad)' }}>
             {ig.verdict === 'ok' ? 'No concerns found' : ig.verdict === 'warn' ? 'Worth a look' : 'Strong concerns'} · {ig.score}/100
           </span>
         </div>
       )}
       <div className="kv" style={{ marginBottom: 12 }}>
-        <div><span>Frame rate</span><b className="num">{md?.nominalFps ? `${f(md.nominalFps, 2)} fps` : '—'}</b><small>{md?.vfr ? 'variable frame rate' : md?.nominalFps ? 'constant' : 'not in container'}{ig?.metrics.fps ? ` · analysed ${f(ig.metrics.fps, 1)} fps` : ''}</small></div>
-        <div><span>Encoder</span><b style={{ fontSize: '.9rem' }}>{md?.encoderStrings.length ? md.encoderStrings.slice(0, 3).join(', ') : 'none written'}</b><small>{fx?.format.toUpperCase() ?? '—'}{md?.majorBrand ? ` · brand ${md.majorBrand}` : ''}</small></div>
+        <div><span>{t("Frame rate")}</span><b className="num">{md?.nominalFps ? `${f(md.nominalFps, 2)} fps` : '—'}</b><small>{md?.vfr ? 'variable frame rate' : md?.nominalFps ? 'constant' : 'not in container'}{ig?.metrics.fps ? ` · analysed ${f(ig.metrics.fps, 1)} fps` : ''}</small></div>
+        <div><span>{t("Encoder")}</span><b style={{ fontSize: '.9rem' }}>{md?.encoderStrings.length ? md.encoderStrings.slice(0, 3).join(', ') : 'none written'}</b><small>{fx?.format.toUpperCase() ?? '—'}{md?.majorBrand ? ` · brand ${md.majorBrand}` : ''}</small></div>
         <div><span>C2PA content credentials</span><b>{!md ? '—' : aiC2pa ? 'Says AI-generated' : md.c2pa ? 'Present' : 'None'}</b><small>{md?.c2pa ? 'signature not verified here' : 'most phone clips have none'}</small></div>
-        <div><span>Created</span><b className="num" style={{ fontSize: '.9rem' }}>{md?.creationTime ? new Date(md.creationTime).toLocaleString() : '—'}</b><small>container claim, easily edited</small></div>
+        <div><span>{t("Created")}</span><b className="num" style={{ fontSize: '.9rem' }}>{md?.creationTime ? new Date(md.creationTime).toLocaleString() : '—'}</b><small>{t("container claim, easily edited")}</small></div>
       </div>
       <div className="list">
         {flags.length ? flags.map((x, k) => (
@@ -107,7 +107,7 @@ function Authenticity({ s }: { s: SavedSession }) {
             <div className="ic">{x.severity === 'info' ? <IconCheck /> : x.severity === 'warn' ? <IconAlert /> : <IconStop />}</div>
             <div><b>{x.message}</b><p className="faint" style={{ fontSize: '.8rem' }}>{x.src} · {x.code}{x.ev ? ` · ${x.ev}` : ''}</p></div>
           </div>
-        )) : <div className="insight good"><div className="ic"><IconCheck /></div><div><b>No flags raised</b><p>Nothing unusual in the motion physics or file metadata.</p></div></div>}
+        )) : <div className="insight good"><div className="ic"><IconCheck /></div><div><b>{t("No flags raised")}</b><p>{t("Nothing unusual in the motion physics or file metadata.")}</p></div></div>}
       </div>
       <p className="faint" style={{ fontSize: '.78rem', marginTop: 12, lineHeight: 1.5 }}>
         These are warnings, not verdicts. Metadata can be stripped or forged, and tracking glitches, camera movement or
@@ -134,9 +134,9 @@ function CheckIn({ onDone }: { onDone: (r: ReadinessInput | null) => void }) {
   );
   return createPortal(<>
     <div className="scrim" onClick={() => onDone(null)} />
-    <div className="sheet glass" role="dialog" aria-modal="true" aria-label="How do you feel?">
-      <h2 style={{ margin: '8px 0 2px', fontSize: '1.4rem' }}>Quick check-in</h2>
-      <p className="muted" style={{ marginTop: 0, fontSize: '.88rem' }}>Five taps. Helps Fitzen read your result and plan recovery.</p>
+    <div className="sheet glass" role="dialog" aria-modal="true" aria-label={t("How do you feel?")}>
+      <h2 style={{ margin: '8px 0 2px', fontSize: '1.4rem' }}>{t("Quick check-in")}</h2>
+      <p className="muted" style={{ marginTop: 0, fontSize: '.88rem' }}>{t("Five taps. Helps Fitzen read your result and plan recovery.")}</p>
       {HOOPER.map(([k, q, lo, hi]) => (
         <div key={k} style={{ margin: '14px 0' }}>
           <b style={{ fontSize: '.95rem' }}>{q}</b>
@@ -144,11 +144,11 @@ function CheckIn({ onDone }: { onDone: (r: ReadinessInput | null) => void }) {
           <div className="row between faint" style={{ fontSize: '.74rem', marginTop: 4 }}><span>1 · {lo}</span><span>{hi} · 7</span></div>
         </div>
       ))}
-      <b style={{ fontSize: '.95rem' }}>Your mood right now</b>
+      <b style={{ fontSize: '.95rem' }}>{t("Your mood right now")}</b>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6, marginTop: 8 }}>{[1, 2, 3, 4, 5].map((n) => pick('mood', n, true))}</div>
       <div className="row" style={{ gap: 10, marginTop: 18 }}>
-        <button className="btn primary press" disabled={!done} onClick={() => onDone(v as ReadinessInput)}>Save</button>
-        <button className="btn press" onClick={() => onDone(null)}>Skip</button>
+        <button className="btn primary press" disabled={!done} onClick={() => onDone(v as ReadinessInput)}>{t("Save")}</button>
+        <button className="btn press" onClick={() => onDone(null)}>{t("Skip")}</button>
       </div>
     </div>
   </>, document.body);
@@ -164,7 +164,7 @@ export function GrowthChart({ m }: { m: MetricProjection }) {
   const Y = (v: number) => 10 + (1 - (v - lo) / (hi - lo || 1)) * (H - pad - 10);
   const band = (k: 'current' | 'plan') => `M${pts.map((p) => `${X(p.week)},${Y(p[k].high)}`).join('L')}L${[...pts].reverse().map((p) => `${X(p.week)},${Y(p[k].low)}`).join('L')}Z`;
   return (
-    <svg className="chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Projected jump height ranges">
+    <svg className="chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={t("Projected jump height ranges")}>
       <path d={band('plan')} fill="var(--good)" opacity=".28" stroke="var(--good)" strokeWidth="1.5" />
       <path d={band('current')} fill="var(--accent-2)" opacity=".3" stroke="var(--accent-2)" strokeWidth="1.5" />
       {[lo + 1, (lo + hi) / 2, hi - 1].map((v) => <text key={v} x={2} y={Y(v) + 3}>{Math.round(v)}</text>)}
@@ -183,35 +183,35 @@ function Future({ s, onCheckIn }: { s: SavedSession; onCheckIn: () => void }) {
   const fut = a ? summarizeFuture(a, r, hist, ready) : null;
   const who = a ? `${a.sex === 'male' ? 'boys' : 'girls'} aged ${a.ageYears}` : '';
   return (<>
-    <h2 className="section-title">Mind & performance</h2>
+    <h2 className="section-title">{t("Mind & performance")}</h2>
     <section className="glass panel">
-      {ready && <div className="row between" style={{ marginBottom: 8 }}><b>Readiness</b><span className="tag">{ready.level} · Hooper {ready.hooper}/28</span></div>}
+      {ready && <div className="row between" style={{ marginBottom: 8 }}><b>{t("Readiness")}</b><span className="tag">{ready.level} · Hooper {ready.hooper}/28</span></div>}
       <p style={{ marginTop: 0 }}>{mind.summary}</p>
       {mind.signals.map((x) => <p key={x} className="muted" style={{ margin: '4px 0', fontSize: '.9rem' }}>• {x}</p>)}
       <div className="list" style={{ marginTop: 10 }}>{mind.tips.map((t) => <div key={t} className="insight info"><div className="ic"><IconCheck /></div><div><p style={{ margin: 0 }}>{t}</p></div></div>)}</div>
-      {mind.safety && <div className="insight warn" role="alert" style={{ marginTop: 10 }}><div className="ic"><IconAlert /></div><div><b>You are not alone</b><p>{mind.safety}</p></div></div>}
-      {!s.readiness && <button className="btn glass press no-print" style={{ marginTop: 12 }} onClick={onCheckIn}>Add how you felt</button>}
-      <p className="faint" style={{ fontSize: '.76rem', marginBottom: 0 }}>Readiness uses the Hooper index (Hooper & Mackinnon 1995); the level cut-offs are a Fitzen convention. A training tool, not a mental-health assessment.</p>
+      {mind.safety && <div className="insight warn" role="alert" style={{ marginTop: 10 }}><div className="ic"><IconAlert /></div><div><b>{t("You are not alone")}</b><p>{mind.safety}</p></div></div>}
+      {!s.readiness && <button className="btn glass press no-print" style={{ marginTop: 12 }} onClick={onCheckIn}>{t("Add how you felt")}</button>}
+      <p className="faint" style={{ fontSize: '.76rem', marginBottom: 0 }}>{t("Readiness uses the Hooper index (Hooper & Mackinnon 1995); the level cut-offs are a Fitzen convention. A training tool, not a mental-health assessment.")}</p>
     </section>
 
-    <h2 className="section-title">Where you stand</h2>
+    <h2 className="section-title">{t("Where you stand")}</h2>
     <section className="glass panel">
-      {!a ? <p className="muted" style={{ margin: 0 }}>Add age, sex, height and weight in <Link to="/profile">Profile</Link> to compare with published norms.</p>
+      {!a ? <p className="muted" style={{ margin: 0 }}>{t("Add age, sex, height and weight in")} <Link to="/profile">{t("Profile")}</Link> {t("to compare with published norms.")}</p>
         : norm ? (<>
           <div className="row between"><b>{m ? `${f(m.value, m.unit === 'reps' ? 0 : 1)} ${m.unit}` : ''}</b><span className="tag" style={{ color: 'var(--accent)' }}>{norm.band}</span></div>
           {norm.percentile !== null && <div className="bar" style={{ marginTop: 10 }}><i style={{ width: `${norm.percentile}%`, background: 'var(--accent)' }} /></div>}
           <p style={{ marginBottom: 4 }}>{norm.percentile !== null ? `About the ${ord(norm.percentile)} percentile` : `Band: ${norm.band}`} vs {who} — {norm.reference}{norm.n ? `, n = ${norm.n}` : ''}.</p>
           {norm.note && <p className="faint" style={{ fontSize: '.8rem', margin: 0 }}>{norm.note}</p>}
-          <p className="faint" style={{ fontSize: '.76rem', marginBottom: 0 }}>A comparison with a published reference sample, not a ranking of real Fitzen users. Band names are Fitzen quintiles. Indian (Khelo India / Fit India) tables are not built in yet.</p>
-        </>) : <p className="muted" style={{ margin: 0 }}>No compatible norm for this protocol and age. Jump norms apply only to hands-on-hips CMJ aged 13–21; push-up norms require the reference technique. Indian Khelo India / Fit India tables are not built in yet.</p>}
+          <p className="faint" style={{ fontSize: '.76rem', marginBottom: 0 }}>{t("A comparison with a published reference sample, not a ranking of real Fitzen users. Band names are Fitzen quintiles. Indian (Khelo India / Fit India) tables are not built in yet.")}</p>
+        </>) : <p className="muted" style={{ margin: 0 }}>{t("No compatible norm for this protocol and age. Jump norms apply only to hands-on-hips CMJ aged 13–21; push-up norms require the reference technique. Indian Khelo India / Fit India tables are not built in yet.")}</p>}
     </section>
 
-    <h2 className="section-title">Your future <small>estimates</small></h2>
-    {!fut ? <section className="glass panel"><p className="muted" style={{ margin: 0 }}>Complete your <Link to="/profile">Profile</Link> to get a personal plan and projection.</p></section> : (<>
+    <h2 className="section-title">{t("Your future")} <small>{t("estimates")}</small></h2>
+    {!fut ? <section className="glass panel"><p className="muted" style={{ margin: 0 }}>{t("Complete your")} <Link to="/profile">{t("Profile")}</Link> {t("to get a personal plan and projection.")}</p></section> : (<>
       {fut.projection.metrics.map((pm) => (
         <section key={pm.exerciseId} className="glass panel" style={{ marginBottom: 10 }}>
-          <div className="row between"><b>Jump height (cm), estimated range</b>
-            <div className="zone-legend"><span><i style={{ background: 'var(--accent-2)' }} />Current habits</span><span><i style={{ background: 'var(--good)' }} />Follow the plan</span></div></div>
+          <div className="row between"><b>{t("Jump height (cm), estimated range")}</b>
+            <div className="zone-legend"><span><i style={{ background: 'var(--accent-2)' }} />{t("Current habits")}</span><span><i style={{ background: 'var(--good)' }} />{t("Follow the plan")}</span></div></div>
           <GrowthChart m={pm} />
           <p className="faint" style={{ fontSize: '.76rem', margin: 0 }}>{pm.basis}.</p>
         </section>
@@ -219,8 +219,8 @@ function Future({ s, onCheckIn }: { s: SavedSession; onCheckIn: () => void }) {
       <div className="list">
         {fut.actions.map((x) => <div key={x.title} className={`insight ${x.priority >= 80 ? 'bad' : x.priority >= 60 ? 'warn' : 'info'}`}><div className="ic"><IconCheck /></div><div><b>{x.title} <span className="tag">{x.area}</span></b><p>{x.detail}</p></div></div>)}
       </div>
-      {fut.futureScope.length > 0 && <section className="glass panel" style={{ marginTop: 10 }}><b>Future scope</b>{fut.futureScope.map((x) => <p key={x} style={{ margin: '6px 0', fontSize: '.92rem' }}>{x}</p>)}</section>}
-      <details className="faint" style={{ fontSize: '.78rem', marginTop: 10 }}><summary>How this is estimated</summary><ul>{[...fut.projection.drivers, ...fut.projection.assumptions].map((x) => <li key={x}>{x}</li>)}</ul></details>
+      {fut.futureScope.length > 0 && <section className="glass panel" style={{ marginTop: 10 }}><b>{t("Future scope")}</b>{fut.futureScope.map((x) => <p key={x} style={{ margin: '6px 0', fontSize: '.92rem' }}>{x}</p>)}</section>}
+      <details className="faint" style={{ fontSize: '.78rem', marginTop: 10 }}><summary>{t("How this is estimated")}</summary><ul>{[...fut.projection.drivers, ...fut.projection.assumptions].map((x) => <li key={x}>{x}</li>)}</ul></details>
       <p className="faint" style={{ fontSize: '.78rem' }}>{fut.disclaimer}</p>
     </>)}
   </>);
@@ -233,7 +233,7 @@ export default function Results() {
   const [, bump] = useState(0);
   const [asking, setAsking] = useState(Boolean((loc.state as { checkin?: boolean } | null)?.checkin));
   const saved = getSession(id);
-  if (!saved) return <main className="page"><div className="empty"><div className="big"><IconFolder /></div>Session not found.<br /><br /><Link className="btn" to="/app">Back to training</Link></div></main>;
+  if (!saved) return <main className="page"><div className="empty"><div className="big"><IconFolder /></div>{t("Session not found.")}<br /><br /><Link className="btn" to="/app">{t("Back to training")}</Link></div></main>;
   const r = saved.report;
   const banner = needsBanner(saved);
   const assessed = isAssessedReport(r);
@@ -247,7 +247,7 @@ export default function Results() {
   const goal = rp ? { value: rp.count ? rp.valid / rp.count : 0, label: 'correct' } : r.hold ? { value: Math.min(1, r.hold.bestSec / Math.max(1, r.hold.targetSec)), label: 'of hold goal' }
     : { value: r.events?.length ? r.events.reduce((a, e) => a + e.score, 0) / r.events.length : 0, label: 'attempt quality' };
   const headline = rp ? `${rp.count} reps · ${rp.valid} correct` : r.hold ? `${f(r.hold.bestSec)} s best hold` :
-    r.events?.length ? (r.events.some((e) => e.jumpHeightCm !== undefined) ? `${f(Math.max(...r.events.map((e) => e.jumpHeightCm ?? 0)))} cm best jump` : `${r.events.length} attempts`) : 'No attempts detected';
+    r.events?.length ? (r.events.some((e) => e.jumpHeightCm !== undefined) ? t('{n} cm best jump', { n: f(Math.max(...r.events.map((e) => e.jumpHeightCm ?? 0))) }) : t('{n} attempts', { n: r.events.length })) : t('No attempts detected');
 
   const noise = Object.values(r.angles).map((a) => a.noise);
   const precision = noise.length ? noise.reduce((a, b) => a + b, 0) / noise.length : NaN;
@@ -255,21 +255,21 @@ export default function Results() {
   return (
     <main className="page">
       <div className="row between no-print">
-        <button className="btn glass press" onClick={() => nav('/app')}><IconBack /> Train</button>
+        <button className="btn glass press" onClick={() => nav('/app')}><IconBack /> {t("Train")}</button>
         <div className="row">
           <button className="btn glass press" onClick={() => window.print()}>{t('Print report')}</button>
-          <button className="btn icon glass press" onClick={exportJson} aria-label="Export JSON"><IconShare /></button>
+          <button className="btn icon glass press" onClick={exportJson} aria-label={t("Export JSON")}><IconShare /></button>
         </div>
       </div>
 
-      {!persistent && <div className="insight warn" role="alert" style={{ marginTop: 14 }}><div><b>This report is only held in this tab</b><p>Device storage is unavailable. Export JSON or print before closing. Free storage, then retry saving.</p><button className="btn" onClick={() => { saveSession(saved); bump((n) => n + 1); }}>Retry save</button></div></div>}
-      {!assessed && <p role="status">Insufficient evidence: no eligible completed attempt or scored checks. No performance grade is assigned.</p>}
-      {saved.source === 'demo' && <p>Demonstration only. This synthetic session does not count toward real progress.</p>}
+      {!persistent && <div className="insight warn" role="alert" style={{ marginTop: 14 }}><div><b>{t("This report is only held in this tab")}</b><p>{t("Device storage is unavailable. Export JSON or print before closing. Free storage, then retry saving.")}</p><button className="btn" onClick={() => { saveSession(saved); bump((n) => n + 1); }}>{t("Retry save")}</button></div></div>}
+      {!assessed && <p role="status">{t("Insufficient evidence: no eligible completed attempt or scored checks. No performance grade is assigned.")}</p>}
+      {saved.source === 'demo' && <p>{t("Demonstration only. This synthetic session does not count toward real progress.")}</p>}
       {banner && (
         <div className={`insight ${banner}`} role="alert" style={{ marginTop: 14 }}>
           <div className="ic">{banner === 'bad' ? <IconStop /> : <IconAlert />}</div>
           <div><b>{banner === 'bad' ? 'This clip needs checking before the results are trusted' : 'Some checks on this clip look unusual'}</b>
-            <p>See Authenticity below for each reason. These are warnings, not proof the clip was altered.</p></div>
+            <p>{t("See Authenticity below for each reason. These are warnings, not proof the clip was altered.")}</p></div>
         </div>
       )}
 
@@ -280,8 +280,8 @@ export default function Results() {
           <h1 className="large-title" style={{ fontSize: '1.75rem' }}>{r.name}</h1>
           <div style={{ fontSize: '1.0625rem', fontWeight: 600 }}>{headline}</div>
           <div className="ring-legend">
-            <span><b className="num" style={{ color: 'var(--move)' }}>{assessed ? r.formScore : '—'}</b> form</span>
-            <span><b className="num" style={{ color: 'var(--exercise)' }}>{Math.round(r.trackedPct)}%</b> tracked</span>
+            <span><b className="num" style={{ color: 'var(--move)' }}>{assessed ? r.formScore : '—'}</b> {t("form")}</span>
+            <span><b className="num" style={{ color: 'var(--exercise)' }}>{Math.round(r.trackedPct)}%</b> {t("tracked")}</span>
             <span><b className="num" style={{ color: 'var(--stand)' }}>{Math.round(goal.value * 100)}%</b> {goal.label}</span>
           </div>
         </div>
@@ -290,62 +290,62 @@ export default function Results() {
 
       <section className="glass panel no-print" style={{ marginTop: 14 }}>
         <b className="row" style={{ gap: 8, color: 'var(--accent)' }}><IconSparkle /> <span style={{ color: 'var(--text)' }}>{t('Local coaching report')}</span></b>
-        <p className="muted" style={{ margin: '6px 0 12px', fontSize: '.9rem' }}>Review measured faults and the existing training guidance. Works offline; no athlete data is sent to an AI service.</p>
+        <p className="muted" style={{ margin: '6px 0 12px', fontSize: '.9rem' }}>{t("Review measured faults and the existing training guidance. Works offline; no athlete data is sent to an AI service.")}</p>
         <div className="row" style={{ flexWrap: 'wrap' }}>
           <button className="btn primary press" onClick={() => openAssistant({ kind: 'result', sessionId: id }, 'Give me a professional scouting report on this session and how to improve')}>{t('Generate report')}</button>
           <button className="btn glass press" onClick={() => openAssistant({ kind: 'result', sessionId: id })}>{t('Open local guide')}</button>
         </div>
       </section>
 
-      <p className="faint">Single-camera screening estimates, not clinical measurements or athlete-selection evidence.</p>
+      <p className="faint">{t("Single-camera screening estimates, not clinical measurements or athlete-selection evidence.")}</p>
       <section className="glass panel" style={{ marginTop: 14 }}>
         <b>{t('Assessment quality')}</b>
         <p>Protocol: {r.validity?.protocolId ?? 'Legacy report: protocol not recorded'}</p>
-        <p>Tracking: {r.trackedPct.toFixed(1)}% · attempted frames: {r.validity?.attemptedFrames ?? r.frames} · longest gap: {r.validity ? `${r.validity.longestGapMs} ms` : 'not recorded'}</p>
+        <p>Tracking: {r.trackedPct.toFixed(1)}% · attempted frames: {r.validity?.attemptedFrames ?? r.frames} · longest gap: {r.validity ? `${Math.round(r.validity.longestGapMs)} ms` : 'not recorded'}</p>
         <p className="faint">{r.validity?.modelVersion ?? 'Legacy report: engine version not recorded'} · {saved.source === 'demo' ? 'Synthetic demonstration' : 'Self-reported capture; not independently verified'}</p>
-        <Link to="/validation" className="btn">Coach validation and CSV export</Link>
+        <Link to="/validation" className="btn">{t("Coach validation and CSV export")}</Link>
       </section>
       <ReferenceCheck sessionId={id} />
       {saved.batteryRun && <section className="glass panel" style={{ marginTop: 14 }}>
-        <b>{t('Guided assessment')}</b><p>Rest before the next test. Each test keeps its own protocol and quality record.</p>
+        <b>{t('Guided assessment')}</b><p>{t("Rest before the next test. Each test keeps its own protocol and quality record.")}</p>
         <Link className="btn primary" to={`/guided?run=${encodeURIComponent(saved.batteryRun)}&step=${isEligibleSession(saved) ? Math.min(BATTERY.length - 1, BATTERY.indexOf(r.exerciseId) + 1) : Math.max(0, BATTERY.indexOf(r.exerciseId))}`}>{isEligibleSession(saved) ? 'Review battery / next test' : 'Repeat this test with better evidence'}</Link>
       </section>}
       <h2 className="section-title">{t('Measurements')}</h2>
       <div className="kv">
-        <div><span>Duration</span><b className="num">{f(r.durationSec)} s</b></div>
+        <div><span>{t("Duration")}</span><b className="num">{f(r.durationSec)} s</b></div>
         {rp && (<>
-          <div><span>Reps</span><b className="num">{rp.count}</b><small>{rp.valid} correct · {rp.partial} partial{rp.rejected ? ` · ${rp.rejected} rejected` : ''}{rp.mismatched?.length ? ` · ${rp.mismatched.length} wrong exercise` : ''}</small></div>
-          {ex?.reps && <div><span>Depth target</span><b className="num">{ex.reps.start === 'high' ? '≤' : '≥'} {rp.target}°</b><small>{rp.target !== ex.reps.target ? `personal · standard ${ex.reps.target}° · ${standardReps(r)} reps meet it` : 'standard range'}</small></div>}
-          <div><span>Cadence</span><b className="num">{f(rp.perMin)}/min</b><small>{f(rp.perSec, 2)} reps/s</small></div>
-          <div><span>Tempo</span><b className="num">{f(rp.avgEccentricSec)}–{f(rp.avgConcentricSec)}</b><small>eccentric–concentric s</small></div>
-          <div><span>Time under tension</span><b className="num">{f(rp.tutSec)} s</b></div>
-          <div><span>Range of motion</span><b className="num">{f(rp.romMean, 0)}°</b><small>± {f(rp.romSd)}° SD</small></div>
-          <div><span>Consistency</span><b className="num">{f(rp.consistencyCv, 0)}%</b><small>ROM coefficient of variation</small></div>
-          <div><span>Fatigue</span><b className="num">{rp.fatigueSlopePct > 0 ? '+' : ''}{f(rp.fatigueSlopePct, 0)}%</b><small>rep duration drift</small></div>
+          <div><span>{t("Reps")}</span><b className="num">{rp.count}</b><small>{rp.valid} correct · {rp.partial} partial{rp.rejected ? ` · ${rp.rejected} rejected` : ''}{rp.mismatched?.length ? ` · ${rp.mismatched.length} wrong exercise` : ''}</small></div>
+          {ex?.reps && <div><span>{t("Depth target")}</span><b className="num">{ex.reps.start === 'high' ? '≤' : '≥'} {rp.target}°</b><small>{rp.target !== ex.reps.target ? `personal · standard ${ex.reps.target}° · ${standardReps(r)} reps meet it` : 'standard range'}</small></div>}
+          <div><span>{t("Cadence")}</span><b className="num">{f(rp.perMin)}/min</b><small>{f(rp.perSec, 2)} reps/s</small></div>
+          <div><span>{t("Tempo")}</span><b className="num">{f(rp.avgEccentricSec)}–{f(rp.avgConcentricSec)}</b><small>{t("eccentric–concentric s")}</small></div>
+          <div><span>{t("Time under tension")}</span><b className="num">{f(rp.tutSec)} s</b></div>
+          <div><span>{t("Range of motion")}</span><b className="num">{f(rp.romMean, 0)}°</b><small>± {f(rp.romSd)}° SD</small></div>
+          <div><span>{t("Consistency")}</span><b className="num">{f(rp.consistencyCv, 0)}%</b><small>{t("ROM coefficient of variation")}</small></div>
+          <div><span>{t("Fatigue")}</span><b className="num">{rp.fatigueSlopePct > 0 ? '+' : ''}{f(rp.fatigueSlopePct, 0)}%</b><small>{t("rep duration drift")}</small></div>
         </>)}
         {r.hold && (<>
-          <div><span>Best hold</span><b className="num">{f(r.hold.bestSec)} s</b><small>goal {r.hold.targetSec} s</small></div>
-          <div><span>Total in position</span><b className="num">{f(r.hold.totalSec)} s</b></div>
+          <div><span>{t("Best hold")}</span><b className="num">{f(r.hold.bestSec)} s</b><small>{t('goal {n} s', { n: r.hold.targetSec })}</small></div>
+          <div><span>{t("Total in position")}</span><b className="num">{f(r.hold.totalSec)} s</b></div>
         </>)}
         {r.events?.map((e) => (
-          <div key={e.index}><span>Attempt {e.index}</span>
+          <div key={e.index}><span>{t('Attempt {n}', { n: e.index })}</span>
             <b className="num">{e.jumpHeightCm !== undefined ? `${f(e.jumpHeightCm)} cm` : e.releaseAngle !== undefined ? `${f(e.releaseAngle, 0)}°` : `${Math.round(e.score * 100)}%`}</b>
             <small>{e.flightMs !== undefined ? `flight ${Math.round(e.flightMs)} ms` : e.peakSpeed !== undefined ? `peak ${f(e.peakSpeed)} body-h/s` : ''}{e.releaseAngle !== undefined && e.jumpHeightCm !== undefined ? ` · take-off ${f(e.releaseAngle, 0)}°` : ''}</small>
           </div>
         ))}
-        <div><span>Angle precision</span><b className="num">±{f(precision)}°</b><small>frame noise (1 SD)</small></div>
-        <div><span>Tracking</span><b className="num">{f(r.trackedPct, 0)}%</b><small>{f(r.fps, 0)} fps · {r.frames} frames</small></div>
-        {r.kcal !== null && <div><span>Energy</span><b className="num">{f(r.kcal)} kcal</b><small>MET {ex?.met}</small></div>}
+        <div><span>{t("Angle precision")}</span><b className="num">±{f(precision)}°</b><small>{t("frame noise (1 SD)")}</small></div>
+        <div><span>{t("Tracking")}</span><b className="num">{f(r.trackedPct, 0)}%</b><small>{f(r.fps, 0)} fps · {r.frames} frames</small></div>
+        {r.kcal !== null && <div><span>{t("Energy")}</span><b className="num">{f(r.kcal)} kcal</b><small>MET {ex?.met}</small></div>}
       </div>
 
-      <h2 className="section-title">How to do better</h2>
+      <h2 className="section-title">{t("How to do better")}</h2>
       <div className="list">
         {r.insights.length ? r.insights.map((i, k) => (
           <div key={k} className={`insight ${i.level}`}>
             <div className="ic">{i.level === 'good' ? <IconCheck /> : i.level === 'warn' ? <IconAlert /> : <IconStop />}</div>
             <div><b>{i.title}</b><p>{i.detail}</p></div>
           </div>
-        )) : <div className="insight good"><div className="ic"><IconCheck /></div><div><b>Nothing to fix</b><p>All measured joints stayed in range.</p></div></div>}
+        )) : <div className="insight good"><div className="ic"><IconCheck /></div><div><b>{t("Nothing to fix")}</b><p>{t("All measured joints stayed in range.")}</p></div></div>}
       </div>
 
       {isEligibleSession(saved) && <Future s={saved} onCheckIn={() => setAsking(true)} />}
@@ -353,25 +353,25 @@ export default function Results() {
 
       <div className="two-col" style={{ marginTop: 14 }}>
         <section className="glass panel">
-          <div className="row between"><b>{rp?.driverLabel ?? 'Angle'} over time</b><span className="faint" style={{ fontSize: '.78rem' }}>green band = target</span></div>
+          <div className="row between"><b>{t('{label} over time', { label: rp?.driverLabel ?? t('Angle') })}</b><span className="faint" style={{ fontSize: '.78rem' }}>{t('green band = target')}</span></div>
           <AngleChart r={r} />
         </section>
         {rp && rp.count > 0 && (
           <section className="glass panel">
-            <div className="row between"><b>Rep tempo</b><span className="faint" style={{ fontSize: '.78rem' }}>light = lowering · solid = lifting</span></div>
+            <div className="row between"><b>{t("Rep tempo")}</b><span className="faint" style={{ fontSize: '.78rem' }}>light = lowering · solid = lifting</span></div>
             <RepChart r={r} />
           </section>
         )}
       </div>
 
-      <h2 className="section-title">Joint-by-joint form</h2>
+      <h2 className="section-title">{t("Joint-by-joint form")}</h2>
       <section className="glass panel">
-        <div className="zone-legend" style={{ marginBottom: 6 }}><span><i style={{ background: Z.good }} />Correct</span><span><i style={{ background: Z.ok }} />Moderate</span><span><i style={{ background: Z.bad }} />Incorrect</span></div>
+        <div className="zone-legend" style={{ marginBottom: 6 }}><span><i style={{ background: Z.good }} />{t("Correct")}</span><span><i style={{ background: Z.ok }} />{t("Moderate")}</span><span><i style={{ background: Z.bad }} />{t("Incorrect")}</span></div>
         {r.checks.map((c, i) => (
           <div key={i} className="check-row">
             <div>
               <b style={{ fontSize: '.93rem' }}>{c.label}</b> <span className="tag">{c.when}</span>
-              <div className="faint" style={{ fontSize: '.8rem', marginTop: 3 }}>target {c.good[0]}–{c.good[1]} · measured avg {f(c.mean, 0)} · {c.samples} samples</div>
+              <div className="faint" style={{ fontSize: '.8rem', marginTop: 3 }}>{t('target {a}–{b} · measured avg {avg} · {n} samples', { a: c.good[0], b: c.good[1], avg: f(c.mean, 0), n: c.samples })}</div>
             </div>
             <div>
               <div className="bar"><i style={{ width: `${c.pctGood}%`, background: Z.good }} /><i style={{ width: `${c.pctOk}%`, background: Z.ok }} /><i style={{ width: `${c.pctBad}%`, background: Z.bad }} /></div>
@@ -381,10 +381,10 @@ export default function Results() {
         ))}
       </section>
 
-      <h2 className="section-title">Angle statistics</h2>
+      <h2 className="section-title">{t("Angle statistics")}</h2>
       <section className="glass panel" style={{ overflowX: 'auto' }}>
         <table className="data num">
-          <thead><tr><th>Angle</th><th>Mean</th><th>SD</th><th>Min</th><th>Max</th><th>Noise ±</th>{Object.keys(r.symmetry).length > 0 && <th>L/R diff</th>}</tr></thead>
+          <thead><tr><th>{t("Angle")}</th><th>{t("Mean")}</th><th>SD</th><th>{t("Min")}</th><th>{t("Max")}</th><th>Noise ±</th>{Object.keys(r.symmetry).length > 0 && <th>L/R diff</th>}</tr></thead>
           <tbody>{Object.entries(r.angles).map(([k, a]) => (
             <tr key={k}><td>{a.label}</td><td>{f(a.mean)}</td><td>{f(a.sd)}</td><td>{f(a.min)}</td><td>{f(a.max)}</td><td>{f(a.noise, 2)}</td>{Object.keys(r.symmetry).length > 0 && <td>{r.symmetry[k] !== undefined ? f(r.symmetry[k]) : ''}</td>}</tr>
           ))}</tbody>
@@ -392,10 +392,10 @@ export default function Results() {
       </section>
 
       {rp && rp.list.length > 0 && (<>
-        <h2 className="section-title">Every rep</h2>
+        <h2 className="section-title">{t("Every rep")}</h2>
         <section className="glass panel" style={{ overflowX: 'auto' }}>
           <table className="data num">
-            <thead><tr><th>#</th><th>Time</th><th>Down</th><th>Up</th><th>Extreme</th><th>ROM</th><th>Score</th><th>Notes</th></tr></thead>
+            <thead><tr><th>#</th><th>{t("Time")}</th><th>{t("Down")}</th><th>Up</th><th>{t("Extreme")}</th><th>ROM</th><th>{t("Score")}</th><th>{t("Notes")}</th></tr></thead>
             <tbody>{rp.list.map((x) => (
               <tr key={x.index}>
                 <td><span style={{ color: x.valid ? Z.good : Z.bad }}>●</span> {x.index}</td>
@@ -409,7 +409,7 @@ export default function Results() {
       </>)}
 
       {(saved.source === 'video' || saved.source === 'camera') && (<>
-        <h2 className="section-title">Authenticity</h2>
+        <h2 className="section-title">{t("Authenticity")}</h2>
         <Authenticity s={saved} />
       </>)}
 
@@ -423,11 +423,11 @@ export default function Results() {
 
       <div className="row no-print" style={{ marginTop: 18, gap: 10 }}>
         {ex && <Link className="btn primary press" to={`/train/${ex.id}?src=${saved.source === 'demo' ? 'demo' : 'camera'}`}>{t('Go again')}</Link>}
-        <button className="btn press" onClick={() => { if (deleteSession(id)) nav('/history'); else alert('Storage failed; deletion is held only in this tab.'); }}>Delete local copy</button>
+        <button className="btn press" onClick={() => { if (deleteSession(id)) nav('/history'); else alert('Storage failed; deletion is held only in this tab.'); }}>{t("Delete local copy")}</button>
         {saved.cloudId && <button className="btn danger" onClick={() => {
           if (!confirm('Delete this session locally and its cloud result? Offline deletions wait for the next sync.')) return;
           if (deleteSession(id, true)) nav('/history'); else alert('Could not persist deletion. Free device storage and retry.');
-        }}>Delete everywhere</button>}
+        }}>{t("Delete everywhere")}</button>}
       </div>
     </main>
   );

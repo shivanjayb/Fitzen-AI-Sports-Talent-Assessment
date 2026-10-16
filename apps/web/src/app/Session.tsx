@@ -1,4 +1,4 @@
-import { t } from './language';
+import { getLanguage, t } from './language';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { MotionSession, analyseIntegrity, exerciseById, filtfiltLandmarks, inspectContainer, simulateExercise, type ForensicsReport, type LiveState, type PoseFrame } from '@fitzen/engines';
@@ -40,7 +40,8 @@ class PuppetSource implements PoseSource {
 const say = (text: string, on: boolean) => {
   if (!on || !('speechSynthesis' in window)) return;
   window.speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(text);
+  const u = new SpeechSynthesisUtterance(t(text));
+  u.lang = `${getLanguage()}-IN`;
   u.rate = 1.08;
   window.speechSynthesis.speak(u);
 };
@@ -248,7 +249,7 @@ export default function Session() {
 
   useEffect(() => () => window.speechSynthesis?.cancel(), []);
 
-  if (!def) return <div className="stage"><div className="center-card glass">Exercise not found. <button className="btn" onClick={() => nav('/app')}>Back</button></div></div>;
+  if (!def) return <div className="stage"><div className="center-card glass">{t("Exercise not found.")} <button className="btn" onClick={() => nav('/app')}>{t("Back")}</button></div></div>;
 
   const angles = def.angles.map((a) => ({ a, r: live?.angles[a.id] })).filter((x) => x.r);
   const lastEvent = live?.events[live.events.length - 1];
@@ -263,17 +264,17 @@ export default function Session() {
 
       <div className="hud">
         <div className="hud-top">
-          <button className="btn icon glass press" onClick={() => { source.current?.stop(); nav(-1); }} aria-label="Close"><IconClose /></button>
+          <button className="btn icon glass press" onClick={() => { source.current?.stop(); nav(-1); }} aria-label={t("Close")}><IconClose /></button>
           <div className="hud-title glass">
             <span>{def.name}</span>
             {src === 'demo' && <span className="tag">DEMO</span>}
             <span className="num">{mmss(stage === 'active' ? live?.tMs ?? 0 : 0)}</span>
           </div>
           <button className="btn icon glass press" onClick={() => setVoice((x) => !x)} aria-label={voice ? 'Mute voice' : 'Unmute voice'}><IconVolume off={!voice} /></button>
-          {src === 'camera' && <button className="btn icon glass press" onClick={() => setFacing((f) => (f === 'user' ? 'environment' : 'user'))} aria-label="Switch camera"><IconFlip /></button>}
+          {src === 'camera' && <button className="btn icon glass press" onClick={() => setFacing((f) => (f === 'user' ? 'environment' : 'user'))} aria-label={t("Switch camera")}><IconFlip /></button>}
         </div>
 
-        {stage === 'active' && live?.cue && <div key={live.cue} className={`cue glass ${cueZone}`}>{live.framing ? <IconCamera /> : cueZone === 'bad' ? <IconAlert /> : <IconBulb />} {live.cue}</div>}
+        {stage === 'active' && live?.cue && <div key={live.cue} className={`cue glass ${cueZone}`}>{live.framing ? <IconCamera /> : cueZone === 'bad' ? <IconAlert /> : <IconBulb />} {t(live.cue)}</div>}
 
         {(stage === 'active' || stage === 'countdown' || stage === 'framing') && angles.length > 0 && (
           <div className="hud-angles">
@@ -289,20 +290,20 @@ export default function Session() {
           <div className="hud-bottom">
             <div key={`${live?.reps}-${live?.events.length}`} className="counter glass pulse">
               {def.mode === 'reps' && (<>
-                <div><div className="lbl">Reps</div><div className="big">{live?.reps ?? 0}</div></div>
-                <div><div className="sub z-good">{live?.validReps ?? 0} correct</div><div className="sub" style={{ opacity: 0.6 }}>{live?.phase === 'active' ? 'Working…' : 'Ready'}</div></div>
+                <div><div className="lbl">{t("Reps")}</div><div className="big">{live?.reps ?? 0}</div></div>
+                <div><div className="sub z-good">{t('{n} correct', { n: live?.validReps ?? 0 })}</div><div className="sub" style={{ opacity: 0.6 }}>{t(live?.phase === 'active' ? 'Working…' : 'Ready')}</div></div>
                 <Ring value={live?.progress ?? 0} color="var(--accent-2)" label={`${Math.round((live?.progress ?? 0) * 100)}`} />
               </>)}
               {def.mode === 'hold' && (<>
-                <div><div className="lbl">Hold</div><div className="big">{((live?.holdMs ?? 0) / 1000).toFixed(1)}<small style={{ fontSize: '1.2rem' }}>s</small></div></div>
-                <div className="sub">{live?.phase === 'hold' ? <span className="z-good">In position</span> : <span className="z-bad">Get into position</span>}<br /><span style={{ opacity: 0.6 }}>Goal {def.hold?.targetSec}s</span></div>
+                <div><div className="lbl">{t("Hold")}</div><div className="big">{((live?.holdMs ?? 0) / 1000).toFixed(1)}<small style={{ fontSize: '1.2rem' }}>s</small></div></div>
+                <div className="sub">{live?.phase === 'hold' ? <span className="z-good">{t("In position")}</span> : <span className="z-bad">{t("Get into position")}</span>}<br /><span style={{ opacity: 0.6 }}>{t('Goal {n}s', { n: def.hold?.targetSec ?? 0 })}</span></div>
                 <Ring value={live?.progress ?? 0} color="#bf5af2" label={`${Math.round((live?.progress ?? 0) * 100)}%`} />
               </>)}
               {def.mode === 'event' && (<>
-                <div><div className="lbl">Attempts</div><div className="big">{live?.events.length ?? 0}</div></div>
+                <div><div className="lbl">{t("Attempts")}</div><div className="big">{live?.events.length ?? 0}</div></div>
                 <div className="sub">
                   {lastEvent ? (lastEvent.jumpHeightCm !== undefined ? <b style={{ fontSize: '1.5rem' }}>{lastEvent.jumpHeightCm.toFixed(1)} cm</b>
-                    : lastEvent.releaseAngle !== undefined ? <b className={lastEvent.releaseZone ? `z-${lastEvent.releaseZone}` : ''} style={{ fontSize: '1.5rem' }}>{Math.round(lastEvent.releaseAngle)}° release</b> : <b>Detected</b>) : <span style={{ opacity: 0.7 }}>Perform the movement</span>}
+                    : lastEvent.releaseAngle !== undefined ? <b className={lastEvent.releaseZone ? `z-${lastEvent.releaseZone}` : ''} style={{ fontSize: '1.5rem' }}>{t('{n}° release', { n: Math.round(lastEvent.releaseAngle) })}</b> : <b>{t("Detected")}</b>) : <span style={{ opacity: 0.7 }}>{t("Perform the movement")}</span>}
                 </div>
               </>)}
             </div>
@@ -314,22 +315,22 @@ export default function Session() {
         )}
       </div>
 
-      {stage === 'loading' && <div className="center-card glass"><div className="spinner" /><b>{status}</b><p className="muted" style={{ color: 'rgba(255,255,255,.7)', fontSize: '.88rem' }}>Pose model runs on this device. Nothing is uploaded.</p></div>}
+      {stage === 'loading' && <div className="center-card glass"><div className="spinner" /><b>{t(status.replace(/ \d+%$/, ''))}{status.match(/ \d+%$/)?.[0]}</b><p className="muted" style={{ color: 'rgba(255,255,255,.7)', fontSize: '.88rem' }}>{t("Pose model runs on this device. Nothing is uploaded.")}</p></div>}
       {stage === 'framing' && (<>
         <Silhouette />
         <div className="center-card glass" style={{ top: 'auto', bottom: 40, transform: 'translateX(-50%)' }}>
-          <b>{live?.framing ?? 'Hold still…'}</b>
-          <p style={{ margin: '6px 0 0', fontSize: '.86rem', opacity: 0.75 }}>{def.camera === 'side' ? 'Stand side-on to the camera' : 'Face the camera'} · whole body visible · 2–3 m away</p>
+          <b>{t(live?.framing ?? 'Hold still…')}</b>
+          <p style={{ margin: '6px 0 0', fontSize: '.86rem', opacity: 0.75 }}>{t(def.camera === 'side' ? 'Stand side-on to the camera · whole body visible · 2–3 m away' : 'Face the camera · whole body visible · 2–3 m away')}</p>
         </div>
       </>)}
       {stage === 'countdown' && <div className="countdown"><span key={count}>{count}</span></div>}
       {stage === 'error' && (
         <div className="center-card glass">
           <div className="ic-lg"><IconCamera /></div>
-          <b>{error}</b>
+          <b>{t(error ?? '')}</b>
           <div style={{ display: 'grid', gap: 8, marginTop: 16 }}>
-            <button className="btn primary" onClick={() => nav(`/train/${def.id}?src=demo`, { replace: true })}>Watch the demo instead</button>
-            <button className="btn" onClick={() => nav(-1)}>Back</button>
+            <button className="btn primary" onClick={() => nav(`/train/${def.id}?src=demo`, { replace: true })}>{t("Watch the demo instead")}</button>
+            <button className="btn" onClick={() => nav(-1)}>{t("Back")}</button>
           </div>
         </div>
       )}

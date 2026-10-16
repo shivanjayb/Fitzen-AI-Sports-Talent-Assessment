@@ -1,3 +1,4 @@
+import { t } from './language';
 /**
  * Coach portal: apply to coach, run squads (invite code), read each athlete's full session reports with a
  * genuine / needs review / suspect verdict and its evidence, and manage API keys. Data rules: migration 005.
@@ -26,13 +27,13 @@ export default function Coach() {
   const [err, setErr] = useState('');
   useEffect(() => { let live = true; void getAccount().then((a) => live && setAcct(a), (e) => live && setErr(errText(e))); return () => { live = false; }; }, [user?.id]);
 
-  const head = <PageHeader kicker="Coaches" title="Coach portal" back />;
-  if (!supabase) return <main className="page">{head}<p className="muted">Online accounts are not switched on yet, so the coach portal is unavailable. Athletes can still train on this device.</p></main>;
-  if (!user) return <main className="page">{head}<section className="glass panel"><p style={{ marginTop: 0 }}>Sign in with your coach account to see your squads.</p><Link className="btn primary" to="/auth?next=%2Fcoach">Coach sign-in</Link></section></main>;
-  if (acct === undefined) return <main className="page">{head}{err ? <p role="alert">{err}</p> : <div className="spinner" aria-label="Loading" />}</main>;
-  if (!acct) return <main className="page">{head}<section className="glass panel"><p style={{ marginTop: 0 }}>Create your account details first (name and birth year).</p><Link className="btn primary" to="/profile#account">Finish my account</Link></section></main>;
+  const head = <PageHeader kicker={t("Coaches")} title={t("Coach portal")} back />;
+  if (!supabase) return <main className="page">{head}<p className="muted">{t("Online accounts are not switched on yet, so the coach portal is unavailable. Athletes can still train on this device.")}</p></main>;
+  if (!user) return <main className="page">{head}<section className="glass panel"><p style={{ marginTop: 0 }}>{t("Sign in with your coach account to see your squads.")}</p><Link className="btn primary" to="/auth?next=%2Fcoach">{t("Coach sign-in")}</Link></section></main>;
+  if (acct === undefined) return <main className="page">{head}{err ? <p role="alert">{err}</p> : <div className="spinner" aria-label={t("Loading")} />}</main>;
+  if (!acct) return <main className="page">{head}<section className="glass panel"><p style={{ marginTop: 0 }}>{t("Create your account details first (name and birth year).")}</p><Link className="btn primary" to="/profile#account">{t("Finish my account")}</Link></section></main>;
   // `role` comes from migration 005; without it the portal's tables and functions don't exist yet.
-  if (acct.role === undefined) return <main className="page">{head}<section className="glass panel"><b>Coach accounts are being switched on</b><p className="muted" style={{ marginBottom: 0 }}>Squads, athlete reports and API keys open here as soon as Fitzen's account database is updated. Training, results and leaderboards work as normal.</p></section></main>;
+  if (acct.role === undefined) return <main className="page">{head}<section className="glass panel"><b>{t("Coach accounts are being switched on")}</b><p className="muted" style={{ marginBottom: 0 }}>{t("Squads, athlete reports and API keys open here as soon as Fitzen's account database is updated. Training, results and leaderboards work as normal.")}</p></section></main>;
   return <main className="page" style={{ maxWidth: 980 }}>{head}{acct.role === 'coach' || acct.role === 'admin' ? <><Squads /><ApiKeys /></> : <Apply />}</main>;
 }
 
@@ -41,8 +42,8 @@ function Apply() {
   const [org, setOrg] = useState(''); const [note, setNote] = useState('');
   const [msg, setMsg] = useState(''); const [busy, setBusy] = useState(false);
   useEffect(() => { void supabase!.from('coach_requests').select('status').maybeSingle().then(({ data }) => setStatus((data as { status: string } | null)?.status ?? null)); }, []);
-  if (status === undefined) return <div className="spinner" aria-label="Loading" />;
-  if (status === 'pending') return <section className="glass panel"><b>Application received</b><p className="muted" style={{ marginBottom: 0 }}>An admin will review it. Come back here once you're approved to create squads.</p></section>;
+  if (status === undefined) return <div className="spinner" aria-label={t("Loading")} />;
+  if (status === 'pending') return <section className="glass panel"><b>{t("Application received")}</b><p className="muted" style={{ marginBottom: 0 }}>{t("An admin will review it. Come back here once you're approved to create squads.")}</p></section>;
   return (
     <form className="glass panel" style={{ display: 'grid', gap: 12 }} onSubmit={(e) => {
       e.preventDefault(); setBusy(true); setMsg('');
@@ -52,12 +53,12 @@ function Apply() {
       });
     }}>
       <b>Apply to coach{status === 'rejected' ? ' again' : ''}</b>
-      <p className="muted" style={{ margin: 0 }}>Coaches create squads, see their athletes' full reports and whether each session looks genuine. An admin approves every coach. Coaches must be 18+.</p>
-      {status === 'rejected' && <p role="status" style={{ margin: 0 }}>Your last application was not approved. You can add more detail and apply again.</p>}
-      <label className="field"><span>School, club or academy</span><input required minLength={2} maxLength={80} value={org} onChange={(e) => setOrg(e.target.value)} /></label>
-      <label className="field"><span>Anything that helps us verify you (optional)</span><textarea maxLength={400} rows={3} value={note} placeholder="e.g. NIS certificate number, school staff ID" onChange={(e) => setNote(e.target.value)} /></label>
+      <p className="muted" style={{ margin: 0 }}>{t("Coaches create squads, see their athletes' full reports and whether each session looks genuine. An admin approves every coach. Coaches must be 18+.")}</p>
+      {status === 'rejected' && <p role="status" style={{ margin: 0 }}>{t("Your last application was not approved. You can add more detail and apply again.")}</p>}
+      <label className="field"><span>{t("School, club or academy")}</span><input required minLength={2} maxLength={80} value={org} onChange={(e) => setOrg(e.target.value)} /></label>
+      <label className="field"><span>{t("Anything that helps us verify you (optional)")}</span><textarea maxLength={400} rows={3} value={note} placeholder={t("e.g. NIS certificate number, school staff ID")} onChange={(e) => setNote(e.target.value)} /></label>
       {msg && <p role="alert" style={{ margin: 0 }}>{msg}</p>}
-      <button className="btn primary" disabled={busy || org.trim().length < 2}>Send application</button>
+      <button className="btn primary" disabled={busy || org.trim().length < 2}>{t("Send application")}</button>
     </form>
   );
 }
@@ -76,16 +77,16 @@ function Squads() {
   useEffect(() => { void load(); }, []);
   const squad = squads?.find((s) => s.id === sel);
   return (<>
-    <h2 className="section-title">Squads</h2>
-    {squads === null ? <div className="spinner" aria-label="Loading squads" /> : (
+    <h2 className="section-title">{t("Squads")}</h2>
+    {squads === null ? <div className="spinner" aria-label={t("Loading squads")} /> : (
       <>
         {squads.length > 0 && <div className="chips">{squads.map((s) => <button key={s.id} className={`chip ${s.id === sel ? 'on' : ''}`} onClick={() => setSel(s.id)}>{s.name}</button>)}</div>}
         <form className="row" style={{ gap: 8, marginTop: 10, alignItems: 'flex-end' }} onSubmit={(e) => { e.preventDefault(); void supabase!.from('groups').insert({ name: name.trim(), kind: 'squad' }).select('id').single().then(({ data, error }) => {
           if (error) { setMsg(errText(error)); return; }
           setName(''); setSel((data as { id: string }).id); void load();
         }); }}>
-          <label className="field" style={{ flex: 1 }}><span>New squad</span><input required maxLength={40} value={name} placeholder="e.g. U16 Sprint Squad" onChange={(e) => setName(e.target.value)} /></label>
-          <button className="btn glass press" disabled={!name.trim()}>Create</button>
+          <label className="field" style={{ flex: 1 }}><span>{t("New squad")}</span><input required maxLength={40} value={name} placeholder={t("e.g. U16 Sprint Squad")} onChange={(e) => setName(e.target.value)} /></label>
+          <button className="btn glass press" disabled={!name.trim()}>{t("Create")}</button>
         </form>
       </>
     )}
@@ -106,17 +107,17 @@ function Roster({ squad }: { squad: Squad }) {
   return (<>
     <section className="glass panel" style={{ marginTop: 12 }}>
       <div className="row between" style={{ flexWrap: 'wrap', gap: 8 }}>
-        <div><b>{squad.name}</b><div className="muted" style={{ fontSize: '.85rem' }}>Invite code <b className="num" style={{ letterSpacing: '.08em' }}>{squad.invite_code}</b></div></div>
-        <button className="btn glass press" onClick={() => void navigator.clipboard?.writeText(`Join my Fitzen squad "${squad.name}" with code ${squad.invite_code}: ${location.origin}/compete`)}>Copy invite</button>
+        <div><b>{squad.name}</b><div className="muted" style={{ fontSize: '.85rem' }}>{t("Invite code")} <b className="num" style={{ letterSpacing: '.08em' }}>{squad.invite_code}</b></div></div>
+        <button className="btn glass press" onClick={() => void navigator.clipboard?.writeText(`Join my Fitzen squad "${squad.name}" with code ${squad.invite_code}: ${location.origin}/compete`)}>{t("Copy invite")}</button>
       </div>
       <div className="kv" style={{ marginTop: 12, gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' }}>
-        <div><span>Athletes</span><b className="num">{n}</b></div>
-        <div><span>Active</span><b className="num">{active}</b><small>last 30 days</small></div>
-        <div><span>Suspect</span><b className="num" style={suspect ? { color: 'var(--bad)' } : { color: 'var(--text)' }}>{suspect}</b><small>sessions</small></div>
+        <div><span>{t("Athletes")}</span><b className="num">{n}</b></div>
+        <div><span>{t("Active")}</span><b className="num">{active}</b><small>{t("last 30 days")}</small></div>
+        <div><span>{t("Suspect")}</span><b className="num" style={suspect ? { color: 'var(--bad)' } : { color: 'var(--text)' }}>{suspect}</b><small>{t("sessions")}</small></div>
       </div>
     </section>
     {err && <p role="alert">{err}</p>}
-    {rows === null && !err ? <div className="spinner" aria-label="Loading athletes" /> : (
+    {rows === null && !err ? <div className="spinner" aria-label={t("Loading athletes")} /> : (
       <div className="rows" style={{ marginTop: 10 }}>
         {rows?.map((r) => (
           <button key={r.athlete} className="session-row" style={{ width: '100%', textAlign: 'left' }} disabled={!r.visible} onClick={() => setOpen(r)}>
@@ -125,7 +126,7 @@ function Roster({ squad }: { squad: Squad }) {
             {r.visible && <span className="num" style={{ fontSize: '.8rem', whiteSpace: 'nowrap' }}><span className="z-good">{r.genuine}✓</span> <span className="z-ok">{r.review}?</span> <span className="z-bad">{r.suspect}✗</span></span>}
           </button>
         ))}
-        {rows?.length === 0 && <p className="muted">No athletes yet. Share the invite code.</p>}
+        {rows?.length === 0 && <p className="muted">{t("No athletes yet. Share the invite code.")}</p>}
       </div>
     )}
     {open && <AthleteReports squad={squad.id} athlete={open} close={() => setOpen(null)} />}
@@ -139,10 +140,10 @@ function AthleteReports({ squad, athlete, close }: { squad: string; athlete: Ath
   const resp = rows ? responseProfile(rows.filter((r) => r.verdict !== 'suspect').map((r) => r.data.report)) : [];
   return (
     <section className="glass panel" style={{ marginTop: 12 }} aria-label={`${athlete.display_name} reports`}>
-      <div className="row between"><b>{athlete.display_name}</b><button className="btn glass press" onClick={close}>Close</button></div>
+      <div className="row between"><b>{athlete.display_name}</b><button className="btn glass press" onClick={close}>{t("Close")}</button></div>
       {err && <p role="alert">{err}</p>}
       {resp.length > 0 && <p className="muted" style={{ fontSize: '.85rem' }}>Responding best to {resp.filter((x) => x.response === 'responding').map((x) => x.name).join(', ') || 'nothing yet'}{resp.some((x) => x.response === 'declining') ? ` · dropping on ${resp.filter((x) => x.response === 'declining').map((x) => x.name).join(', ')}` : ''}.</p>}
-      {rows === null && !err ? <div className="spinner" aria-label="Loading reports" /> : rows?.length === 0 ? <p className="muted">No synced sessions yet.</p> : (
+      {rows === null && !err ? <div className="spinner" aria-label={t("Loading reports")} /> : rows?.length === 0 ? <p className="muted">{t("No synced sessions yet.")}</p> : (
         <div className="rows">{rows?.map((r) => <Report key={r.id} row={r} />)}</div>
       )}
     </section>
@@ -170,7 +171,7 @@ function Report({ row }: { row: Row }) {
         {evidence.length ? <ul style={{ margin: 0, paddingLeft: 18 }}>{evidence.map((x, i) => <li key={i}>{x}</li>)}</ul> : <p className="muted" style={{ margin: 0 }}>No integrity, video-file or movement flags. Tracked {Math.round(r.trackedPct)} % of frames.</p>}
         {s.integrity && <p className="faint" style={{ margin: '6px 0 0' }}>Physics plausibility {s.integrity.score}/100 ({s.integrity.verdict}).</p>}
         {r.insights.slice(0, 2).map((x, i) => <p key={i} style={{ margin: '6px 0 0' }}><b>{x.title}.</b> <span className="muted">{x.detail}</span></p>)}
-        <p className="faint" style={{ margin: '6px 0 0' }}>Verdicts are screening signals from the athlete's device, not proof. Watch the athlete live before acting on a suspect result.</p>
+        <p className="faint" style={{ margin: '6px 0 0' }}>{t("Verdicts are screening signals from the athlete's device, not proof. Watch the athlete live before acting on a suspect result.")}</p>
       </div>
     </details>
   );
@@ -183,28 +184,28 @@ function ApiKeys() {
   useEffect(load, []);
   const curl = `curl -X POST '${publicApi.url}/rest/v1/rpc/api_squad_report' \\\n  -H 'apikey: ${publicApi.key}' -H 'Content-Type: application/json' \\\n  -d '{"api_key": "${fresh || 'fz_…'}"}'`;
   return (<>
-    <h2 className="section-title">API keys<small>for your own tools</small></h2>
+    <h2 className="section-title">API keys<small>{t("for your own tools")}</small></h2>
     <section className="glass panel" style={{ display: 'grid', gap: 12 }}>
       <form className="row" style={{ gap: 8, alignItems: 'flex-end' }} onSubmit={(e) => { e.preventDefault(); setMsg(''); void supabase!.rpc('create_api_key', { name: name.trim() }).then(({ data, error }) => {
         if (error) { setMsg(errText(error)); return; }
         setFresh(data as string); setName(''); load();
       }); }}>
-        <label className="field" style={{ flex: 1 }}><span>Key name</span><input required maxLength={40} value={name} placeholder="e.g. Squad sheet" onChange={(e) => setName(e.target.value)} /></label>
-        <button className="btn primary" disabled={!name.trim()}>Create key</button>
+        <label className="field" style={{ flex: 1 }}><span>{t("Key name")}</span><input required maxLength={40} value={name} placeholder={t("e.g. Squad sheet")} onChange={(e) => setName(e.target.value)} /></label>
+        <button className="btn primary" disabled={!name.trim()}>{t("Create key")}</button>
       </form>
-      {fresh && <div role="status"><b>Copy this key now. It won't be shown again.</b><div className="row" style={{ gap: 8, marginTop: 6 }}><code className="num" style={{ overflowWrap: 'anywhere', flex: 1 }}>{fresh}</code><button className="btn glass press" onClick={() => void navigator.clipboard?.writeText(fresh)}>Copy</button></div></div>}
+      {fresh && <div role="status"><b>{t("Copy this key now. It won't be shown again.")}</b><div className="row" style={{ gap: 8, marginTop: 6 }}><code className="num" style={{ overflowWrap: 'anywhere', flex: 1 }}>{fresh}</code><button className="btn glass press" onClick={() => void navigator.clipboard?.writeText(fresh)}>{t("Copy")}</button></div></div>}
       {msg && <p role="alert" style={{ margin: 0 }}>{msg}</p>}
       <div className="rows">
         {keys?.map((k) => (
           <div key={k.id} className="session-row">
             <span style={{ minWidth: 0, flex: 1 }}><b>{k.name}</b><small className="num">{k.prefix}… · created {day(k.created_at)} · last used {day(k.last_used_at)}</small></span>
-            {k.revoked_at ? <span className="tag">Revoked</span> : <button className="btn danger" onClick={() => { if (confirm(`Revoke "${k.name}"? Tools using it stop working.`)) void supabase!.rpc('revoke_api_key', { key_id: k.id }).then(load); }}>Revoke</button>}
+            {k.revoked_at ? <span className="tag">{t("Revoked")}</span> : <button className="btn danger" onClick={() => { if (confirm(`Revoke "${k.name}"? Tools using it stop working.`)) void supabase!.rpc('revoke_api_key', { key_id: k.id }).then(load); }}>{t("Revoke")}</button>}
           </div>
         ))}
       </div>
-      <details><summary className="muted" style={{ cursor: 'pointer' }}>How to use a key</summary>
+      <details><summary className="muted" style={{ cursor: 'pointer' }}>{t("How to use a key")}</summary>
         <pre style={{ whiteSpace: 'pre-wrap', fontSize: '.78rem', overflowWrap: 'anywhere' }}>{curl}</pre>
-        <p className="faint" style={{ fontSize: '.8rem' }}>Returns your squads, athletes (minors as initials, only after parent consent) and their last 90 days of sessions with verdicts. Keep keys secret: anyone with a key can read this data until you revoke it.</p>
+        <p className="faint" style={{ fontSize: '.8rem' }}>{t("Returns your squads, athletes (minors as initials, only after parent consent) and their last 90 days of sessions with verdicts. Keep keys secret: anyone with a key can read this data until you revoke it.")}</p>
       </details>
     </section>
   </>);

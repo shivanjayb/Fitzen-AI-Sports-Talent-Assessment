@@ -10,8 +10,8 @@ import { LESSONS } from './lessons';
 
 const MODE = { reps: 'Reps', hold: 'Hold', event: 'Power' } as const;
 export const LEVEL = ['', 'Beginner', 'Intermediate', 'Advanced'] as const;
-export const catLabel = (c: Category) => CATEGORIES.find((x) => x.id === c)?.label ?? c;
-const badgeOf = (ex: ExerciseDef) => ex.mode === 'hold' ? `Hold · ${ex.hold?.targetSec ?? 30} s` : MODE[ex.mode];
+export const catLabel = (c: Category) => t(CATEGORIES.find((x) => x.id === c)?.label ?? c);
+const badgeOf = (ex: ExerciseDef) => ex.mode === 'hold' ? `${t('Hold')} · ${ex.hold?.targetSec ?? 30} s` : t(MODE[ex.mode]);
 /** Representative exercise drawn on each workout-type tile. */
 const TYPE_ART: Record<Category, string> = {
   gym: 'back-squat', calisthenics: 'push-up', athletics: 'sprint-start-set', throws: 'fast-bowling-delivery',
@@ -27,7 +27,7 @@ export function ExerciseCard({ ex }: { ex: ExerciseDef }) {
         <span className="badge">{badgeOf(ex)}</span>
       </div>
       <div className="ex-name">{ex.name}</div>
-      <div className="ex-meta">{catLabel(ex.category)} · {LEVEL[ex.difficulty]}</div>
+      <div className="ex-meta">{catLabel(ex.category)} · {t(LEVEL[ex.difficulty])}</div>
     </Link>
   );
 }
@@ -46,7 +46,7 @@ function Featured({ slides }: { slides: Slide[] }) {
     return () => clearTimeout(id);
   }, [i, held, slides.length]);
   return (
-    <section aria-roledescription="carousel" aria-label="Featured" onPointerEnter={() => setHeld(true)} onPointerLeave={() => setHeld(false)} onFocus={() => setHeld(true)} onBlur={() => setHeld(false)}>
+    <section aria-roledescription="carousel" aria-label={t("Featured")} onPointerEnter={() => setHeld(true)} onPointerLeave={() => setHeld(false)} onFocus={() => setHeld(true)} onBlur={() => setHeld(false)}>
       <div ref={box} className="featured" onScroll={(e) => { const el = e.currentTarget; setI(Math.round(el.scrollLeft / Math.max(1, el.clientWidth))); }}>
         {slides.map((s, n) => (
           <article key={s.title} className="feat" data-cat={s.ex.category} aria-roledescription="slide" aria-label={`${n + 1} of ${slides.length}`}>
@@ -57,7 +57,7 @@ function Featured({ slides }: { slides: Slide[] }) {
               <p>{s.text}</p>
               <div className="row">
                 <button className="btn primary press" onClick={() => nav(s.go)}>{t("Let's Go")}</button>
-                {s.more && <button className="btn press" onClick={() => nav(s.more!)}>Details</button>}
+                {s.more && <button className="btn press" onClick={() => nav(s.more!)}>{t("Details")}</button>}
               </div>
             </div>
           </article>
@@ -93,11 +93,11 @@ function TypePage({ type }: { type: Category }) {
   return (
     <main className="page" data-cat={type}>
       <PageHeader title={catLabel(type)} back />
-      <p className="muted" style={{ margin: '6px 0 0' }}>{all.length} exercises, each measured joint by joint.</p>
+      <p className="muted" style={{ margin: '6px 0 0' }}>{t('{n} exercises, each measured joint by joint.', { n: all.length })}</p>
       {modes.length > 1 && (
-        <div className="chips" role="group" aria-label="Filter">
+        <div className="chips" role="group" aria-label={t("Filter")}>
           <button className={`chip ${mode === 'all' ? 'on' : ''}`} aria-pressed={mode === 'all'} onClick={() => setMode('all')}>{t('All')}</button>
-          {modes.map((m) => <button key={m} className={`chip ${mode === m ? 'on' : ''}`} aria-pressed={mode === m} onClick={() => setMode(m)}>{MODE[m]}</button>)}
+          {modes.map((m) => <button key={m} className={`chip ${mode === m ? 'on' : ''}`} aria-pressed={mode === m} onClick={() => setMode(m)}>{t(MODE[m])}</button>)}
         </div>
       )}
       <div style={{ marginTop: 18 }}><Cards list={list} shelf={false} /></div>
@@ -117,15 +117,15 @@ function SearchPage() {
       <PageHeader title={t('Search')} />
       <label className="search">
         <IconSearch />
-        <input autoFocus type="search" value={q} onChange={(e) => setParams(e.target.value ? { q: e.target.value } : {}, { replace: true })} placeholder={t('Search squat, javelin, glutes…')} aria-label="Search exercises" />
+        <input autoFocus type="search" value={q} onChange={(e) => setParams(e.target.value ? { q: e.target.value } : {}, { replace: true })} placeholder={t('Search squat, javelin, glutes…')} aria-label={t("Search exercises")} />
       </label>
       {!q && <>
-        <h2 className="section-title">Browse</h2>
+        <h2 className="section-title">{t("Browse")}</h2>
         <div className="types">{CATEGORIES.map((c) => <TypeTile key={c.id} type={c.id} />)}</div>
       </>}
       {q && (list.length
-        ? <><h2 className="section-title">Results<small>{list.length}</small></h2><Cards list={list} shelf={false} /></>
-        : <div className="empty"><div className="big"><IconSearch /></div>No exercise matches “{q}”.</div>)}
+        ? <><h2 className="section-title">{t("Results")}<small>{list.length}</small></h2><Cards list={list} shelf={false} /></>
+        : <div className="empty"><div className="big"><IconSearch /></div>{t('No exercise matches “{q}”.', { q })}</div>)}
     </main>
   );
 }
@@ -137,7 +137,7 @@ function TypeTile({ type }: { type: Category }) {
   return (
     <button className="type-tile press" data-cat={type} onClick={() => (location.pathname === '/app' ? setParams({ type }) : nav(`/app?type=${type}`))}>
       <div className="art"><ExerciseArt def={byId(TYPE_ART[type])} /></div>
-      <span className="label"><b>{catLabel(type)}</b><small>{n} exercises</small></span>
+      <span className="label"><b>{catLabel(type)}</b><small>{n} {t('exercises')}</small></span>
     </button>
   );
 }
@@ -152,12 +152,12 @@ export default function Home({ search = false }: { search?: boolean }) {
   const recent = [...new Set(history.map((s) => s.report.exerciseId))].map((id) => exerciseById(id)).filter((e): e is ExerciseDef => !!e).slice(0, 10);
   const last = recent[0];
   const slides: Slide[] = [
-    { ex: byId('countermovement-jump'), kicker: t('Guided assessment'), title: 'Jump, squat, push-up, plank', text: 'Four tests with a protocol, a framing check and an eligible attempt. Measured on your device; video never leaves it.', go: '/guided' },
+    { ex: byId('countermovement-jump'), kicker: t('Guided assessment'), title: t('Jump, squat, push-up, plank'), text: t('Four tests with a protocol, a framing check and an eligible attempt. Measured on your device; video never leaves it.'), go: '/guided' },
     last
       ? { ex: last, kicker: t('Go again'), title: last.name, text: last.summary, go: `/train/${last.id}?src=camera`, more: `/exercise/${last.id}` }
-      : { ex: byId('back-squat'), kicker: 'Featured', title: 'Back Squat', text: byId('back-squat').summary, go: '/train/back-squat?src=camera', more: '/exercise/back-squat' },
-    { ex: byId('fast-bowling-delivery'), kicker: 'Throws & Strikes', title: 'Fast bowling', text: 'Front-knee brace, arm path and trunk flexion, read from your own delivery.', go: '/train/fast-bowling-delivery?src=camera', more: '/exercise/fast-bowling-delivery' },
-    { ex: byId('warrior-i'), kicker: 'Yoga', title: 'Warrior I', text: byId('warrior-i').summary, go: '/train/warrior-i?src=camera', more: '/exercise/warrior-i' },
+      : { ex: byId('back-squat'), kicker: t('Featured'), title: 'Back Squat', text: byId('back-squat').summary, go: '/train/back-squat?src=camera', more: '/exercise/back-squat' },
+    { ex: byId('fast-bowling-delivery'), kicker: t('Throws & Strikes'), title: t('Fast bowling'), text: t('Front-knee brace, arm path and trunk flexion, read from your own delivery.'), go: '/train/fast-bowling-delivery?src=camera', more: '/exercise/fast-bowling-delivery' },
+    { ex: byId('warrior-i'), kicker: t('Yoga'), title: 'Warrior I', text: byId('warrior-i').summary, go: '/train/warrior-i?src=camera', more: '/exercise/warrior-i' },
   ];
   const lessons = LESSON_PICKS.map(byId).filter((e) => LESSONS[e.id]);
 
@@ -166,12 +166,12 @@ export default function Home({ search = false }: { search?: boolean }) {
       <PageHeader title={t('Train')} />
       <Featured slides={slides} />
 
-      {recent.length > 0 && <><h2 className="section-title">Recently Trained</h2><Cards list={recent} /></>}
+      {recent.length > 0 && <><h2 className="section-title">{t("Recently Trained")}</h2><Cards list={recent} /></>}
 
-      <h2 className="section-title">Workout Types</h2>
+      <h2 className="section-title">{t("Workout Types")}</h2>
       <div className="types">{CATEGORIES.map((c) => <TypeTile key={c.id} type={c.id} />)}</div>
 
-      {lessons.length > 0 && <><h2 className="section-title">Learn the Technique<small>video lessons</small></h2><LessonShelf list={lessons} /></>}
+      {lessons.length > 0 && <><h2 className="section-title">{t("Learn the Technique")}<small>{t("video lessons")}</small></h2><LessonShelf list={lessons} /></>}
 
       {CATEGORIES.map((c) => (
         <section key={c.id}>
@@ -180,8 +180,8 @@ export default function Home({ search = false }: { search?: boolean }) {
         </section>
       ))}
 
-      <h2 className="section-title">More</h2>
-      <nav className="rows" aria-label="More">
+      <h2 className="section-title">{t("More")}</h2>
+      <nav className="rows" aria-label={t("More")}>
         <Link to="/guided"><span className="ic"><IconFlag /></span>{t('Guided assessment')}<IconChevron /></Link>
         <Link to="/history"><span className="ic"><IconHistory /></span>{t('History')}<IconChevron /></Link>
         <Link to="/validation"><span className="ic"><IconTrophy /></span>{t('Coach validation')}<IconChevron /></Link>
