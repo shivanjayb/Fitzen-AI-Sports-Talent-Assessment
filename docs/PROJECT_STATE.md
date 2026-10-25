@@ -2,6 +2,8 @@
 
 Read this first in any new session or account. It is the single source of truth for what Fitzen is, what has been done, where it stands and what comes next. Keep it current: update it whenever a milestone lands (the "Log" section at the end).
 
+For persistent code-level recall, read [PROJECT_MEMORY.md](PROJECT_MEMORY.md): purpose, architecture, capture-to-sync flow, evidence boundaries and source/documentation discrepancies. It was traced against source on 2026-10-25; recheck relevant code and the latest Log before acting.
+
 ## What Fitzen is
 
 - Final-year project, K. K. Wagh Institute, Nashik (CSD). Smart India Hackathon problem **SIH25073**: AI sports talent assessment for the Sports Authority of India (SAI). Not an official SAI product.
@@ -141,3 +143,4 @@ Append one line after every change, from any account: `- YYYY-MM-DD [account: em
 - 2026-10-16 [account: shivanjayprakashbajpai@gmail.com] Multilingual en/hi/mr/ta/te: all athlete screens, exercise setup steps, live cues (on screen + voice) and camera messages translated (1,139 strings per language, lazy-loaded, offline-precached); language picker on Landing + Profile; light-mode landing/tile fixes; mobile nav + tap targets (PR #11). Next/left: Coach/Admin interpolated lines and per-check 'why' text still English.
 
 - 2026-10-17 [account: unknown] Analysed architecture, validation and release gaps in docs/PROJECT_ANALYSIS.md; corrected stale migration-005 and language status (see commit). Engines 209/209, server 34/34, web 26/26, production build and server typecheck pass. Graphify query/update unavailable (CLI missing); SQL tests not run (Postgres server binaries absent). Next/left: real-athlete calibration, account-flow QA/custom SMTP, confirm 006/admin onboarding.
+- 2026-10-25 [account: unknown] Traced core project flows and saved durable cross-session context in docs/PROJECT_MEMORY.md, linked from this handoff (see commit). Recorded current/legacy architecture and documentation discrepancies; no runtime or live-service changes. Graphify unavailable (broken symlink); fresh test/build verification unavailable without installed dependencies. Next/left: real-athlete calibration, account-flow QA/custom SMTP, reconcile 006/admin status and documented behavior discrepancies.
