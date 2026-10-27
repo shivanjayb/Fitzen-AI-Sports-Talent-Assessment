@@ -281,6 +281,8 @@ const TRUNK_SHIFT = 40;
 const OVERSHOOT = 55;
 /** Fraction of rep frames a segment may be out of plane before the movement is judged to be in another plane. */
 const OUT_OF_PLANE = 0.5;
+/** Apparent ROM that landmark jitter alone produces on a still joint (real cameras, not the noise-free demo athlete). */
+const NOISE = 20;
 
 const refCache = new Map<string, RepSignature | null>();
 function referenceSignature(session: ExerciseDef): RepSignature | null {
@@ -306,7 +308,8 @@ export function movementMismatch(def: ExerciseDef, sig: RepSignature, ref: RepSi
   const name = def.name;
   const moved = def.mode === 'event' ? MOVED_EVENT : MOVED;
   for (const p of PROBES) {
-    if (ref.rom[p] < STILL && sig.rom[p] > moved[p]) return `Your ${p}s are moving a lot — that doesn't look like ${name}`;
+    // NOISE: real landmarks jitter, so measured ROM on a still joint reads ~10–20° even when it doesn't move.
+    if (ref.rom[p] < STILL && sig.rom[p] - (def.mode === 'event' ? 0 : NOISE) > moved[p]) return `Your ${p}s are moving a lot — that doesn't look like ${name}`;
     if (def.mode !== 'reps') continue;
     // A joint that should move, moving through far more range than this exercise ever uses (e.g. overhead press in a front raise).
     if (ref.rom[p] >= STILL && sig.rom[p] > ref.rom[p] + OVERSHOOT) return `That range of motion is far beyond ${name} — looks like a different exercise`;
@@ -316,7 +319,9 @@ export function movementMismatch(def: ExerciseDef, sig: RepSignature, ref: RepSi
   }
   const drv = def.reps ? def.angles.find((a) => a.id === def.reps!.driver) : undefined;
   const segs: SegKey[] = !drv ? [] : drv.kind === 'joint' ? JOINT_SEGS[drv.joint] : drv.kind === 'segment' && drv.segment in SEGMENTS ? [drv.segment as SegKey] : [];
-  for (const g of segs) {
+  // Only shoulder-driven raises need the plane test (front vs lateral raise); for curls, presses and rows ordinary
+  // noise or a slight turn reads as 'out of plane' and wrongly discarded real reps.
+  for (const g of drv?.kind === 'joint' && drv.joint === 'shoulder' ? segs : []) {
     // Arms only: a limb swinging into depth tells front from lateral raises; legs going out of plane usually means the
     // athlete turned, which the foreshortening gate already greys out.
     if (g !== 'upperArm' && g !== 'forearm') continue;
@@ -416,7 +421,8 @@ export class MotionSession {
     const tracking = framing === null;
     if (!tracking) {
       this.longestGapMs = Math.max(this.longestGapMs, Number.isFinite(this.lastTrackedT) ? t - this.lastTrackedT : t - this.startMs);
-      this.breakTracking();
+      // A brief visibility dip (MediaPipe feet/ankles hover near 0.5) must not abort the rep; a lost pose or a real gap does.
+      if (pts.length < 33 || !(t - this.lastTrackedT <= 300)) this.breakTracking();
     }
     const angles: Record<string, AngleReading> = {};
     const values: Record<string, number> = {};
@@ -521,7 +527,11 @@ export class MotionSession {
         if (z && z !== 'good' && (!worst || rank(z) > rank(worst.z))) worst = { z, c };
       });
       const w = worst as { z: Zone; c: Check } | null;
-      const nextCue = framing ?? (w ? w.c.cue : null);
+      // Side-view angles vanish when the athlete faces the camera (common on laptops): shoulders read wide relative to the torso.
+      const sw = tracking ? Math.hypot(pts[11]!.x - pts[12]!.x, pts[11]!.y - pts[12]!.y) : 0;
+      const torso = tracking ? Math.hypot((pts[11]!.x + pts[12]!.x - pts[23]!.x - pts[24]!.x) / 2, (pts[11]!.y + pts[12]!.y - pts[23]!.y - pts[24]!.y) / 2) : 1;
+      const facing = this.def.camera === 'side' && sw > 0.6 * torso ? 'Turn sideways — stand side-on to the camera' : null;
+      const nextCue = framing ?? facing ?? (w ? w.c.cue : null);
       const hold = nextCue === null ? 1200 : 2500; // readable, but clear promptly once fixed
       if (nextCue !== this.cue && (this.cue === null || t - this.cueT > hold)) { this.cue = nextCue; this.cueT = t; }
     }
@@ -639,7 +649,9 @@ export class MotionSession {
     if (p.length < 33) return 'Step into the frame';
     const need = new Set<number>();
     for (const a of this.def.angles) this.chains(a).flat().forEach((i) => need.add(i));
-    const missing = [...need].filter((i) => (p[i]!?.v ?? 0) < FILTER.minVisibility);
+    // Wrists, hands and feet are MediaPipe's least-confident points (often 0.3–0.6 on real cameras); a stricter bar there
+    // blocked every lower-body exercise. Sports2D keeps keypoints above 0.3.
+    const missing = [...need].filter((i) => (p[i]!?.v ?? 0) < (i >= 15 && i <= 22 || i >= 27 ? 0.3 : FILTER.minVisibility));
     if (missing.length === need.size) return 'Step into the frame';
     if (missing.length) {
       const lower = missing.some((i) => i >= 25);

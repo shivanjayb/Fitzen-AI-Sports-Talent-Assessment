@@ -86,6 +86,7 @@ export default function Session() {
   const probe = useRef<MotionSession | null>(null);
   const stageRef = useRef<Stage>('loading');
   const okSince = useRef<number | null>(null);
+  const badSince = useRef<number | null>(null);
   const prev = useRef({ reps: 0, events: 0, cue: '' as string | null, wrong: 0 });
   const forensics = useRef<ForensicsReport | undefined>(undefined);
 
@@ -171,10 +172,13 @@ export default function Session() {
     } else {
       probe.current ??= new MotionSession(def);
       l = probe.current.push(f, aspect);
-      if (st === 'countdown' && !l.tracking && src === 'camera') { okSince.current = null; setStage('framing'); }
+      // Real cameras dip below the visibility bar for single frames; only 300 ms of bad framing counts as leaving the frame.
+      if (l.tracking) badSince.current = null; else badSince.current ??= f.timestampMs;
+      const lost = badSince.current !== null && f.timestampMs - badSince.current > 300;
+      if (st === 'countdown' && lost && src === 'camera') { okSince.current = null; setStage('framing'); }
       if (st === 'loading' || st === 'framing') {
         if (st === 'loading') setStage('framing');
-        if (l.tracking) {
+        if (!lost) {
           okSince.current ??= f.timestampMs;
           if (f.timestampMs - okSince.current > 1000) setStage('countdown');
         } else okSince.current = null;
@@ -188,7 +192,7 @@ export default function Session() {
   useEffect(() => {
     if (!def) return;
     source.current?.stop();
-    session.current = null; probe.current = null; okSince.current = null;
+    session.current = null; probe.current = null; okSince.current = null; badSince.current = null;
     setStage('loading'); setError(null); setLive(null);
     const cb = {
       onFrame: (f: PoseFrame) => onFrameRef.current(f),
