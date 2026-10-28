@@ -1,4 +1,4 @@
-# Fitzen — Fieldwork
+# Fitzen — Quiet performance
 
 An editable, high-fidelity HTML design concept. This is a review artifact, not a production app change or a native Figma document. No generated imagery is used. All visual content is HTML, CSS, and inline vector interface graphics; it makes no external requests.
 
@@ -8,7 +8,7 @@ Open `index.html` directly, or serve the repository locally:
 python3 -m http.server 8766 --bind 127.0.0.1
 ```
 
-Visit http://127.0.0.1:8766/docs/design/quiet-performance/. The browser preview was opened in Codex. Use **View all screens** for the presentation board, **Back to prototype** to resume navigation, or the browser's Print command to export all six screens to PDF.
+Visit http://127.0.0.1:8766/docs/design/quiet-performance/. The browser preview was opened in Codex. Use **View all frames** for the presentation board, **Back to prototype** to resume navigation, or the browser's Print command to export all five frames to PDF.
 
 ## Reference study
 
@@ -33,77 +33,42 @@ Measured visible computed styles: DM Sans; canvas `rgb(244,244,242)`; white card
 
 At a 390px viewport, navigation becomes horizontally scrollable and cards stack. The sample-data banner cramped its text into a narrow column and extended an action beyond the viewport. The dashboard customization button produced no visible change during inspection; its editing behavior remains unverified. AI response quality, provider imports, persistence, portrait generation, uploads and destructive actions were not tested.
 
-## Revision 02: Fieldwork
+## Design direction
 
-The owner found revision 01 too similar to Xeyo. This revision keeps only reference principles: clear hierarchy, context on demand, and calm presentation. It replaces the reference's metric-card dashboard, orange accent, rounded capsule navigation, wording and calendar feature with an original assessment-first structure.
+**Emotional target:** calm confidence in your own movement.
 
-**Goal:** help an athlete complete a clearly explained assessment and understand one practical next step. Geography is not a proxy for skill or literacy; the same core flow supports different languages, phones, confidence levels, and access to coaching.
+Borrow the reference's restraint, precise data hierarchy, context-on-demand and warm neutral palette. Give Fitzen its own joint-angle mark, calibration arcs, sport-specific language, exercise preparation and evidence-aware reports. Avoid importing unrelated wellness metrics into a camera-based assessment product.
 
-## Apple design principles applied
+The requested Apple design skill informs platform typography, instant press feedback, spatially consistent dialogs, clear hierarchy, meaningful depth, keyboard access, and reduced-motion/transparency alternatives. There are no gesture-driven animations requiring a spring library, so the prototype introduces no dependencies.
 
-| Principle | Fitzen decision | Reason |
-|---|---|---|
-| Purpose and simplicity | One guided squat starting action, with another-movement choice nearby | The first task is obvious before the user understands sports metrics. |
-| Familiarity and wayfinding | Start, Practice, Progress; desktop rail and labelled phone bottom navigation | Predictable destinations without horizontally scrolling navigation. |
-| Understanding | Get set → Move → Result, with preparation before measurement | Explain phone placement and what happens next. |
-| Flexibility | English/Hindi across all primary flows; system type; large primary controls; simple-display toggle | Language and display choices are available without account setup. |
-| Agency | Back, pause, continue, and recovery actions | Athletes can stop or correct setup without losing their place. |
-| Responsibility | Tracking-loss state stops preview counting; recovery preserves an intentional pause | Missing evidence must not become an invented result. |
-| Craft | Text and symbols accompany status; visible focus; persistent live repetition region | The experience does not rely on color, animation, or a visual skeleton alone. |
-| Restraint | One result and an action before expandable measurements | Avoid overwhelming a first-time athlete with percentages and unexplained scores. |
-
-No gesture-driven animation is introduced. Native controls and immediate press feedback suffice; no spring or motion dependency is necessary. Reduced-motion, reduced-transparency and increased-contrast preferences have explicit CSS behavior.
-
-## Distinct Fitzen identity
-
-| Token | Value / purpose |
+| Token | Value / use |
 |---|---|
-| Chalk | `#f7f8f4`, calm light canvas |
-| Pine ink | `#20362e`, primary text |
-| Pine action | `#245846`, primary controls |
-| Sage | `#e4eddf`, movement preparation surfaces |
-| Secondary ink | `#617067`, supporting copy |
-| Structure | `#dce3da`, dividers |
-| Primary type | Platform system sans, 100% base size; fluid headings |
-| Primary control | At least 52px high, 12px corner radius |
-| Surfaces | 20px corners, sparse containers; open dividers for lists and reports |
-| Signature | Joint mark, body-framing brackets and a field measurement ruler |
+| Chalk | `#f4f4f1`, page canvas |
+| Paper | `#ffffff`, working surfaces |
+| Graphite | `#252521`, primary ink and selected controls |
+| Secondary ink | `#6e6e66` on light surfaces; `#c5c5ba` for dark result labels |
+| Ember | `#b94b22`, interaction accent; brighter orange reserved for chart points |
+| Sand | `#eedac5`, calibration feature |
+| Assessment green | `#456650`, positive contextual feedback |
+| Surface radius | 24px; smaller nested controls have smaller corners |
+| Body / display | Platform system sans; 15px body; fluid 32–48px primary headings |
+| Layout | 16px desktop grid gaps; 32px page gutters, 16px on small phones |
+| Interaction | 44px primary controls; 160ms press/background feedback; visible focus rings |
 
-There are no generated raster images, remote fonts, new dependencies, external asset requests or user-data requests. Inline vectors are interface diagrams only.
+## Five frames
 
-## Six screens and clickable behavior
+1. **Overview:** a current measurement, observed movement quality, practical next cue, weekly consistency, readiness and local-processing explanation.
+2. **Assess:** six curated movement concepts, category filtering, search, empty state and guided-battery entry.
+3. **Prepare:** framing example, exercise-specific viewing instructions and a safe sample-session path.
+4. **Results:** one complete illustrative squat report, clear coaching cues, measurements and evidence limits.
+5. **Progress:** self-comparison, selectable history periods, weekly goal preview and report history.
 
-1. **Start:** one clear guided starting movement, visible no-account context, and a three-step explanation.
-2. **Practice:** four curated movement examples, localized search, categories and a recoverable empty state.
-3. **Get set:** selected movement, phone distance, full-body framing, correct view instructions, warm-up/safety note and guide.
-4. **Sample movement:** clear single cue, preview repetitions, pause/resume, tracking-loss and recovery states.
-5. **Result:** one complete illustrative squat report, a positive observation, one actionable cue, missing-evidence context and expandable technical details.
-6. **Progress:** self-comparison with selectable sample history periods, consistent-setup guidance and a route back to reports.
+Clickable paths include exercise filtering/search/reset, selected movement setup, sample-report navigation, metric detail, progress periods, readiness selection, goal preview, design notes, and all-frames mode. Dialogs support Escape and focus return. No inputs persist. Results always disclose that the complete sample report is a squat report. The fixed framing diagram is explicitly labeled as a squat example when another movement is selected.
 
-English and Hindi each have 160 matching text keys. Hindi applies to navigation, headings, instructions, status/recovery messages, help, design explanation, result details and controls. Search accepts localized and English movement names. There is no persistence or account connection.
+## Verification and boundaries
 
-**Simple display** removes optional transitions, backdrop blur and the decorative ruler. It is a display preference; no unmeasured performance, connectivity or offline-readiness claim is made. Opening the self-contained HTML file requires no network assets, but the real app still needs its own model preparation and offline verification.
+Verified in the built-in browser: desktop composition; 390px mobile frames; no horizontal document overflow across all five mobile frames; library search/empty/reset; movement-to-setup-to-sample-report flow. A file review found and corrected all-frames exit visibility, stale squat shortcut selection, framing-example labeling and chart-scale alignment. Follow-up browser checks cover corrected behavior and period/readiness controls.
 
-## Prototype boundaries
+The running athlete application, live database, production styles and engine remain outside this concept's scope. This does not implement camera tracking, video processing, real reports, accounts, exports or native Figma editing. Its goal is a concrete visual and interaction direction for review before integration.
 
-Camera access remains off. Tracking and repetition controls are explicit simulations, with no measurements made from the user's body. Finishing a sample explains that it opens the same fixed 12-repetition squat report rather than presenting preview clicks as measured results. Other movements use a clearly labelled squat diagram and report example, with selected-movement preparation instructions; production needs exercise-specific guides and correct demonstrators.
-
-The results concept does not diagnose injury, rank talent, or invent validation. Improvements to setup and comprehension can help users collect better evidence; they cannot replace the engine calibration and independent ground-truth work in PROJECT_STATE.md.
-
-The working athlete application, production design system, local storage, translations, camera pipeline and server remain outside this artifact's scope. This is editable HTML/CSS/JavaScript, not a native Figma document.
-
-## Verification and next evaluation
-
-Local syntax and localization checks: JavaScript parses; all 160 English keys have Hindi counterparts; no external asset URLs. Built-in browser checks cover language switching, guided setup, preview repetitions, lost-tracking count preservation, recovery, pause disabling, report disclosure, filtering/search/reset, measurement disclosure, simple display and all-screens exit. Responsive checks include desktop and narrow phone widths. Independent file review corrected narrow-header layout, paused-state recovery, repetition live announcements and nested-help dialog focus.
-
-Usability is a hypothesis until tested with people. Before integration, test with first-time and experienced athletes using representative low-end Android phones and other target devices, in their preferred language, with varied lighting and connectivity. Observe whether they can:
-
-- Start a local test and explain what happens next without a coach.
-- Set up the camera and recover from a framing problem.
-- Pause deliberately and resume only when ready.
-- Describe the result's main improvement cue and its limitations.
-- Find a previous result or switch language without assistance.
-
-A native Hindi speaker should review terminology and comprehension. Include athletes who use larger text and assistive technology. Record task completion, mistakes, help requests and comprehension before claiming the flow is easy. Live-camera correctness remains part of the separate product validation roadmap.
-
-Pre-task `git pull --rebase` was blocked by existing unrelated engine edits; these were preserved. Graphify query/update are required but the local `graphify` command is unavailable.
+Graphify query/update were attempted, but the local `graphify` command is unavailable. The pre-task pull was blocked by pre-existing engine edits, which were left alone.
