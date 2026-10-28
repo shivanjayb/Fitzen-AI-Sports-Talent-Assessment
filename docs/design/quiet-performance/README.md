@@ -8,7 +8,7 @@ Open `index.html` directly, or serve the repository locally:
 python3 -m http.server 8766 --bind 127.0.0.1
 ```
 
-Visit http://127.0.0.1:8766/docs/design/quiet-performance/. The browser preview was opened in Codex. Use **View all frames** for the presentation board, **Back to prototype** to resume navigation, or the browser's Print command to export all seven frames to PDF.
+Visit http://127.0.0.1:8766/docs/design/quiet-performance/. The browser preview was opened in Codex. Use **View all frames** for the presentation board, **Back to prototype** to resume navigation, or the browser's Print command to export all fifteen frames to PDF.
 
 ## Reference study
 
@@ -37,7 +37,7 @@ At a 390px viewport, navigation becomes horizontally scrollable and cards stack.
 
 **Emotional target:** calm confidence in your own movement.
 
-Borrow the reference's restraint, precise data hierarchy, context-on-demand and warm neutral palette. Use Fitzen’s existing running-athlete mark alongside calibration arcs, sport-specific language, exercise preparation and evidence-aware reports. Avoid importing unrelated wellness metrics into a camera-based assessment product.
+Borrow the reference's restraint, precise data hierarchy, context-on-demand and warm neutral palette. Use Fitzen’s existing running-athlete mark alongside calibration arcs, sport-specific language, exercise preparation and evidence-aware reports. The expanded reference preview includes wellness surfaces, with explicit sample labels and source requirements: the camera does not measure recovery, sleep, HRV or resting heart rate.
 
 The requested Apple design skill informs platform typography, instant press feedback, spatially consistent dialogs, clear hierarchy, meaningful depth, keyboard access, and reduced-motion/transparency alternatives. There are no gesture-driven animations requiring a spring library, so the prototype introduces no dependencies.
 
@@ -55,26 +55,27 @@ The requested Apple design skill informs platform typography, instant press feed
 | Layout | 16px desktop grid gaps; 32px page gutters, 16px on small phones |
 | Interaction | 44px primary controls; 160ms press/background feedback; visible focus rings |
 
-## Seven frames
+## Fifteen frames and feature previews
 
-1. **Summary:** a current measurement, observed movement quality, practical next cue, weekly consistency, readiness and local-processing explanation.
-2. **Train:** eight movements from the real catalogue, seven existing exercise photos, source-backed categories, search, empty state and guided-battery entry.
-3. **Prepare:** framing example, exercise-specific viewing instructions and a safe sample-session path.
-4. **Results:** one complete illustrative squat report, clear coaching cues, measurements and evidence limits.
-5. **Progress:** self-comparison, selectable history periods, training-goal/retest preview and report history.
-6. **Compete:** City/State/India scope selection, an honest account-disconnected leaderboard layout, groups and participation context.
-7. **Guided assessment:** the actual four-test order, standard-protocol context and exercise-specific setup entry.
+The owner's expanded brief uses Xeyo's complete main navigation and dashboard composition as the reference, combined with Fitzen's existing movement flows. This is an interactive UI interpretation, not a claim that Xeyo's backend or every account/provider behavior has been reproduced.
 
-Clickable paths include exercise filtering/search/reset, selected movement setup, sample-report navigation, metric detail, progress periods, readiness selection, goal preview, design notes, and all-frames mode. Dialogs support Escape and focus return. No inputs persist. Results always disclose that the complete sample report is a squat report. The fixed framing diagram is explicitly labeled as a squat example when another movement is selected.
+- **Summary:** recovery, HRV, resting heart rate, sleep stages, calendar, weekly signals, exercise cards, growth comparisons and recent reports. Wellness samples can be hidden.
+- **Vitals, Body, Nutrition, Journal, Sleep, Blood records and Sources:** reference-style layouts; metric-history dialogs and sliders; weight controls; manual meal totals; check-ins; sleep preferences; result entry and supplied-range validation; filename-only document selection; future-source explanations.
+- **Train, Prepare, Results, Progress, History, Compete and Guided assessment:** the existing Fitzen concepts, with independent history entry points on exercise cards, filtered global history and report timelines.
+
+`history.js` seeds 17 illustrative attempts across four exercises, including a demo and an incomplete attempt. Those two remain in History but never enter eligible trend comparisons. Each exercise supports all-session/last-three windows, historical selection, report opening, previous-session change and change since the first shown session. Dates are equally spaced by session rather than elapsed days.
+
+The fixed 29 October squat report can be saved once, including its graph series, under `fitzen.quiet-performance.sample-report.v1` in browser localStorage. It then appears as an eighteenth attempt after reload. Reset removes only this prototype key. If storage is unavailable, the save is tab-only and the interface says so. No real Fitzen storage is read or modified. Other forms in `wellness.js` are tab-only previews; reloading clears their entries.
+
+Results disclose that the full sample assessment is a squat report. Framing artwork remains explicitly a squat example for other selected movements. Dialogs retain Escape dismissal, initial focus and focus return. Inputs use native validation, and entered text is escaped before rendering.
 
 ## Verification and boundaries
 
-Verified in the built-in browser: desktop composition; 390px mobile frames; no horizontal document overflow across all five mobile frames; library search/empty/reset; movement-to-setup-to-sample-report flow. A file review found and corrected all-frames exit visibility, stale squat shortcut selection, framing-example labeling and chart-scale alignment. Follow-up browser checks cover corrected behavior and period/readiness controls.
+Browser checks cover desktop composition, 390px and 320px phone layouts, all fifteen frames, exercise histories and selected reports, all/last-three calculations, demo/incomplete filtering, saving and reload persistence, manual meal totals, journal entries, and reversed laboratory-range rejection. Existing catalogue images load locally. JavaScript syntax and whitespace checks pass. Tables and navigation scroll within their own containers on phones.
 
-The running athlete application, live database, production styles and engine remain outside this concept's scope. This does not implement camera tracking, video processing, real reports, accounts, exports or native Figma editing. Its goal is a concrete visual and interaction direction for review before integration.
+The production application, live database, production styles and engine remain outside this concept. Camera analysis, wearable imports, authentication, AI analysis, actual uploads and cloud synchronization are not connected. No generated imagery is used. The body image is an existing exercise reference, not a personal portrait or body-composition scan.
 
-Graphify query/update were attempted, but the local `graphify` command is unavailable. The pre-task pull was blocked by pre-existing engine edits, which were left alone.
-
+Graphify query/update were attempted, but the local command is unavailable. The pre-task pull was blocked by unrelated engine edits, which remain untouched.
 
 ## Real-project UI adaptation (2026-10-29)
 
@@ -92,6 +93,6 @@ The owner requested the preferred Quiet performance markup with real-project bra
 | `apps/web/src/app/TrainingGoal.tsx` | Test, target, units and retest-date controls; a goal preview with bounded numeric validation and no storage. |
 | `apps/web/src/app/Compete.tsx` | Scope selection, account requirement, group entry point and privacy context. No fabricated leaderboard people or rankings. |
 
-The local-coach interface contains fixed, sample-report responses to three prompts. Profile, offline and goal controls update only the visible prototype or in-memory preview state. No camera, auth, storage, service worker, model download or network API is wired. Completing a guided test is not simulated as an eligible real result; the fixed squat sample report remains explicitly identified.
+The local-coach interface contains fixed, sample-report responses to three prompts. Profile, offline and goal controls update only the visible prototype or in-memory preview state. No camera, auth, production storage, service worker, model download or network API is wired. The later history extension stores only its isolated sample-report key as described above. Completing a guided test is not simulated as an eligible real result; the fixed squat sample report remains explicitly identified.
 
 Browser checks cover the real navigation, all seven local photos loading, guided test 4 opening Plank with standard-protocol context, personal-range toggle, nested profile/offline focus, prepared-state disclosure, coach responses, competition scopes, target units, search/filter/reset and board mode. Desktop and narrow-phone layouts were inspected; the review fixed an inherited diagram-only instruction and overly broad icon sizing. Production application files and unrelated engine edits were left unchanged.
