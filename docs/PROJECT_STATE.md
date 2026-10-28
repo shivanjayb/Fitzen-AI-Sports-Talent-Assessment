@@ -65,7 +65,7 @@ No camera? Each exercise has Watch demo (synthetic athlete) and Analyse video. V
 
 ## Current state
 
-- Design exploration (2026-10-29): `docs/design/quiet-performance/index.html` is an isolated five-frame responsive HTML concept informed by a signed-in Xeyo UI study and the Apple design skill. No generated imagery or production UI integration; review locally before deciding on adoption. See its README for reference findings, tokens and prototype boundaries.
+- Design exploration (2026-10-29): `docs/design/quiet-performance/index.html` is an isolated six-screen Fieldwork HTML concept using Apple design principles; revised after owner feedback to replace the Xeyo-like dashboard with a distinct guided assessment flow, English/Hindi, simple display and tracking recovery. No generated imagery or production UI integration; review locally before deciding on adoption. See its README for reference findings, tokens and prototype boundaries.
 
 - Working and tested locally: web app, 90 exercises, camera/demo/video paths, evidence-aware reports, guided four-test battery, profile, Progress/goals, History, coach validation CSV, fake-video checks, installable PWA shell and English/Hindi/Marathi/Tamil/Telugu athlete flows (Coach/Admin interpolated text and per-check explanations remain partly English).
 - UI (2026-10-14, live on fitzen-ai.vercel.app via PR #4): unofficial Apple Fitness+ style built from the "Fitness+ Reference" and "Apple Native" design-system artifacts. Tabs Summary · Train · Compete + search; `/exercise/:id` pages; every exercise drawn as a shaded human from the engine's synthetic athlete (`Figure.tsx`); one embedded YouTube lesson per exercise (`lessons.ts`, youtube-nocookie, loads on tap). See `apps/web/DESIGN.md`.
@@ -92,7 +92,7 @@ No camera? Each exercise has Watch demo (synthetic athlete) and Analyse video. V
 6. Coach portal follow-ups: report export (PDF/CSV), API rate limiting at the edge, signed assessments so verdicts can't be forged by a modified client.
 7. Device-test PWA/offline model preparation and finish Hindi/regional translations.
 8. Engine gaps: unilateral side detection, left-handed throws, more projected metrics. Release checks for pushes and strikes (shot put, chest pass, punch, jump shot) read the elbow mid-extension at 30 fps, so even a correct demo scores those red; consider sampling at lock-out. Holds whose checks also pass standing (tree, toe touch) flag the step into position as movement.
-9. Review `docs/design/quiet-performance/index.html` with the owner before choosing whether to integrate the proposed refresh; then UI/UX polish pass (mobile first).
+9. Review the revised Fieldwork concept at `docs/design/quiet-performance/index.html`; test setup, recovery and report comprehension with representative athletes and Hindi speakers before integration; then UI/UX polish (mobile first).
 10. Paperwork: IEEE paper, copyright consistency.
 
 ## Public beta checklist
@@ -155,3 +155,5 @@ Append one line after every change, from any account: `- YYYY-MM-DD [account: em
 - 2026-10-28 [account: pshukla@powayusd.com] Merged to main on owner request (deployed while still failing the targets below): 3D world-landmark angle blend, ROM-normalised Schmitt counting, robust MAD noise σ̂, hold/throw/mismatch fixes, multi-seed realism harness (3 seeds/cell). Status: web tsc+build pass; engines 219/221 — accuracy.test live 9:16 σ0.01 counts 5/6 for dumbbell-curl & push-jerk (regression vs main), realism multi-seed fails targets: yaw45 ~10, yaw90 ~14, yaw45n2 ~35, REAL ~13 (target ≤3), mismatch matrix 94.1% (<95%). Next: fix the accuracy.test regression first, then reduce yaw/REAL failures; only merge to main when both suites pass.
 
 - 2026-10-29 [account: unknown] Created the isolated Quiet performance HTML UI concept and documented a detailed signed-in Xeyo study (see commit). Five responsive frames, clickable assessment/report flow, filters, trends, readiness and design board; no generated imagery or production integration. Existing engine edits preserved; pull blocked by those edits; Graphify query/update unavailable (CLI missing). Next/left: owner reviews the HTML direction before any app integration.
+
+- 2026-10-29 [account: unknown] Revised the HTML mockup into distinct Fitzen Fieldwork after owner feedback (see commit): assessment-first layout, pine/chalk identity, Start/Practice/Progress, English/Hindi, guided setup, simulated pause/tracking recovery, concise results with expandable evidence, and simple display. Existing production/engine work preserved; no generated imagery. Next/left: owner review, native-language/usability testing and real-camera validation before app integration; Graphify unavailable.
