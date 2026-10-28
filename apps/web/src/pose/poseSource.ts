@@ -46,6 +46,16 @@ async function createLandmarker(model: PoseModel = 'lite'): Promise<import('@med
   try { return await make('GPU'); } catch { return make('CPU'); }
 }
 
+/**
+ * Metric 3D landmarks (hip-centred metres) for the engine's out-of-plane-robust angles; visibility comes from the image
+ * landmarks. Prefer 'lite'/'full': the heavy model distorted the 3D skeleton vs Azure Kinect (Ferraris et al. 2026,
+ * Sensors 26(4):1146, doi:10.3390/s26041146).
+ */
+function worldOf(res: import('@mediapipe/tasks-vision').PoseLandmarkerResult, lm: PoseFrame['landmarks'] | undefined): PoseFrame['world'] {
+  const wl = res.worldLandmarks?.[0];
+  return wl && wl.length >= 33 ? wl.map((p, i) => ({ x: p.x, y: p.y, z: p.z, visibility: lm?.[i]?.visibility ?? 0.9 })) : undefined;
+}
+
 /** Rough device tier from what the browser exposes: ≤ 4 cores, ≤ 3 GB RAM (Chromium only) or Data Saver on. */
 export function isLowEndDevice(): boolean {
   const n = globalThis.navigator as (Navigator & { deviceMemory?: number; connection?: { saveData?: boolean } }) | undefined;
@@ -103,9 +113,10 @@ export class CameraPoseSource implements PoseSource {
             lastVideoTime = video.currentTime;
             const nowMs = Math.max(meta?.captureTime ?? performance.now(), lastTs + 0.001);
             lastTs = nowMs;
-            const lm = this.landmarker.detectForVideo(video, nowMs).landmarks?.[0];
+            const res = this.landmarker.detectForVideo(video, nowMs);
+            const lm = res.landmarks?.[0];
             this.callbacks.onFrame({ timestampMs: nowMs, landmarks: lm && lm.length >= 33
-              ? lm.map(p => ({ x: p.x, y: p.y, z: p.z, visibility: p.visibility ?? 0.9 })) : [] });
+              ? lm.map(p => ({ x: p.x, y: p.y, z: p.z, visibility: p.visibility ?? 0.9 })) : [], world: worldOf(res, lm) });
           }
           if (run === this.generation) schedule();
         } catch {
@@ -242,6 +253,9 @@ export class VideoFilePoseSource implements PoseSource {
     // flight-time jump height quantises to 1/fps. Above MAX_FPS we take every k-th frame so samples still land
     // on real frames. MAX_FPS 120: a 240 fps slow-mo clip would otherwise cost ~2× the landmarker time for
     // little gain (flight-time quantisation 1/120 s ≈ 8 ms ≈ 1 cm at 40 cm jumps, h = g·t²/8 → dh = g·t·dt/4).
+    // Memory: every sampled frame is retained (image + world landmarks, ≈ 8.6 kB/frame measured in Node), and the
+    // offline re-analysis makes one filtered copy: 120 s × 120 fps ≈ 124 MB retained, ≈ 250 MB peak; 30 fps ≈ 31/62 MB.
+    // shortcut: fine for typical 30–60 fps uploads; cap MAX_FPS when retaining on low-RAM devices if crashes show up.
     const MAX_FPS = 120;
     const native = this.nativeFps && this.nativeFps >= 1 && this.nativeFps <= 1000 ? this.nativeFps : 30;
     const SAMPLE_FPS = native / Math.ceil(native / MAX_FPS);
@@ -300,6 +314,7 @@ export class VideoFilePoseSource implements PoseSource {
         timestampMs: ms,
         landmarks: lm && lm.length >= 33
           ? lm.map(p => ({ x: p.x, y: p.y, z: p.z, visibility: p.visibility ?? 0.9 })) : [],
+        world: worldOf(result, lm),
       };
       this.frames.push(frame);
       this.callbacks.onFrame(frame);

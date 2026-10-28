@@ -18,6 +18,11 @@ export interface PoseFrame {
   timestampMs: number;
   /** 33 MediaPipe pose landmarks in normalized image coordinates. */
   landmarks: Landmark[];
+  /**
+   * MediaPipe worldLandmarks: metres, origin at mid-hip, camera-aligned axes (x right, y down, smaller z = nearer);
+   * optional, engine falls back to 2D (BlazePose GHUM: Bazarevsky 2020 arXiv:2006.10204; Grishchenko 2022 arXiv:2206.11678).
+   */
+  world?: Landmark[];
 }
 
 /** MediaPipe Pose landmark indices used by the analyzer. */

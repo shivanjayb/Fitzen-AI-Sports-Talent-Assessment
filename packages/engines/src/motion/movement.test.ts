@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { PoseFrame } from '../jump/types.js';
 import { EXERCISES, exerciseById } from './catalog/index.js';
-import { MotionSession, movementMismatch, type RepSignature } from './engine.js';
+import { MotionSession, movementMismatch, referenceSignature, type RepSignature } from './engine.js';
 import { simulateExercise } from './puppet.js';
 
 const run = (selected: string, frames: PoseFrame[]) => {
@@ -10,14 +10,23 @@ const run = (selected: string, frames: PoseFrame[]) => {
   return s.finish().reps!;
 };
 
-/** Lateral raise filmed side-on: the arm rises toward the camera, so its image-plane x extent collapses. */
-function lateralRaiseSideOn(): PoseFrame[] {
-  return simulateExercise(exerciseById('front-raise')!).map((f) => ({
+const ARM_L = [13, 15, 19, 17, 21], ARM_R = [14, 16, 20, 18, 22];
+/**
+ * Lateral raise filmed side-on: the arm rises toward the camera, so its image-plane x extent collapses. Image landmarks
+ * only (the 2D fallback). `world: true` adds world landmarks with the same arm swung consistently into depth
+ * (x′ = 0.25·dx, z′ = −0.968·dx, length kept), which the 3D plane-of-elevation test must flag.
+ */
+function lateralRaiseSideOn(world = false): PoseFrame[] {
+  const squash = (all: PoseFrame['landmarks'], depth: boolean) => all.map((p, i) => {
+    const sh = ARM_L.includes(i) ? all[11]! : ARM_R.includes(i) ? all[12]! : null;
+    if (!sh) return p;
+    const dx = p.x - sh.x;
+    return depth ? { ...p, x: sh.x + dx * 0.25, z: sh.z - 0.968 * dx } : { ...p, x: sh.x + dx * 0.25 };
+  });
+  return simulateExercise(exerciseById('front-raise')!).map(({ world: w, ...f }) => ({
     ...f,
-    landmarks: f.landmarks.map((p, i, all) => {
-      const sh = [11, 13, 15, 19, 17, 21].includes(i) ? all[11]! : [12, 14, 16, 20, 18, 22].includes(i) ? all[12]! : null;
-      return sh && ![11, 12].includes(i) ? { ...p, x: sh.x + (p.x - sh.x) * 0.25 } : p;
-    }),
+    landmarks: squash(f.landmarks, false),
+    ...(world && w ? { world: squash(w, true) } : {}),
   }));
 }
 
@@ -53,15 +62,31 @@ describe('movement check (wrong exercise)', () => {
     expect(movementMismatch(def, sig(55), ref)).toBeNull();
   });
 
+  it('natural arm action (≈ 45° elbow ROM) is not a different exercise in leg, drill and Olympic defs; it is in a raise', () => {
+    const ref = (id: string) => referenceSignature(exerciseById(id)!)!;
+    for (const id of ['snatch', 'high-knees', 'a-skip', 'butt-kicks', 'forward-lunge', 'kettlebell-swing']) {
+      const r = ref(id);
+      expect(movementMismatch(exerciseById(id)!, { ...r, rom: { ...r.rom, elbow: 45 } }, r), id).toBeNull();
+    }
+    const fr = ref('front-raise');
+    expect(movementMismatch(exerciseById('front-raise')!, { ...fr, rom: { ...fr.rom, elbow: 45 } }, fr)).toMatch(/elbows/);
+  });
+
   it('does not count an overhead press as front raises', () => {
     const r = run('front-raise', simulateExercise(exerciseById('overhead-press')!));
     expect(r.mismatched.length).toBeGreaterThan(0);
     expect(r.count).toBe(0);
   });
 
-  it('does not count a side-on lateral raise as front raises', () => {
+  it('does not count a side-on lateral raise as front raises (2D fallback)', () => {
     const r = run('front-raise', lateralRaiseSideOn());
     expect(r.mismatched.length).toBeGreaterThan(0);
     expect(r.valid).toBe(0);
+  });
+
+  it('does not count a side-on lateral raise as front raises (3D plane of elevation)', () => {
+    const r = run('front-raise', lateralRaiseSideOn(true));
+    expect(r.mismatched.length).toBeGreaterThan(0);
+    expect(r.count).toBe(0);
   });
 });

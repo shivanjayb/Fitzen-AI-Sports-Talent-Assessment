@@ -538,7 +538,8 @@ export const GYM: ExerciseDef[] = [
     ],
     met: 3.0, // 02056
     angles: [ANKLE, KNEE, TRUNK],
-    reps: { driver: 'ankle', start: 'low', enter: 118, exit: 112, target: 125 },
+    // minRepMs 1000: a controlled raise and lower (≈ 1 s each way); sub-second ankle bounces are hops (running, butt kicks).
+    reps: { driver: 'ankle', start: 'low', enter: 118, exit: 112, target: 125, minRepMs: 1000 },
     checks: [
       { angle: 'ankle', when: 'bottom', good: [125, 165], ok: [112, 170], cue: 'Rise higher onto the balls of feet', why: 'Full plantarflexion loads the calves through complete range. Flat-foot knee-ankle-toe reads about 104–110° (Winter anthropometry), so reps start above 118° and finish back below 112°.' },
       { angle: 'knee', when: 'any', good: [165, 180], ok: [155, 180], cue: 'Keep knees straight', why: 'Straight knees bias the gastrocnemius; bending adds momentum.' },

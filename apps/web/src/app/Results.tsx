@@ -2,7 +2,7 @@ import { t } from './language';
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { exerciseById, isAssessedReport, standardReps, mentalReport, readiness, summarizeFuture, type MetricProjection, type ReadinessInput, type SessionReport } from '@fitzen/engines';
+import { exerciseById, isAssessedReport, uploadCutoffHz, standardReps, mentalReport, readiness, summarizeFuture, type MetricProjection, type ReadinessInput, type SessionReport } from '@fitzen/engines';
 import { deleteSession, getHistory, getProfile, getSession, isEligibleSession, isSessionPersistent, measureOf, normOf, saveReadiness, saveSession, toAthlete, type SavedSession } from './store';
 import { IconAlert, IconBack, IconCheck, IconFolder, IconShare, IconSparkle, IconStop } from './icons';
 import { openAssistant } from './openAssistant';
@@ -414,9 +414,10 @@ export default function Results() {
       </>)}
 
       <p className="faint" style={{ fontSize: '.78rem', marginTop: 24, lineHeight: 1.5 }}>
-        Method: 2D joint angles from on-device BlazePose landmarks (x scaled by frame aspect), {saved.integrity || saved.forensics
-          ? 'zero-phase 6 Hz Butterworth filtered (uploaded clip, every native frame; angle noise is measured after this filter)'
-          : 'One Euro filtered'}; reps by Schmitt trigger with a
+        Method: joint angles from on-device BlazePose image landmarks (x scaled by frame aspect), blended with its metric 3D
+        world landmarks when a limb leaves the image plane, {saved.integrity || saved.forensics
+          ? `zero-phase ${ex ? uploadCutoffHz(ex) : 6} Hz Butterworth filtered (uploaded clip, every native frame; angle noise is measured after this filter)`
+          : 'One Euro filtered'}; reps by a two-threshold (Schmitt) trigger on the athlete's own range with a
         minimum rep time; jump height h = g·t²/8 from toe-off to contact (vertical jumps landing at take-off level only). Angle noise is the SD of raw angles about a 5-point quadratic (Savitzky–Golay) fit, white-noise corrected.
         Single-camera measurements are screening estimates, not clinical measurements.
       </p>

@@ -142,12 +142,9 @@ function render(p: Pose, aspect: number, jitter: () => number, ground = 0.93, fr
     visibility: vis,
   });
 
-  const lm: PoseFrame['landmarks'] = Array.from({ length: 33 }, () => T(b.nose, 0, 0.9));
   const [dl, dr, vl, vr] = front ? [0, 0, 0.95, 0.95] : [0.012, -0.012, 0.97, 0.88];
-  const put = (l: number, r: number, q: [P2, P2]) => { lm[l] = T(q[0], dl, vl); lm[r] = T(q[1], dr, vr); };
-  put(11, 12, b.shoulder); put(13, 14, b.elbow); put(15, 16, b.wrist); put(19, 20, b.index); put(17, 18, b.index); put(21, 22, b.index);
-  put(23, 24, b.hip); put(25, 26, b.knee); put(27, 28, b.ankle); put(29, 30, b.heel); put(31, 32, b.foot);
-  if (front) { put(7, 8, b.ear); put(2, 5, b.eye); return lm; }
+  const lm = place(b, front, (q, s) => T(q, s === 0 ? dl : s === 1 ? dr : 0, s === 0 ? vl : s === 1 ? vr : 0.9));
+  if (front) return lm;
   if (p.hipR !== null || p.kneeR !== null || p.ankleR !== null) return lm; // split stance: the legs already differ
   // Side-on spread (front-view feel): push L/R ankles apart relative to the shoulder offset.
   const sw = Math.abs(lm[11]!.x - lm[12]!.x) || 0.024 / aspect;
@@ -156,6 +153,34 @@ function render(p: Pose, aspect: number, jitter: () => number, ground = 0.93, fr
   lm[27] = { ...lm[27]!, x: fx + feetGap }; lm[28] = { ...lm[28]!, x: fx - feetGap };
   lm[31] = { ...lm[31]!, x: lm[31]!.x + feetGap }; lm[32] = { ...lm[32]!, x: lm[32]!.x - feetGap };
   return lm;
+}
+
+type Lm = PoseFrame['landmarks'][number];
+/** Body points → the 33 BlazePose slots. `T(point, side)`: side 0 = left/near, 1 = right/far, -1 = head. */
+function place(b: Body, front: boolean, T: (q: P2, s: -1 | 0 | 1, half: number) => Lm): Lm[] {
+  const lm: Lm[] = Array.from({ length: 33 }, () => T(b.nose, -1, 0));
+  const put = (l: number, r: number, q: [P2, P2], half: number) => { lm[l] = T(q[0], 0, half); lm[r] = T(q[1], 1, half); };
+  put(11, 12, b.shoulder, HALF.shoulder); put(13, 14, b.elbow, HALF.shoulder); put(15, 16, b.wrist, HALF.shoulder); put(19, 20, b.index, HALF.shoulder);
+  put(17, 18, b.index, HALF.shoulder); put(21, 22, b.index, HALF.shoulder);
+  put(23, 24, b.hip, HALF.hip); put(25, 26, b.knee, HALF.hip); put(27, 28, b.ankle, HALF.hip); put(29, 30, b.heel, HALF.hip); put(31, 32, b.foot, HALF.hip);
+  if (front) { put(7, 8, b.ear, 0); put(2, 5, b.eye, 0); }
+  return lm;
+}
+
+/** Metres per body unit (≈ 1.75 m athlete). */
+const M = 1.88;
+/**
+ * MediaPipe-style world landmarks: metres, origin at the mid-hip, y down, smaller z = nearer the camera. Side view: the
+ * near (left) side sits half a body width toward the camera, the far side away, so every segment stays in its
+ * parasagittal plane and 3D angles equal the 2D ones. Front view: z = 0. That is a cartoon only because every
+ * front-camera def (sumo squat, lateral raise, upright row, DB press, pull-up, lateral bound, the frontal holds) moves
+ * roughly in the frontal plane. Lift and shift are ignored: world landmarks are hip-centred.
+ */
+function worldOf(b: Body, front: boolean): Lm[] {
+  const ox = (b.hip[0].x + b.hip[1].x) / 2, oy = (b.hip[0].y + b.hip[1].y) / 2;
+  // One depth per side (the mean half width), so no segment — trunk included — leaves its parasagittal plane.
+  const half = ((HALF.hip + HALF.shoulder) / 2) * M;
+  return place(b, front, (q, s) => ({ x: (q.x - ox) * M, y: (q.y - oy) * M, z: front || s < 0 ? 0 : s === 0 ? -half : half, visibility: 0.9 }));
 }
 
 const resolveArm = (p: Pose): Pose => {
@@ -249,7 +274,11 @@ function fitSpread(p: Pose): Pose {
   return at((lo + hi) / 2).q;
 }
 
-export interface PuppetOptions { reps?: number; fps?: number; aspect?: number; seed?: number; repSec?: number; /** Floor line as a fraction of frame height. */ ground?: number }
+export interface PuppetOptions {
+  reps?: number; fps?: number; aspect?: number; seed?: number; repSec?: number; /** Floor line as a fraction of frame height. */ ground?: number;
+  /** Fraction of the full rep range reached (default 1): partial-range athletes, with bone lengths kept. */
+  depth?: number;
+}
 
 /** Equipment the demo athlete is using, for drawing. */
 export const puppetProps = (def: ExerciseDef) => STYLES[def.id]?.props ?? [];
@@ -282,7 +311,11 @@ export function simulateExercise(def: ExerciseDef, opts: PuppetOptions = {}): Po
   const frames: PoseFrame[] = [];
   let t = 0;
   const rearFoot = st.step ? Math.min(...skeleton(top, false).ankle.map((a) => a.x)) : undefined;
-  const emit = (p: Pose) => { frames.push({ timestampMs: t, landmarks: render(finish(p), aspect, jitter, opts.ground, front, st.hands, rearFoot) }); t += 1000 / fps; };
+  const emit = (p: Pose) => {
+    const q = finish(p);
+    frames.push({ timestampMs: t, landmarks: render(q, aspect, jitter, opts.ground, front, st.hands, rearFoot), world: worldOf(skeleton(q, front), front) });
+    t += 1000 / fps;
+  };
   const hold = (p: Pose, sec: number) => { for (let i = 0; i < sec * fps; i++) emit(p); };
   // Speed peaks a fraction `p` of the way through a move: 0.5 is the plain cosine ease; strikes peak late, near lock-out.
   const ease = (s: number, p: number) => (s < p ? p * (1 - Math.cos((Math.PI / 2) * (s / p))) : p + (1 - p) * Math.sin((Math.PI / 2) * ((s - p) / (1 - p))));
@@ -326,7 +359,8 @@ export function simulateExercise(def: ExerciseDef, opts: PuppetOptions = {}): Po
     ] as const;
     for (let i = 0; i < n; i++) {
       // Last rep deliberately shallow so the demo shows a red/yellow rep.
-      const deep = i === n - 1 ? lerp(hi, lo, 0.55) : lo;
+      const full = (opts.depth ?? 1) < 1 ? lerp(hi, lo, opts.depth!) : lo;
+      const deep = i === n - 1 ? lerp(hi, full, 0.55) : full;
       // Lunges lead with each leg in turn; the stepping foot clears the floor on the way out and back.
       const lead = st.step && i % 2 ? 1 : 0;
       const [h, d] = alt(hi, lead ? swap(deep) : deep);

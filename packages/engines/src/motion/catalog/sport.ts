@@ -25,8 +25,9 @@ export const SPORT: ExerciseDef[] = [
     ],
     met: 3.8, // static set hold: Compendium 2024 02022 calisthenics, moderate
     angles: [
-      { id: 'frontKnee', label: 'Front knee', kind: 'joint', joint: 'knee', side: 'left' },
-      { id: 'rearKnee', label: 'Rear knee', kind: 'joint', joint: 'knee', side: 'right' },
+      // Either foot may lead: the front knee is the more bent one (≈ 90° vs ≈ 120° rear).
+      { id: 'frontKnee', label: 'Front knee', kind: 'joint', joint: 'knee', side: 'flexed' },
+      { id: 'rearKnee', label: 'Rear knee', kind: 'joint', joint: 'knee', side: 'extended' },
       { id: 'trunk', label: 'Trunk from vertical', kind: 'segment', segment: 'trunk', ref: 'vertical' },
       { id: 'upperArm', label: 'Arm from vertical', kind: 'segment', segment: 'upperArm', ref: 'vertical' },
       { id: 'elbow', label: 'Elbow', kind: 'joint', joint: 'elbow' },

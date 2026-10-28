@@ -1,7 +1,7 @@
 // Ground-truth accuracy harness: synthetic clips with KNOWN truth, degraded like a real camera/decoder, run through
 // both measurement paths, errors measured against the truth.
 //   live    = MotionSession with the causal One Euro filter (camera).
-//   offline = filtfiltLandmarks (zero-phase 6 Hz Butterworth) + MotionSession({ smoothing: 'none' }) (uploaded video).
+//   offline = filtfiltLandmarks (zero-phase Butterworth, uploadCutoffHz: 6 Hz, 8 Hz throws, 10 Hz jumps) + MotionSession({ smoothing: 'none' }) (uploaded video).
 // Degradations: fps, camera aspect (16:9 landscape; 9:16 portrait with the athlete at half the size), Gaussian landmark
 // noise σ in frame-height units (x gets σ/aspect, so it is isotropic in pixels), randomly dropped frames, timestamp jitter.
 // Truth: reps/angles/holds from the puppet with seed 0 (its jitter LCG then returns a constant, i.e. a pure translation,
@@ -14,7 +14,7 @@
 import { describe, expect, it } from 'vitest';
 import { exerciseById } from '../catalog/index.js';
 import { MotionSession, type LiveState, type SessionReport } from '../engine.js';
-import { filtfiltLandmarks } from '../filtfilt.js';
+import { filtfiltLandmarks, uploadCutoffHz } from '../filtfilt.js';
 import { simulateExercise } from '../puppet.js';
 import type { ExerciseDef } from '../types.js';
 import type { PoseFrame } from '../../jump/types.js';
@@ -58,8 +58,8 @@ function degrade(frames: PoseFrame[], c: Cond, seed = 1): Array<{ i: number; f: 
 /** Run one path; returns the report and the live state per original frame index. */
 function run(d: ExerciseDef, frames: Array<{ i: number; f: PoseFrame }>, c: Pick<Cond, 'aspect' | 'path'>): { rep: SessionReport; st: Map<number, LiveState> } {
   const s = new MotionSession(d, { checkMovement: false, smoothing: c.path === 'offline' ? 'none' : 'one-euro' });
-  // Same cutoffs as Session.tsx finish(): 10 Hz for jumps, 6 Hz otherwise.
-  const fs = c.path === 'offline' ? filtfiltLandmarks(frames.map((x) => x.f), d.event?.trigger === 'jump' ? 10 : 6) : frames.map((x) => x.f);
+  // Same cutoffs as Session.tsx finish() (uploadCutoffHz): 10 Hz jumps, 8 Hz throws, 6 Hz otherwise.
+  const fs = c.path === 'offline' ? filtfiltLandmarks(frames.map((x) => x.f), uploadCutoffHz(d)) : frames.map((x) => x.f);
   const st = new Map<number, LiveState>();
   fs.forEach((f, k) => st.set(frames[k]!.i, s.push(f, c.aspect)));
   return { rep: s.finish(), st };

@@ -13,6 +13,15 @@
  * Verified against scipy 1.13 output in filtfilt.test.ts.
  */
 import type { PoseFrame } from '../jump/types.js';
+import type { ExerciseDef } from './types.js';
+
+/**
+ * Upload cutoff (Winter 2009: impacts and throws need a higher cutoff than 6 Hz): 6 Hz for reps and holds; 10 Hz for
+ * jumps (a 6 Hz filter rounds the toe's take-off/landing corners: −0.8 cm on synthetic jumps vs −0.2 cm at 10 Hz); 8 Hz
+ * for throws/strikes — at 6 Hz the fast-bowling arm's burst is flattened below the release detector (0 of 6 deliveries),
+ * 8 Hz counts every one, and 10 Hz lets enough noise through to push the release-angle RMSE past 2° (accuracy.test.ts).
+ */
+export const uploadCutoffHz = (def: Pick<ExerciseDef, 'event'>): number => (def.event?.trigger === 'jump' ? 10 : def.event ? 8 : 6);
 
 /** Digital Butterworth low-pass [b, a] (same as scipy.signal.butter(order, fc / (fs / 2))). */
 export function butterLowpass(cutoffHz: number, fs: number, order: number): [number[], number[]] {
@@ -80,12 +89,12 @@ function interp(ts: number[], v: number[], t: number, hint: { i: number }): numb
  * Missing detections and gaps over 300 ms split tracks; they are never reconstructed as real motion.
  */
 export function filtfiltLandmarks(frames: PoseFrame[], cutoffHz = 6, order = 2): PoseFrame[] {
-  if (frames.length < 3) return frames.map((f) => ({ ...f, landmarks: f.landmarks.map((l) => ({ ...l })) }));
+  if (frames.length < 3) return frames.map((f) => ({ ...f, landmarks: f.landmarks.map((l) => ({ ...l })), ...(f.world ? { world: f.world.map((l) => ({ ...l })) } : {}) }));
   // Match MotionSession's discontinuity rule; filter each observed stretch independently.
   if (frames.some((f, i) => !f.landmarks.length || (i > 0 && f.timestampMs - frames[i - 1]!.timestampMs > 300))) {
     const out: PoseFrame[] = [];
     for (let i = 0; i < frames.length; ) {
-      if (!frames[i]!.landmarks.length) { out.push({ ...frames[i]!, landmarks: [] }); i++; continue; }
+      if (!frames[i]!.landmarks.length) { out.push({ ...frames[i]!, landmarks: [], world: undefined }); i++; continue; }
       let end = i + 1;
       while (end < frames.length && frames[end]!.landmarks.length && frames[end]!.timestampMs - frames[end - 1]!.timestampMs <= 300) end++;
       out.push(...filtfiltLandmarks(frames.slice(i, end), cutoffHz, order));
@@ -109,16 +118,21 @@ export function filtfiltLandmarks(frames: PoseFrame[], cutoffHz = 6, order = 2):
 
   const out: PoseFrame[] = frames.map((f) => ({ ...f, landmarks: f.landmarks.map((l) => ({ ...l })) }));
   const nLm = Math.min(...frames.map((f) => f.landmarks.length));
-  for (let j = 0; j < nLm; j++) {
-    for (const key of ['x', 'y', 'z'] as const) {
-      const v = frames.map((f) => f.landmarks[j]![key]);
-      if (uniform) {
-        filtfilt(b, a, v).forEach((y, i) => { out[i]!.landmarks[j]![key] = y; });
-      } else {
-        const h1 = { i: 0 }, h2 = { i: 0 };
-        const g = grid.map((t) => interp(ts, v, t, h1));
-        const y = filtfilt(b, a, g);
-        ts.forEach((t, i) => { out[i]!.landmarks[j]![key] = interp(grid, y, t, h2); });
+  // MediaPipe world landmarks get the same zero-phase pass, when every frame of the stretch has them.
+  const hasWorld = frames.every((f) => (f.world?.length ?? 0) >= nLm);
+  if (hasWorld) out.forEach((f, i) => { f.world = frames[i]!.world!.map((l) => ({ ...l })); });
+  for (const set of hasWorld ? (['landmarks', 'world'] as const) : (['landmarks'] as const)) {
+    for (let j = 0; j < nLm; j++) {
+      for (const key of ['x', 'y', 'z'] as const) {
+        const v = frames.map((f) => f[set]![j]![key]);
+        if (uniform) {
+          filtfilt(b, a, v).forEach((y, i) => { out[i]![set]![j]![key] = y; });
+        } else {
+          const h1 = { i: 0 }, h2 = { i: 0 };
+          const g = grid.map((t) => interp(ts, v, t, h1));
+          const y = filtfilt(b, a, g);
+          ts.forEach((t, i) => { out[i]![set]![j]![key] = interp(grid, y, t, h2); });
+        }
       }
     }
   }

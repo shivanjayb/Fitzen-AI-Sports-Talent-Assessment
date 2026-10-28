@@ -313,7 +313,7 @@ export const CALISTHENICS: ExerciseDef[] = [
     ],
     met: 3.8,
     angles: [
-      { id: 'knee', label: 'Knee', kind: 'joint', joint: 'knee' },
+      { id: 'knee', label: 'Knee', kind: 'joint', joint: 'knee', side: 'flexed' }, // the free leg is always the straighter one
       { id: 'trunk', label: 'Trunk lean', kind: 'segment', segment: 'trunk', ref: 'vertical' },
       { id: 'ankle', label: 'Ankle', kind: 'joint', joint: 'ankle' },
     ],

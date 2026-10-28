@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { EXERCISES, exerciseById } from './catalog/index.js';
-import { MotionSession } from './engine.js';
+import { MotionSession, jointAngle, vsHorizontal, vsVertical } from './engine.js';
 import { simulateExercise } from './puppet.js';
 import type { PoseFrame } from '../jump/types.js';
 
@@ -13,7 +13,9 @@ const report = (id: string, frames: PoseFrame[]) => {
 const mapLm = (frames: PoseFrame[], fn: (lm: PoseFrame['landmarks'][number], t: number) => Partial<PoseFrame['landmarks'][number]>): PoseFrame[] =>
   frames.map((f) => ({ ...f, landmarks: f.landmarks.map((lm) => ({ ...lm, ...fn(lm, f.timestampMs) })) }));
 /** Same poses in reverse order on the original clock: every swing runs backward. */
-const reversed = (frames: PoseFrame[]): PoseFrame[] => frames.map((f, i) => ({ ...f, landmarks: frames[frames.length - 1 - i]!.landmarks }));
+const reversed = (frames: PoseFrame[]): PoseFrame[] => frames.map((f, i) => ({ ...f, landmarks: frames[frames.length - 1 - i]!.landmarks, world: frames[frames.length - 1 - i]!.world }));
+/** Image landmarks only: exercises the 2D fallback (cameras without world landmarks). */
+const noWorld = (frames: PoseFrame[]): PoseFrame[] => frames.map(({ world: _w, ...f }) => f);
 
 const run = (id: string) => {
   const def = exerciseById(id)!;
@@ -68,7 +70,8 @@ describe('motion engine', () => {
       // Rotating about the vertical axis by φ scales image x by cos φ; the bent-knee thigh is near horizontal, so it
       // projects to ~cos 50° = 0.64 of its length (< 0.87 gate) while the upright standing frames stay valid.
       const tTurn = squat[Math.floor(squat.length / 3)]!.timestampMs, cx = 0.5, k = Math.cos((50 * Math.PI) / 180);
-      const turned = mapLm(squat, (lm, t) => (t >= tTurn ? { x: cx + (lm.x - cx) * k } : {}));
+      // 2D fallback only: with world landmarks the angle is measured in 3D and nothing needs greying out.
+      const turned = noWorld(mapLm(squat, (lm, t) => (t >= tTurn ? { x: cx + (lm.x - cx) * k } : {})));
       const s = new MotionSession(exerciseById('back-squat')!);
       let greyKnee = 0;
       for (const f of turned) {
@@ -102,10 +105,11 @@ describe('motion engine', () => {
       const both = [...back, ...fwd.map((f) => ({ ...f, timestampMs: f.timestampMs + T }))];
       const a = angles(both), ref = angles(fwd);
       expect(a).toHaveLength(3);
-      a.forEach((x, i) => expect(x).toBeCloseTo(ref[i]!, 6));
+      // 2 decimals: the hip-velocity term scales by the session's world/image body-height ratio, which the prefix changes.
+      a.forEach((x, i) => expect(x).toBeCloseTo(ref[i]!, 2));
     });
     it('an athlete facing the other way gets the same release angles', () => {
-      const mirror = mapLm(fwd, (lm) => ({ x: 1 - lm.x }));
+      const mirror = mapLm(fwd, (lm) => ({ x: 1 - lm.x })).map((f) => ({ ...f, world: f.world?.map((p) => ({ ...p, x: -p.x })) }));
       const a = angles(mirror), ref = angles(fwd);
       expect(a).toHaveLength(3);
       a.forEach((x, i) => expect(x).toBeCloseTo(ref[i]!, 6));
@@ -196,14 +200,22 @@ describe('assessment evidence and interrupted tracking', () => {
     expect(r.validity!.longestGapMs).toBeGreaterThan(10000);
   });
 
-  it('requires a fresh starting position after losing a rep mid-descent', () => {
+  // A pose lost for 400 ms (12 missed detections) mid-descent ends the rep; one missed detection (33 ms), which real
+  // cameras produce all the time, must not.
+  const midRepGap = (missing: number) => {
     const poses = simulateExercise(exerciseById('back-squat')!, { reps: 1 });
     const s = new MotionSession(exerciseById('back-squat')!, { checkMovement: false });
     const midpoint = Math.floor(poses.length / 2);
     for (const f of poses.slice(0, midpoint)) s.push(f);
-    s.push({ timestampMs: poses[midpoint]!.timestampMs, landmarks: [] });
-    for (const f of poses.slice(midpoint + 1)) s.push(f);
-    expect(s.finish().reps!.count).toBe(0);
+    for (const f of poses.slice(midpoint, midpoint + missing)) s.push({ timestampMs: f.timestampMs, landmarks: [] });
+    for (const f of poses.slice(midpoint + missing)) s.push(f);
+    return s.finish().reps!.count;
+  };
+  it('requires a fresh starting position after losing the pose mid-descent for 400 ms', () => {
+    expect(midRepGap(12)).toBe(0);
+  });
+  it('keeps the rep through a single missed detection', () => {
+    expect(midRepGap(1)).toBe(1);
   });
 
   it('does not connect pre-gap takeoff with post-gap landing', () => {
@@ -225,5 +237,113 @@ describe('assessment evidence and interrupted tracking', () => {
     expect(r.mismatched.length).toBeGreaterThan(0);
     expect(r.events).toHaveLength(0);
     expect(r.checks.filter((c) => c.when === 'bottom' || c.when === 'release').every((c) => c.samples === 0)).toBe(true);
+  });
+});
+
+describe('3D angles, self-normalised counting and noise robustness', () => {
+  let seed = 4242;
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const gauss = () => Math.sqrt(-2 * Math.log(rnd() + 1e-12)) * Math.cos(2 * Math.PI * rnd());
+  const pt = () => ({ x: rnd(), y: rnd(), z: rnd(), v: 1 });
+
+  it('joint angles are invariant to any 3D rotation, segment angles to any turn about the vertical', () => {
+    for (let n = 0; n < 50; n++) {
+      // Random rotation from a unit quaternion (Shoemake 1992).
+      const [u1, u2, u3] = [rnd(), rnd(), rnd()];
+      const q = [Math.sqrt(1 - u1) * Math.sin(2 * Math.PI * u2), Math.sqrt(1 - u1) * Math.cos(2 * Math.PI * u2), Math.sqrt(u1) * Math.sin(2 * Math.PI * u3), Math.sqrt(u1) * Math.cos(2 * Math.PI * u3)];
+      const [a, b, c, d] = q as [number, number, number, number];
+      const rot = (p: { x: number; y: number; z: number; v: number }) => ({
+        x: (1 - 2 * (b * b + c * c)) * p.x + 2 * (a * b - c * d) * p.y + 2 * (a * c + b * d) * p.z,
+        y: 2 * (a * b + c * d) * p.x + (1 - 2 * (a * a + c * c)) * p.y + 2 * (b * c - a * d) * p.z,
+        z: 2 * (a * c - b * d) * p.x + 2 * (b * c + a * d) * p.y + (1 - 2 * (a * a + b * b)) * p.z, v: 1,
+      });
+      const t = 2 * Math.PI * rnd(), yaw = (p: { x: number; y: number; z: number; v: number }) => ({ ...p, x: p.x * Math.cos(t) + p.z * Math.sin(t), z: -p.x * Math.sin(t) + p.z * Math.cos(t) });
+      const [p1, p2, p3] = [pt(), pt(), pt()];
+      expect(Math.abs(jointAngle(rot(p1), rot(p2), rot(p3)) - jointAngle(p1, p2, p3))).toBeLessThan(0.5);
+      expect(Math.abs(vsVertical(yaw(p1), yaw(p2)) - vsVertical(p1, p2))).toBeLessThan(0.5);
+      expect(Math.abs(vsHorizontal(yaw(p1), yaw(p2)) - vsHorizontal(p1, p2))).toBeLessThan(0.5);
+    }
+  });
+
+  it('limbs in the image plane keep the 2D angle (blend weight 0)', () => {
+    const def = exerciseById('back-squat')!, frames = simulateExercise(def, { reps: 2 });
+    const a = new MotionSession(def), b = new MotionSession(def);
+    for (const f of frames) {
+      const la = a.push(f), lb = b.push(noWorld([f])[0]!);
+      for (const id of Object.keys(lb.angles)) expect(Math.abs(la.angles[id]!.value - lb.angles[id]!.value)).toBeLessThan(1e-9);
+    }
+  });
+
+  it('counts an athlete who only reaches 60 % of the catalog range', () => {
+    const def = exerciseById('back-squat')!, s = new MotionSession(def);
+    for (const f of simulateExercise(def, { depth: 0.6 })) s.push(f);
+    expect(s.finish().reps!.count).toBeGreaterThanOrEqual(4);
+  });
+
+  it('counts nothing on a still athlete under landmark noise: every reps exercise, 30 and 15 fps, with and without world', () => {
+    // σ in frame heights; world x/y 2.4σ m, z 3× that. 15 fps: the noise estimator must still run (it once needed ≥ 16 fps).
+    for (const def of EXERCISES.filter((d) => d.mode === 'reps')) {
+      for (const [fps, sd, world] of [[30, 0.02, true], [30, 0.01, false], [15, 0.02, true], [15, 0.01, false]] as const) {
+        for (let k = 0; k < 3; k++) {
+          const f0 = simulateExercise(def, { reps: 1, seed: 1 + k })[0]!, s = new MotionSession(def);
+          for (let i = 0; i < 10 * fps; i++) {
+            s.push({
+              timestampMs: (i * 1000) / fps,
+              landmarks: f0.landmarks.map((l) => ({ ...l, x: l.x + (gauss() * sd) / (16 / 9), y: l.y + gauss() * sd })),
+              ...(world ? { world: f0.world!.map((l) => ({ ...l, x: l.x + gauss() * sd * 2.4, y: l.y + gauss() * sd * 2.4, z: l.z + gauss() * sd * 7.2 })) } : {}),
+            });
+          }
+          expect(s.finish().reps!.count, `${def.id} ${fps} fps σ ${sd} ${world ? '3D' : '2D'} draw ${k}`).toBe(0);
+        }
+      }
+    }
+  }, 60_000);
+
+  it('a pause partway up a half-depth lunge does not split one rep into two', () => {
+    const def = exerciseById('forward-lunge')!, s = new MotionSession(def);
+    for (const f of simulateExercise(def, { depth: 0.5 })) s.push(f);
+    expect(s.finish().reps!.count).toBeLessThanOrEqual(6);
+  });
+
+  it('release angle is of the ground-frame velocity: body drift changes it in 3D as in 2D', () => {
+    // 0.15 frame heights/s (≈ 0.36 m/s) of forward drift flattens the release; hip-centred world points alone missed it.
+    const def = exerciseById('javelin-release')!, fr = simulateExercise(def);
+    const drift = (v: number) => fr.map((f) => ({ ...f, landmarks: f.landmarks.map((l) => ({ ...l, x: l.x + (v * f.timestampMs) / 1000 / (16 / 9) })) }));
+    const ang = (x: PoseFrame[]) => report(def.id, x).events!.map((e) => e.releaseAngle!);
+    const still = ang(fr), fwd = ang(drift(0.15)), back = ang(drift(-0.15));
+    still.forEach((a, i) => { expect(fwd[i]!).toBeLessThan(a - 0.5); expect(back[i]!).toBeGreaterThan(a + 0.5); });
+  });
+
+  it('jump height survives blurred feet at take-off (no frozen toes in the flight fit)', () => {
+    const def = exerciseById('countermovement-jump')!, fr = simulateExercise(def);
+    const clean = report(def.id, fr).events!;
+    const t0 = fr[0]!.timestampMs;
+    const blur = fr.map((f) => (clean.some((e) => f.timestampMs >= e.tMs + t0 && f.timestampMs < e.tMs + t0 + 200)
+      ? { ...f, landmarks: f.landmarks.map((l, i) => (i >= 27 ? { ...l, visibility: 0.1 } : l)) } : f));
+    const b = report(def.id, blur).events!;
+    expect(b).toHaveLength(clean.length);
+    b.forEach((e, i) => expect(Math.abs(e.jumpHeightCm! - clean[i]!.jumpHeightCm!)).toBeLessThan(0.02 * clean[i]!.jumpHeightCm!));
+  });
+
+  it('a plank with the hips sagging 30° earns no hold time', () => {
+    // Drop both hips (and knees with them) perpendicular to the shoulder-ankle line until the body line reads 150°.
+    const sag = (lm: PoseFrame['landmarks'], k: number, target = 150) => {
+      const S = lm[11]!, A = lm[27]!, H = lm[23]!;
+      const sx = S.x * k, ax = A.x * k, hx = H.x * k, len = Math.hypot(ax - sx, A.y - S.y);
+      let nx = -(A.y - S.y) / len, ny = (ax - sx) / len;
+      if (ny < 0) { nx = -nx; ny = -ny; } // toward the floor (y down)
+      const at = (d: number) => jointAngle({ x: sx, y: S.y, v: 1 }, { x: hx + nx * d, y: H.y + ny * d, v: 1 }, { x: ax, y: A.y, v: 1 });
+      let lo = 0, hi = len;
+      for (let i = 0; i < 60; i++) { const d = (lo + hi) / 2; if (at(d) > target) lo = d; else hi = d; }
+      return lm.map((p, i) => ([23, 24, 25, 26].includes(i) ? { ...p, x: p.x + (nx * lo * (i < 25 ? 1 : 0.5)) / k, y: p.y + ny * lo * (i < 25 ? 1 : 0.5) } : p));
+    };
+    const frames = simulateExercise(exerciseById('plank')!).map((f) => ({ ...f, landmarks: sag(f.landmarks, 16 / 9), world: f.world && sag(f.world, 1) }));
+    const r = report('plank', frames);
+    expect(r.angles.bodyLine!.mean).toBeLessThan(160);
+    expect(r.hold!.totalSec).toBe(0);
+    // 6° below the band under noise (σ̂ ≈ 4–6°): the old widened edge (min(8°, 2σ̂)) credited it; bias correction must not.
+    const ok0 = exerciseById('plank')!.checks.find((c) => c.angle === 'bodyLine' && c.when === 'hold')!.ok[0];
+    const near = simulateExercise(exerciseById('plank')!).map((f) => ({ ...f, landmarks: sag(f.landmarks, 16 / 9, ok0 - 6).map((l) => ({ ...l, x: l.x + (gauss() * 0.012) / (16 / 9), y: l.y + gauss() * 0.012 })) }));
+    expect(report('plank', near).hold!.totalSec).toBeLessThan(2);
   });
 });
