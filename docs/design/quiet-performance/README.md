@@ -1,5 +1,7 @@
 # Fitzen — Quiet performance
 
+**Parity audit (2026-10-29): this is not a complete Xeyo clone.** The owner requested a fresh cross-check. The [112-check inventory](./PARITY_AUDIT.md), also available as [searchable HTML](./parity-audit.html), records 63 missing capabilities, 32 partial adaptations, 6 narrow UI capabilities present and 11 unverified checks. These are inventory counts, not a complete product feature total. The audit supersedes any impression that fifteen frames establish feature completeness.
+
 An editable, high-fidelity HTML design concept. This is a review artifact, not a production app change or a native Figma document. No generated imagery is used. Visual content uses HTML, CSS, inline vector interface graphics and existing repository exercise photos; it makes no external requests. Keep it inside the repository so the relative asset paths resolve.
 
 Open `index.html` directly, or serve the repository locally:
@@ -31,7 +33,7 @@ Inspected the following surfaces and behaviors:
 
 Measured visible computed styles: DM Sans; canvas `rgb(244,244,242)`; white cards; 20px card corners and padding; 30px/400 page headings with −0.9px tracking; 16px/400 card titles. Selected navigation is black; orange marks, endpoints and selective highlights provide continuity. Translucency is concentrated in portrait overlays and dialog separation.
 
-At a 390px viewport, navigation becomes horizontally scrollable and cards stack. The sample-data banner cramped its text into a narrow column and extended an action beyond the viewport. The dashboard customization button produced no visible change during inspection; its editing behavior remains unverified. AI response quality, provider imports, persistence, portrait generation, uploads and destructive actions were not tested.
+At a 390px viewport, navigation becomes horizontally scrollable and cards stack. The sample-data banner cramped its text into a narrow column and extended an action beyond the viewport. Correction from the follow-up audit: dashboard editing loaded asynchronously and does work. Earlier/later and Remove controls plus Cancel/Done appear; moving Recovery later changed order and Cancel restored it. Removal, final Done and persistence were not exercised. AI response quality, provider imports, persistence, portrait generation, uploads and destructive actions were not tested.
 
 ## Design direction
 
