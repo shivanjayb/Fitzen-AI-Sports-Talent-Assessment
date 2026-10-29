@@ -1,6 +1,6 @@
 # Fitzen — Quiet performance
 
-**Parity audit (2026-10-29): this is not a complete Xeyo clone.** The owner requested a fresh cross-check. The [112-check inventory](./PARITY_AUDIT.md), also available as [searchable HTML](./parity-audit.html), records 63 missing capabilities, 32 partial adaptations, 6 narrow UI capabilities present and 11 unverified checks. These are inventory counts, not a complete product feature total. The audit supersedes any impression that fifteen frames establish feature completeness.
+**UI completion pass (2026-10-30):** the [historical 112-check audit](./PARITY_AUDIT.md) is followed by an [implementation and verification trace](./IMPLEMENTATION.md). The current 17-frame prototype adds representative interactive UI states for the observed gaps. Real services and unseen Xeyo behavior remain unverified; this is an adapted UI preview, not a certified complete product clone.
 
 An editable, high-fidelity HTML design concept. This is a review artifact, not a production app change or a native Figma document. No generated imagery is used. Visual content uses HTML, CSS, inline vector interface graphics and existing repository exercise photos; it makes no external requests. Keep it inside the repository so the relative asset paths resolve.
 
@@ -10,7 +10,7 @@ Open `index.html` directly, or serve the repository locally:
 python3 -m http.server 8766 --bind 127.0.0.1
 ```
 
-Visit http://127.0.0.1:8766/docs/design/quiet-performance/. The browser preview was opened in Codex. Use **View all frames** for the presentation board, **Back to prototype** to resume navigation, or the browser's Print command to export all fifteen frames to PDF.
+Visit http://127.0.0.1:8766/docs/design/quiet-performance/. The browser preview was opened in Codex. Use **View all frames** for the presentation board, **Back to prototype** to resume navigation, or the browser's Print command to export all seventeen frames to PDF.
 
 ## Reference study
 
@@ -57,7 +57,7 @@ The requested Apple design skill informs platform typography, instant press feed
 | Layout | 16px desktop grid gaps; 32px page gutters, 16px on small phones |
 | Interaction | 44px primary controls; 160ms press/background feedback; visible focus rings |
 
-## Fifteen frames and feature previews
+## Seventeen frames and feature previews
 
 The owner's expanded brief uses Xeyo's complete main navigation and dashboard composition as the reference, combined with Fitzen's existing movement flows. This is an interactive UI interpretation, not a claim that Xeyo's backend or every account/provider behavior has been reproduced.
 
@@ -73,7 +73,7 @@ Results disclose that the full sample assessment is a squat report. Framing artw
 
 ## Verification and boundaries
 
-Browser checks cover desktop composition, 390px and 320px phone layouts, all fifteen frames, exercise histories and selected reports, all/last-three calculations, demo/incomplete filtering, saving and reload persistence, manual meal totals, journal entries, and reversed laboratory-range rejection. Existing catalogue images load locally. JavaScript syntax and whitespace checks pass. Tables and navigation scroll within their own containers on phones.
+Browser checks cover desktop composition, 390px and 320px phone layouts, all seventeen frames, exercise histories and selected reports, all/last-three calculations, demo/incomplete filtering, saving and reload persistence, manual meal totals, journal entries, and reversed laboratory-range rejection. Existing catalogue images load locally. JavaScript syntax and whitespace checks pass. Tables and navigation scroll within their own containers on phones.
 
 The production application, live database, production styles and engine remain outside this concept. Camera analysis, wearable imports, authentication, AI analysis, actual uploads and cloud synchronization are not connected. No generated imagery is used. The body image is an existing exercise reference, not a personal portrait or body-composition scan.
 
@@ -98,3 +98,7 @@ The owner requested the preferred Quiet performance markup with real-project bra
 The local-coach interface contains fixed, sample-report responses to three prompts. Profile, offline and goal controls update only the visible prototype or in-memory preview state. No camera, auth, production storage, service worker, model download or network API is wired. The later history extension stores only its isolated sample-report key as described above. Completing a guided test is not simulated as an eligible real result; the fixed squat sample report remains explicitly identified.
 
 Browser checks cover the real navigation, all seven local photos loading, guided test 4 opening Plank with standard-protocol context, personal-range toggle, nested profile/offline focus, prepared-state disclosure, coach responses, competition scopes, target units, search/filter/reset and board mode. Desktop and narrow-phone layouts were inspected; the review fixed an inherited diagram-only instruction and overly broad icon sizing. Production application files and unrelated engine edits were left unchanged.
+
+## UI completion extensions
+
+Loaded after the original markup scripts, in order: `metrics.js` (shared signals/history), `daily-flows.js` (dated records and preview states), `account.js` (account/AI/source/onboarding/auth), and `shell.js` (Home composition/editing, routes and Apple-informed controls). Existing production code and engine files are not part of this change. See IMPLEMENTATION.md for the audit-ID mapping and tested paths.

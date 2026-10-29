@@ -1,3 +1,5 @@
+> Historical baseline for `ce5900d`. The subsequent [UI completion pass](./IMPLEMENTATION.md) adds previews for the observed gaps. Counts below describe the earlier revision, not the current markup. Reference-only unknown states remain unverified.
+
 # Xeyo → Fitzen UI parity audit
 
 **Verdict: not a complete clone.** The previous mockup is an adapted concept with material missing features and simplified interactions. No claim of complete UI, feature or backend parity is justified.
