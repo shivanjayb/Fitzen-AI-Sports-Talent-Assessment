@@ -8,7 +8,7 @@ import Figure, { ExerciseArt, FigureArt } from './Figure';
 import { photoOf } from './photos';
 import { ExerciseCard, LEVEL, catLabel } from './Home';
 import { LESSONS, lessonSearchUrl } from './lessons';
-import { personalFor } from './store';
+import { getHistory, isEligibleSession, personalFor } from './store';
 
 const MODE = { reps: 'Reps', hold: 'Hold', event: 'Power' } as const;
 const KEY: Check['when'][] = ['bottom', 'hold', 'release', 'active'];
@@ -82,6 +82,8 @@ export default function Exercise() {
   const targetLabel = ex.mode === 'reps' && ex.reps ? `${ex.angles.find((a) => a.id === ex.reps!.driver)?.label ?? 'Joint'} at depth` : ex.mode === 'hold' ? 'Hold target' : ex.event?.releaseAngle ? 'Release angle' : 'Measures';
   const more = EXERCISES.filter((e) => e.category === ex.category && e.id !== ex.id);
   const photo = photoOf(ex.id);
+  const attempts = getHistory().filter((s) => s.report.exerciseId === ex.id);
+  const measuredAttempts = attempts.filter(isEligibleSession).length;
 
   return (
     <main className="page detail" data-cat={ex.category}>
@@ -108,6 +110,11 @@ export default function Exercise() {
         </div>
       </section>
       <input ref={file} type="file" accept="video/*" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) { setPendingVideo(f); go('video'); } }} />
+
+      <section className="exercise-history-link">
+        <div><b>{t('Your history')}</b><p>{attempts.length ? t('{n} measured assessments. Open any attempt to review its report and compare your progress.', { n: measuredAttempts }) : t('Your reports and progress will appear here after your first attempt.')}</p></div>
+        <Link to={`/history?exercise=${encodeURIComponent(ex.id)}`} className="btn">{t('View exercise history')}</Link>
+      </section>
 
       <div className="detail-grid">
         <div>

@@ -21,14 +21,14 @@ Built for SIH25073 (Smart India Hackathon problem statement from SAI / Ministry 
 ## Capabilities and Constraints
 - 90 exercise definitions across 8 categories: Gym, Calisthenics, Athletics, Throws & Strikes, Olympic Lifts, SAI Battery, Yoga, Mobility.
 - Pose estimation runs on-device (MediaPipe Pose Landmarker). Video never leaves the device.
-- No account needed for local assessments. Optional Supabase email-link sign-in adds account profiles, groups and result sync when the provider is configured. Profile and full history remain on the device.
+- No account needed for local assessments. Optional Supabase email-link sign-in adds account profiles, groups and result sync when the provider is configured. Profiles and full eligible reports sync privately when signed in; video remains on the device.
 - Every exercise can be run with live camera, an uploaded video, or a demo with a synthetic athlete.
 - Measurements are single-camera screening estimates, not clinical measurements.
 
 ## Brand Commitments
-- Name: Fitzen. No logo exists; a wordmark may be designed.
+- Name: Fitzen. Use the existing athlete mark and wordmark.
 - May reference SIH25073, SAI and Khelo India as context. Do not imply endorsement.
-- The landing page must match the existing app's Liquid Glass look (translucent glass over a living aurora, spring motion, lime `#c8f135` and cyan `#64d2ff` accents), per the user.
+- Application design follows the approved Quiet Performance concept: warm canvas, graphite, ember, system typography and simple phone navigation. The original marketing demonstration remains scoped to its own landing surface.
 
 ## Evidence on Hand
 Real: the exercise catalogue (`packages/engines/src/motion/catalog`), the live engine and its demo athlete, which can be shown running. Absent: user counts, testimonials, accuracy benchmarks against lab equipment, partnerships. Do not fabricate these.

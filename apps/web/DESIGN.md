@@ -1,39 +1,31 @@
 ---
-name: Fitzen
-description: A sports-science lab in a phone camera, styled after Apple Fitness+ (unofficial): black ground, flat cards, Liquid Glass navigation, ring hues for activity, studio artwork with a shaded human demonstrator.
-sources: "Fitness+ Reference" and "Apple Native" design systems (claude.ai artifacts, unofficial)
+name: Fitzen Quiet Performance
+description: Calm, accessible performance and personal records, adapted from the approved HTML concept.
 colors:
-  ground: "#000000"
-  surface: "#1c1c1e"
-  fill: "#2c2c2e"
-  ink: "#ffffff"
-  ink-muted: "#8e8e93"
-  cta: "#ffffff (Let's Go: white capsule, black text)"
-  tint: "#a6ff00 (links, selected tab, focus)"
-  ring-move: "#fa114f"
-  ring-exercise: "#92e82a"
-  ring-stand: "#00d9ff"
-  zone-good: "#30d158"
-  zone-ok: "#ffd60a"
-  zone-bad: "#ff453a"
+  ground: "#f4f4f1"
+  surface: "#ffffff"
+  ink: "#252521"
+  secondary: "#62635b"
+  accent: "#a5442b"
+  divider: "#dedfd7"
+  action: "#252521 / #ffffff"
 typography:
-  font: "system stack (SF Pro on Apple devices); never bundle SF Pro"
-  numerals: "ui-rounded / SF Pro Rounded, tabular"
-  large-title: "34px bold"
-  section-title: "22px bold, tint 'See All' on the right"
-  body: "17px, -0.022em"
+  font: "platform system stack, no bundled fonts"
+  title: "clamp(1.8rem,3vw,2.4rem), weight650, tracking -0.035em"
+  body: "1rem / 1.5"
 ---
 
-# Fitzen design system (Fitness+ style)
+# Fitzen Quiet Performance
 
-Source of truth: `src/app/glass.css` (tokens + shared classes) and `src/app/landing.css` (landing).
+The application uses the owner-approved Quiet Performance concept from `docs/design/quiet-performance/`, with real application behavior and clear empty states. Source: `src/app/quiet.css` after legacy `glass.css`; route styles in `dashboard.css`, `training-quiet.css`, and `wellness.css`. The existing landing page retains its scoped broadcast-demo treatment.
 
-- **Layers:** content is opaque (`--bg`, flat `--bg-2` cards, no shadows). Navigation floats above it as glass (`.glassy`: tint, blur, rim, `--shadow-glass`): the tab bar, search button, header buttons and detail back/share. Reduce Transparency swaps glass for a solid tint.
-- **Navigation:** Summary · Train · Compete in a floating capsule plus a separate search circle (`Shell.tsx`). Phones: bottom. ≥ 900px: top centre, labels beside icons. Profile and the local coach live in every large-title header (`PageHeader`). History opens from Summary and Train › More.
-- **Train (Fitness+ tab):** featured carousel (auto-advances, pauses on hover/focus/Reduce Motion), Workout Types tiles, shelves per category with See All (`/app?type=`), Learn the Technique lessons, More rows. `/search` browses and filters.
-- **Artwork:** every exercise is drawn by `Figure.tsx` from the engine's own synthetic athlete: a shaded, dressed human (cylindrical limb shading, far side in shade, floor shadow) on a studio backdrop in its category hue (`[data-cat]` sets `--hue`/`--hue-2`). Cards use a cached still of the key pose; heroes, hover and the detail page loop one rep live. Demo sessions and the landing hero draw the same athlete under the tracking skeleton.
-- **Exercise page (`/exercise/:id`):** animated hero, Let's Go (camera), Analyse Video, Watch Demo, facts, How to Do It (start / mid / key pose with the engine's cues and target angles), a YouTube video lesson (our artwork until tapped, then `youtube-nocookie.com`; CSP `frame-src` allows only that host), Set Up, What We Measure, More Like This.
-- **Rings:** `Rings.tsx`, ring hues fixed in both themes, fill on mount over 0.9 s and pulse when closed. Only for the athlete's own data (Summary, Results).
-- **Motion:** press scale 0.96, smooth/snappy springs, tab pill glides, figures pause off-screen; `prefers-reduced-motion` stops all of it.
-- **Judgement colours** green/amber/red stay reserved for form feedback.
-- **Brand:** Fitzen name and mark only. Never use Apple's name, logos, SF Pro files, SF Symbols or trainer imagery.
+- Warm light canvas, white content surfaces, graphite text and restrained ember actions. Profile retains a dark preference with warm charcoal surfaces. Form judgement colors remain green/amber/red. No decorative data or synthetic user statistics.
+- System typography, tabular measurements, 44px controls, readable input text, explicit focus, reduced-motion/transparency handling, safe-area padding. Existing Fitzen athlete mark and exercise media; incorrect or missing media uses the equipment-correct drawn athlete.
+- Desktop header and sticky navigation. Phones: Home, Train, History, More. More groups health, training and account tools. No ten-destination phone tab strip.
+- Home at `/home` uses actual eligible reports, weekly activity, compatible comparisons, latest manual signals, local coach and useful next actions. Missing signals are missing, never inferred zero. Detailed Progress/goals remain at `/progress`.
+- Train searches and filters all 90 exercises. Guided four-test assessment is primary. Detail, camera, local video, demo, lesson and per-exercise history remain connected. History filters real/demo/review attempts and keeps them distinguishable.
+- Compatible trends require exercise, metric, unit, recorded protocol and engine version. Repetition comparisons use standard-depth targets. Session charts stay with their original reports.
+- Wellness data is dated manual entry with validation, history, edit/remove/undo and optional account sync. Nutrition shows logged totals; lab trends separate test/unit. Recovery uses actual post-session check-ins. Camera does not measure HRV, sleep or resting heart rate.
+- Existing authentication, account sync, local coach and coach/admin controls retain service boundaries. Unsupported wearable/hosted-AI/file-import actions are described honestly in Connections.
+
+See `docs/design/quiet-performance/INTEGRATION.md` for backend setup and verification limits. Motion engine accuracy and live-provider readiness are separate release gates.

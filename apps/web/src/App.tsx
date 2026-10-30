@@ -7,9 +7,10 @@ import Landing from './app/Landing';
 import { applyTheme, getTheme } from './app/theme';
 import { useIdentity } from './lib/supabase';
 import { syncHistory } from './app/store';
+import { syncWellness } from './app/wellnessStore';
 import { useLanguage } from './app/language';
 
-// Sessions stay on this device. Optional accounts (Supabase magic link, src/lib/supabase.ts) add leaderboards and groups.
+// Assessments work locally. Optional accounts sync profiles and reports; video stays on-device.
 const Session = lazy(() => import('./app/Session'));
 const Results = lazy(() => import('./app/Results'));
 const Coach = lazy(() => import('./app/Coach'));
@@ -22,6 +23,8 @@ const Consent = lazy(() => import('./app/Consent'));
 const Validation = lazy(() => import('./app/Validation'));
 const Guided = lazy(() => import('./app/Guided'));
 const Auth = lazy(() => import('./app/Auth'));
+const Dashboard = lazy(() => import('./app/Dashboard'));
+const Wellness = lazy(() => import('./app/Wellness'));
 const Exercise = lazy(() => import('./app/Exercise'));
 
 applyTheme(getTheme());
@@ -41,7 +44,7 @@ export default function App() {
   useEffect(() => { document.documentElement.lang = language; }, [language]);
   useEffect(() => {
     if (!identity.ready || !identity.user) return;
-    const retry = () => { void syncHistory(); };
+    const retry = () => { void syncHistory(); void syncWellness(); };
     retry();
     window.addEventListener('online', retry);
     return () => window.removeEventListener('online', retry);
@@ -57,7 +60,9 @@ export default function App() {
             <Route element={<Shell />}>
               <Route path="/auth" element={<Auth />} />
               <Route path="/auth/callback" element={<Auth />} />
+              <Route path="/home" element={<Dashboard />} />
               <Route path="/app" element={<Home />} />
+              {(['recovery', 'vitals', 'sleep', 'body', 'nutrition', 'journal', 'blood-records', 'integrations'] as const).map((kind) => <Route key={kind} path={`/${kind}`} element={<Wellness kind={kind} />} />)}
               <Route path="/search" element={<Home search />} />
               <Route path="/exercise/:id" element={<Exercise />} />
               <Route path="/progress" element={<Progress />} />

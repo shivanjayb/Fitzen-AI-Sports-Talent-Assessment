@@ -9,7 +9,7 @@ const { authDestination, callbackError, requestSignIn, passwordAuth, signOut } =
 
 test('sign-in destinations reject external, encoded and unknown routes', () => {
   for (const path of [null, '//evil.example', 'https://evil.example', '/auth', '/auth/callback', '/profile/../../evil', '/profile\\evil', '/%2f%2fevil', '/profile\n']) assert.equal(authDestination(path), '/profile');
-  for (const path of ['/compete', '/profile#account', '/guided?run=123', '/consent?child=uuid']) assert.equal(authDestination(path), path);
+  for (const path of ['/home', '/sleep', '/body', '/nutrition', '/journal', '/blood-records', '/integrations', '/compete', '/profile#account', '/guided?run=123', '/consent?child=uuid']) assert.equal(authDestination(path), path);
 });
 test('callback errors never display provider-supplied descriptions', () => {
   assert.match(callbackError('', '#error=access_denied&error_description=secret'), /expired/);

@@ -226,6 +226,31 @@ function Future({ s, onCheckIn }: { s: SavedSession; onCheckIn: () => void }) {
   </>);
 }
 
+/** Compare only earlier eligible attempts of the same exercise, metric, unit and recorded protocol. */
+function PreviousPerformance({ session }: { session: SavedSession }) {
+  const measured = (report: SessionReport) => {
+    const metric = measureOf(report);
+    if (metric?.metric !== 'reps') return metric;
+    const value = standardReps(report);
+    return value === null ? null : { ...metric, value };
+  };
+  const metric = measured(session.report);
+  const prior = isEligibleSession(session) && metric ? getHistory()
+    .filter(s => s.id !== session.id && isEligibleSession(s) && s.report.exerciseId === session.report.exerciseId &&
+      Date.parse(s.report.startedAt) < Date.parse(session.report.startedAt) &&
+      !!session.report.validity?.protocolId && s.report.validity?.protocolId === session.report.validity.protocolId && s.report.validity.modelVersion === session.report.validity.modelVersion)
+    .sort((a, b) => Date.parse(b.report.startedAt) - Date.parse(a.report.startedAt))
+    .find(s => { const m = measured(s.report); return m?.metric === metric.metric && m.unit === metric.unit; }) : undefined;
+  const before = prior ? measured(prior.report) : null;
+  const delta = metric && before ? metric.value - before.value : null;
+  const formatted = (v: number) => v.toLocaleString(undefined, { maximumFractionDigits: metric?.unit === 'reps' ? 0 : 1 });
+  return <section className="glass panel result-comparison">
+    <div><h2>{t('Since your last assessment')}</h2>
+      {delta !== null && prior ? <><p><strong>{delta > 0 ? '+' : ''}{formatted(delta)} {metric!.unit}</strong> {t('compared with')} <Link to={`/results/${prior.id}`}>{new Date(prior.report.startedAt).toLocaleDateString()}</Link></p><small className="muted">{t('Same exercise, recorded protocol and engine version. Reps use standard depth targets. Conditions and effort may differ; review both reports for context.')}</small></> : <p className="muted">{t(isEligibleSession(session) ? 'A previous eligible result with the same recorded protocol will appear here when available.' : 'Demo, flagged and incomplete attempts stay in history and are excluded from performance comparisons.')}</p>}
+    </div><Link className="btn" to={`/history?exercise=${encodeURIComponent(session.report.exerciseId)}`}>{t('Exercise history')}</Link>
+  </section>;
+}
+
 export default function Results() {
   const { id = '' } = useParams();
   const nav = useNavigate();
@@ -287,6 +312,8 @@ export default function Results() {
         </div>
         <div className={`grade ${assessed ? r.grade : 'unassessed'}`}>{assessed ? r.grade : 'N/A'}</div>
       </section>
+
+      <PreviousPerformance session={saved} />
 
       <section className="glass panel no-print" style={{ marginTop: 14 }}>
         <b className="row" style={{ gap: 8, color: 'var(--accent)' }}><IconSparkle /> <span style={{ color: 'var(--text)' }}>{t('Local coaching report')}</span></b>
