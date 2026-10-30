@@ -1,5 +1,6 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import { Analytics } from '@vercel/analytics/react';
 import App from './App';
 import './app/glass.css';
 import './app/quiet.css';
@@ -16,5 +17,6 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
 void languageReady.then(() => createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />
+    <Analytics />
   </StrictMode>,
 ));
