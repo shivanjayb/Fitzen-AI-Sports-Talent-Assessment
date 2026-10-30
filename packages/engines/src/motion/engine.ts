@@ -48,6 +48,9 @@ const JOINT_SEGS: Record<import('./types.js').JointName, SegKey[]> = {
 };
 const NOSE = 0;
 
+/** Quadratic Savitzky-Golay smoothing weights: 5-point (−3 12 17 12 −3)/35, 9-point (−21 14 39 54 59 54 39 14 −21)/231. */
+const SG5 = [-3, 12, 17, 12, -3].map((k) => k / 35), SG9 = [-21, 14, 39, 54, 59, 54, 39, 14, -21].map((k) => k / 231);
+
 /** Image points (x scaled by aspect, y down; never MediaPipe's image z) or world points (metres, z = depth). */
 interface P { x: number; y: number; v: number; z?: number }
 
@@ -282,6 +285,8 @@ const W: Record<Zone, number> = { good: 1, ok: 0.6, bad: 0 };
  */
 export interface RepSignature {
   rom: Record<Probe, number>; trunk: number; outOfPlane: Record<SegKey, number>;
+  /** Rep probes: the larger of rom and each side's own ROM — the working leg of a split stance, whichever leg is seen. */
+  romMax?: Record<Probe, number>;
   /** Median angle of each probe over the rep: the posture of the joints the exercise keeps still. */
   pose?: Record<Probe, number>;
   /** Median ISB plane of elevation of the arm (0 = abduction, 90 = flexion), from world landmarks; absent without them. */
@@ -298,10 +303,11 @@ const PROBE_DEFS: AngleDef[] = [
   ...PROBES.map((q): AngleDef => ({ id: `~${q}`, label: q, kind: 'joint', joint: q })),
   { id: '~trunk', label: 'trunk', kind: 'segment', segment: 'trunk', ref: 'vertical' },
 ];
-/** Reps: knee and hip on the more flexed side, so alternating legs (butt kicks, high knees) can't hide on the far side;
- * a far side too occluded to see (any chain point < 0.5) falls back to the near side (measure). Not events: a stride's
- * front knee would mark the knee as moving in every throw's reference and hide a squat before the throw. */
-const PROBE_DEFS_REPS: AngleDef[] = PROBE_DEFS.map((a) => (a.id === '~knee' || a.id === '~hip' ? { ...a, side: 'flexed' as const } : a));
+/** Reps: knee and hip on the more flexed side (min of both), so alternating legs (butt kicks, high knees) can't hide on
+ * the far side; a far side too occluded to see (any chain point < 0.5) falls back to the near side (measure). Each side
+ * is also kept on its own for romMax. Not events: a stride's front knee would mark the knee as moving in every throw's
+ * reference and hide a squat before the throw. */
+const PROBE_DEFS_REPS: AngleDef[] = PROBE_DEFS.map((a) => (a.id === '~knee' || a.id === '~hip' ? { ...a, side: 'both' as const } : a));
 /** Robust range: p95 − p5. The max − min of noisy samples is an extreme-value statistic that grows with n (Tippett 1925). */
 /**
  * Lower toe (y down) of the feet actually seen: an occluded far foot (v < 0.5) is a guess and fakes take-offs. Side view:
@@ -390,6 +396,7 @@ export function referenceSignature(session: ExerciseDef): RepSignature | null {
   const med = (xs: number[]) => [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)] ?? 0;
   const ref = sigs.length ? {
     rom: Object.fromEntries(PROBES.map((p) => [p, med(sigs.map((g) => g.rom[p]))])) as Record<Probe, number>,
+    romMax: Object.fromEntries(PROBES.map((p) => [p, med(sigs.map((g) => g.romMax?.[p] ?? g.rom[p]))])) as Record<Probe, number>,
     trunk: med(sigs.map((g) => g.trunk)),
     drive: med(sigs.map((g) => g.drive ?? 0)),
     pose: Object.fromEntries(PROBES.map((p) => [p, med(sigs.map((g) => g.pose?.[p] ?? NaN))])) as Record<Probe, number>,
@@ -412,7 +419,9 @@ export function movementMismatch(def: ExerciseDef, sig: RepSignature, ref: RepSi
     if (ref.rom[p] < STILL && sig.rom[p] - (def.mode === 'event' ? 0 : noiseRom(sig, p)) > moved[p]) return `Your ${p}s are moving a lot — that doesn't look like ${name}`;
     if (def.mode !== 'reps') continue;
     // A joint that should move, moving through far more range than this exercise ever uses (e.g. overhead press in a front raise).
-    if (ref.rom[p] >= STILL && sig.rom[p] > ref.rom[p] + OVERSHOOT) return `That range of motion is far beyond ${name} — looks like a different exercise`;
+    // Against the reference's widest side: a split squat's min-over-legs probe reads the still rear leg, until a turn
+    // hides that leg and it reads the working one.
+    if (ref.rom[p] >= STILL && sig.rom[p] > Math.max(ref.rom[p], ref.romMax?.[p] ?? 0) + OVERSHOOT) return `That range of motion is far beyond ${name} — looks like a different exercise`;
     // A still joint doing most of the moving: ≥ 2.5× the driver's excursion and past DOMINANT (a discus swing or a snatch
     // pull read as a calf raise or a hinge). A squat's 60–90° arm swing is far under 2.5× its 85° knee range.
     if (ref.rom[p] < STILL && sig.drive !== undefined && trueRom(sig, p) > Math.max(DOMINANT, 2.5 * sig.drive)) return `Your ${p}s are doing most of the moving — that doesn't look like ${name}`;
@@ -474,13 +483,18 @@ export class MotionSession {
   /** 2D→3D blend weight per `${angle}:${side}` (EMA, τ 0.3 s) and the last good point per landmark (gap bridging). */
   private kBlend = new Map<string, { k: number; t: number }>();
   private dzEma = new Map<string, { dz: number; dxy: number; t: number }>();
+  /** Mean squared raw 2D − 3D difference per `${angle}:${side}` (EMA, τ 0.4 s): the minimum-MSE blend's error budget. */
+  private d23 = new Map<string, { d: number; t: number }>();
+  private kMse = new Map<string, { k: number; t: number }>();
   private lastGood = new Map<number, { t: number; p: P; r: P; w?: P; wr?: P }>();
+  /** Last time each landmark's visibility was below FILTER.minVisibility. */
+  private visLowT = new Map<number, number>();
   private feetStale = false;
   private repTop = -Infinity;
   /** Largest driver noise of the rep in progress at its 2D/3D blend weight (1 SD, degrees). */
   private repNoise = 0;
   /** Per-series noise estimate (raw angle, 1 SD): last 5–9 [t, v], recent |residuals| and σ̂. */
-  private noiseBuf = new Map<string, Array<[number, number]>>(); private noiseSd = new Map<string, number>(); private noiseRes = new Map<string, number[]>(); private noiseK = new Map<string, number>();
+  private noiseBuf = new Map<string, Array<[number, number]>>(); private noiseSd = new Map<string, number>(); private noiseRes = new Map<string, Array<[number, number]>>(); private noiseK = new Map<string, number>();
 
   // reps
   private repState: 'top' | 'down' = 'top';
@@ -494,14 +508,15 @@ export class MotionSession {
   private rejected = 0;
   /** Self-normalised range: last 5 driver values (running median), peak-detection envelope, latch. */
   private drv: number[] = []; private runMax = -Infinity;
-  private envMax = -Infinity; private envMaxT = 0; private envMin = Infinity; private lookCrest = true; private crests: number[] = []; private troughs: number[] = [];
+  private envMax = -Infinity; private envMaxT = 0; private envMin = Infinity; private envMinT = 0; private lookCrest = true; private crests: number[] = []; private troughs: number[] = []; private troughT: number[] = [];
   private reached = false;
   // movement check: per-rep probe samples, trunk inclination, out-of-plane counts and arm plane
   private checkMovement: boolean;
   private sigs: RepSignature[] = [];
   private mismatched: Array<{ tMs: number; reason: string }> = [];
   private lastShort = new Set<string>();
-  private probeVals: Record<Probe, number[]> = { knee: [], hip: [], elbow: [], shoulder: [] };
+  /** Probe samples of the rep in progress: per probe, plus per side (`knee:left`) for the bilateral rep probes. */
+  private probeVals: Record<string, number[]> = { knee: [], hip: [], elbow: [], shoulder: [] };
   private planes: number[] = [];
   private trunkSum = 0; private repFrames = 0; private shortCount: Partial<Record<SegKey, number>> = {};
 
@@ -518,6 +533,7 @@ export class MotionSession {
   private groundY = NaN; private airborneSince = NaN; private lastEventT = -1e9; private flatT = -Infinity; private staleT = -Infinity;
   /** Grounded [t, lower-toe y] samples from the last 0.5 s; their median is the ground line. */
   private groundBuf: Array<[number, number]> = [];
+  private sz2 = 0; private sz2T = -Infinity;
   private speedPeak = 0; private speedPeakFrame = -1; private speedPeakWrist = L.wrist; private speedPeakOk = false;
   /** [t, wrist speed] over the last ~1.5 s, for the peak's prominence. */
   private speeds: Array<[number, number]> = [];
@@ -569,6 +585,7 @@ export class MotionSession {
     const rawPts: P[] = frame.landmarks.map((lm) => ({ x: lm.x * aspect, y: lm.y, v: lm.visibility ?? 1 }));
     const wl = frame.world && frame.world.length >= 33 && pts.length >= 33 ? frame.world : null;
     const vis = (i: number) => frame.landmarks[i]?.visibility ?? 1;
+    frame.landmarks.forEach((lm, i) => { if ((lm.visibility ?? 1) < FILTER.minVisibility) this.visLowT.set(i, t); });
     const wp: P[] | null = wl && wl.map((lm, i) => {
       if (!this.smooth) return { x: lm.x, y: lm.y, z: lm.z, v: vis(i) };
       let f = this.worldFilters.get(i);
@@ -605,6 +622,7 @@ export class MotionSession {
     const angles: Record<string, AngleReading> = {};
     const values: Record<string, number> = {};
     const raw: Record<string, number> = {};
+    const signed: Record<string, number> = {};
     const pr: Record<string, number> = {};
     let fs = new Set<string>();
     let pl: number | undefined;
@@ -616,10 +634,12 @@ export class MotionSession {
         const r = this.measure(a, pts, wp, t);
         const rr = this.measure(a, rawPts, wr, t, true);
         if (!Number.isFinite(r.value)) continue;
-        angles[a.id] = { ...r, zone: null, ...(fs.has(a.id) ? { foreshortened: true } : {}) };
+        const { signed: sg, ...rd } = r;
+        if (sg !== undefined) signed[a.id] = sg;
+        angles[a.id] = { ...rd, zone: null, ...(fs.has(a.id) ? { foreshortened: true } : {}) };
         values[a.id] = r.value;
         raw[a.id] = rr.value;
-        this.noise(a.id, t, rr.value);
+        this.noise(a.id, t, rr.signed ?? rr.value);
         if (wr && this.def.reps?.driver === a.id) {
           // The driver's pure 2D and pure 3D noise, so a rep measured partly in 3D is judged against the 3D noise.
           this.noise(`${a.id}~2`, t, this.measure(a, rawPts, null, t, true).value);
@@ -628,8 +648,9 @@ export class MotionSession {
         if (r.left !== undefined && r.right !== undefined) (this.sym[a.id] ??= []).push(Math.abs(r.left - r.right));
       }
       (this.def.mode === 'reps' ? PROBE_DEFS_REPS : PROBE_DEFS).forEach((a, i) => {
-        const v = this.measure(a, pts, wp, t).value;
+        const r = this.measure(a, pts, wp, t, false, false), v = r.left !== undefined && r.right !== undefined ? Math.min(r.left, r.right) : r.value;
         if (Number.isFinite(v)) pr[a.id] = v;
+        for (const sd of ['left', 'right'] as const) if (Number.isFinite(r[sd])) pr[`${a.id}:${sd}`] = r[sd]!;
         // Noise on the near side only: a flexed-side probe hops between legs as the far leg's visibility crosses 0.5, and
         // those hops are not camera noise (they read as 15–25° and hid a different exercise's knee drive).
         this.noise(a.id, t, this.measure(PROBE_DEFS[i]!, rawPts, wr, t, true).value);
@@ -691,16 +712,27 @@ export class MotionSession {
         if (v === undefined || fs.has(c.angle)) continue;
         measured++;
         const buf = this.holdBuf.get(c.angle) ?? [];
-        buf.push([t, v]);
-        while (buf.length && buf[0]![0] < t - 500) buf.shift();
+        buf.push([t, signed[c.angle] ?? v]);
+        while (buf.length && buf[0]![0] < t - 2000) buf.shift();
         this.holdBuf.set(c.angle, buf);
-        const spread = this.def.angles.find((a) => a.id === c.angle)?.kind === 'spread';
+        // Median window 0.5 s while every point is seen (v ≥ 0.8), widening to 2 s at MediaPipe's 0.5 presence cut: a
+        // half-occluded point is a prediction whose error drifts slowly, so a 0.5 s median of it is one draw of that error.
+        // ponytail: 0.8 and 2 s are judgement calls (2 s still lets a ≥ 1 s exit break the hold); re-fit on real clips.
+        const def = this.def.angles.find((a) => a.id === c.angle)!;
+        const vmin = Math.max(...this.chains(def).map((ch) => Math.min(...ch.map((j) => pts[j]?.v ?? 0))));
+        const W = 500 + 1500 * Math.max(0, Math.min(1, (0.8 - vmin) / 0.3));
+        const win = buf.filter((x) => x[0] >= t - W);
+        const spread = def.kind === 'spread';
         const sg = this.sigma(c.angle);
         const unfold = (x: number) => spread ? x : c.ok[1] >= 180 ? 180 - Math.sqrt(Math.max(0, (180 - x) ** 2 - sg * sg)) : c.ok[0] <= 0 ? Math.sqrt(Math.max(0, x * x - sg * sg)) : x;
         // Spread (a width ratio, no bound): symmetric tolerance min(0.15, 2σ̂).
         const tol = spread ? Math.min(0.15, 2 * sg) : 0;
         const ok: Range = [c.ok[0] - tol, c.ok[1] + tol];
-        if (zoneOf(unfold(median(buf.map((b) => b[1]))), c.good, ok) === 'bad') inPos = false;
+        // A signed tilt is folded after its median (a median of |x| keeps the fold's bias, which σ̂ of white jitter
+        // can't unfold for slow, correlated error such as an occluded far hip's), then unfolded as above with the
+        // median's own standard error, √(π/2)·σ̂/√n (asymptotic, normal samples; Kenney & Keeping 1962). Others as above.
+        const m = median(win.map((b) => b[1])), sm = (1.2533 * sg) / Math.sqrt(win.length);
+        if (zoneOf(signed[c.angle] === undefined ? unfold(m) : c.ok[0] <= 0 ? Math.sqrt(Math.max(0, m * m - sm * sm)) : Math.abs(m), c.good, ok) === 'bad') { inPos = false; if (process.env.DBG) { const g = ((this as any).dbgBad ??= {}); g[c.angle] = (g[c.angle] ?? 0) + 1; (g[c.angle + ':v'] ??= []).push(Math.round(m * 10) / 10); } }
         if (zoneOf(unfold(v), c.good, ok) === 'bad') inPosNow = false;
       }
       const holding = holdIdx.length > 0 && measured >= Math.max(1, Math.ceil(holdIdx.length / 2)) && inPos;
@@ -893,7 +925,7 @@ export class MotionSession {
     const m = this.sideMap(s);
     const segs: Array<[string, number, number]> =
       a.kind === 'joint' ? JOINT_SEGS[a.joint].map((g): [string, number, number] => [`${s}:${g}`, ...SEGMENTS[g](m)]) :
-      a.kind === 'segment' ? (a.segment === 'shoulders' ? [['line:shoulders', L.shoulder, R.shoulder]] : a.segment === 'hips' ? [['line:hips', L.hip, R.hip]] : [[`${s}:${a.segment}`, ...SEGMENTS[a.segment](m)]]) : [];
+      a.kind === 'segment' ? (a.segment === 'shoulders' ? [['line:shoulders', L.shoulder, R.shoulder]] : a.segment === 'hips' ? [['line:hips', L.hip, R.hip]] : [[`${s}:${a.segment}`, ...SEGMENTS[a.segment](m)]]) : [['line:shoulders', L.shoulder, R.shoulder]];
     let r = 1;
     for (const [key, i, j] of segs) r = Math.min(r, this.inPlane(key, w[i]!, w[j]!, t));
     return Math.max(0, Math.min(1, (0.97 - r) / (0.97 - FILTER.minSegmentRatio)));
@@ -918,7 +950,7 @@ export class MotionSession {
     return e;
   }
 
-  private measure(a: AngleDef, p: P[], w: P[] | null, t: number, raw = false): { value: number; left?: number; right?: number } {
+  private measure(a: AngleDef, p: P[], w: P[] | null, t: number, raw = false, gap = true): { value: number; left?: number; right?: number; signed?: number } {
     const one = (s: 'left' | 'right', q: P[]): number => {
       const m = this.sideMap(s);
       if (a.kind === 'joint') { const [i, j, k] = JOINTS[a.joint](m); return jointAngle(q[i]!, q[j]!, q[k]!); }
@@ -926,47 +958,78 @@ export class MotionSession {
         const [i, j] =
           a.segment === 'shoulders' ? [L.shoulder, R.shoulder] :
           a.segment === 'hips' ? [L.hip, R.hip] : SEGMENTS[a.segment](m);
-        return a.ref === 'vertical' ? vsVertical(q[i]!, q[j]!) : vsHorizontal(q[i]!, q[j]!);
+        // Horizontal tilt signed (b below a > 0) until the output folds it, so blends and medians average zero-mean error.
+        return a.ref === 'vertical' ? vsVertical(q[i]!, q[j]!) : Math.sign(q[j]!.y - q[i]!.y) * vsHorizontal(q[i]!, q[j]!);
       }
-      const m2 = { feet: 'ankle', knees: 'knee', hands: 'wrist' } as const;
-      const sw = Math.abs(q[L.shoulder]!.x - q[R.shoulder]!.x);
-      return sw > 0 ? Math.abs(q[L[m2[a.what]]]!.x - q[R[m2[a.what]]]!.x) / sw : NaN;
+      // Spread: the width's component along the shoulder line, over the shoulder width, in the horizontal plane (x, plus
+      // depth for world points): |d·s|/|s|². The image ratio's two widths both shrink with cos(yaw), so it is exact facing
+      // the camera and 0/0 side-on; the world ratio is turn-invariant and still tells a lateral stance from a fore-aft
+      // split. Blended like the angles, by how far the shoulder line has turned into depth.
+      const m2 = { feet: 'ankle', knees: 'knee', hands: 'wrist' } as const, i = L[m2[a.what]], j = R[m2[a.what]];
+      const sx = q[L.shoulder]!.x - q[R.shoulder]!.x, sz = (q[L.shoulder]!.z ?? 0) - (q[R.shoulder]!.z ?? 0), s2 = sx * sx + sz * sz;
+      return s2 > 0 ? Math.abs((q[i]!.x - q[j]!.x) * sx + ((q[i]!.z ?? 0) - (q[j]!.z ?? 0)) * sz) / s2 : NaN;
     };
-    // Spread stays 2D: numerator and denominator both scale with cos(yaw).
     const val = (s: 'left' | 'right'): number => {
       const v2 = one(s, p);
-      if (!w || a.kind === 'spread') return v2;
+      if (!w) return v2;
       const v3 = one(s, w);
       if (!Number.isFinite(v3)) return v2;
       const key = `${a.id}:${s}`, prev = this.kBlend.get(key);
       let k = prev?.k ?? 0;
+      if (raw && Number.isFinite(v2)) {
+        this.noise(`${key}~2`, t, v2); this.noise(`${key}~3`, t, v3);
+        const e = this.d23.get(key), al = e ? 1 - Math.exp(-Math.max(0, t - e.t) / 400) : 1, d = (v2 - v3) ** 2;
+        this.d23.set(key, { d: e ? e.d + al * (d - e.d) : d, t });
+      }
       if (!raw) {
         // EMA (τ 0.3 s) so a rep never steps when the source changes; raw readings reuse the filtered weight.
-        const target = this.blendTarget(a, s, w, t);
+        // Capped at the minimum-MSE weight of a biased 2D and an unbiased 3D estimate, k* = (b² + σ₂²)/(b² + σ₂² + σ₃²)
+        // = 1 − σ₃²/E[(θ₂ − θ₃)²] (independent errors; Bates & Granger 1969): geometry says when 2D is biased, but a 3D
+        // angle noisier than the 2D error it replaces must not take over (a turned athlete on a noisy camera).
+        // Refreshed every 200 ms (two medians per angle and side every frame tripled the cost); the EMA below smooths it.
+        let kMse = this.kMse.get(key);
+        if (!kMse || t - kMse.t >= 200 || t < kMse.t) {
+          const s2 = this.sigma(`${key}~2`), s3 = this.sigma(`${key}~3`), D = this.d23.get(key)?.d;
+          kMse = { k: D === undefined || s3 === 0 ? 1 : Math.max(0, 1 - (s3 * s3) / Math.max(D, s2 * s2 + s3 * s3)), t };
+          this.kMse.set(key, kMse);
+        }
+        const target = Math.min(kMse.k, this.blendTarget(a, s, w, t));
         k = prev ? prev.k + (1 - Math.exp(-Math.max(0, t - prev.t) / 300)) * (target - prev.k) : target;
         this.kBlend.set(key, { k, t });
       }
       return Number.isFinite(v2) ? (1 - k) * v2 + k * v3 : v3;
     };
     const side = 'side' in a ? a.side ?? 'auto' : 'auto';
-    if (a.kind === 'spread' || (a.kind === 'segment' && (a.segment === 'shoulders' || a.segment === 'hips'))) return { value: val('left') };
+    const tilt = a.kind === 'segment' && a.ref === 'horizontal', out = (x: number) => (tilt ? { value: Math.abs(x), signed: x } : { value: x });
+    if (a.kind === 'spread' || (a.kind === 'segment' && (a.segment === 'shoulders' || a.segment === 'hips'))) return out(val('left'));
     if (side === 'both' || side === 'flexed' || side === 'extended') {
       // One side occluded (any point of its chain below 0.5, MediaPipe's own presence cut): use the other side only. An
       // occluded limb is a guess, often collapsed onto the near one, so it must not set a min/max or an average. (A chain
       // mean let a mostly occluded far leg in on ≈ 8 % of frames — beyond what a p95 − p5 range trims.)
-      const cv = (s: 'left' | 'right') => Math.min(...this.chains({ ...a, side: s } as AngleDef)[0]!.map((i) => p[i]?.v ?? 0));
+      // A point below 0.5 within the last GAP_MS is still a guess: visibility is redrawn every frame, so a far knee
+      // hovering near 0.5 (a slightly turned athlete) would otherwise flicker its collapsed guess into the min or mean.
+      const cv = (s: 'left' | 'right') => Math.min(...this.chains({ ...a, side: s } as AngleDef)[0]!.map((i) => (t - (this.visLowT.get(i) ?? -Infinity) <= GAP_MS ? 0 : p[i]?.v ?? 0)));
       const lv = cv('left'), rv = cv('right'), occ = FILTER.minVisibility;
-      if (lv < occ !== rv < occ) return { value: val(lv < occ ? 'right' : 'left') };
-      const l = val('left'), r = val('right');
+      // An averaged angle with a clear visibility gap between its sides (> 0.15, the side choice's hysteresis): the darker
+      // side is a partial guess and its error would bias the mean, so the seen side alone (a turned athlete's far arm).
+      if (lv < occ !== rv < occ || (gap && side === 'both' && Math.abs(lv - rv) > 0.15)) {
+        const s = lv < rv ? 'right' : 'left', v = Math.abs(val(s));
+        // Flexed/extended name a role, not a side: when the unseen side's guess is clearly the one the role picks (by
+        // > 30°, ≈ 3× a guessed limb's angle error), the seen side is the other joint (a turned warrior's front knee read
+        // as the back knee): not measurable this frame.
+        if (side !== 'both') { const g = Math.abs(val(s === 'left' ? 'right' : 'left')); if (side === 'flexed' ? g < v - 30 : g > v + 30) return { value: NaN }; }
+        return { value: v, [s]: v };
+      }
+      const l = Math.abs(val('left')), r = Math.abs(val('right'));
       // ponytail: colours and foreshortening-gates both legs; pick the chosen side's chain if that greys out too much.
       return side === 'both' ? { value: (l + r) / 2, left: l, right: r } : { value: side === 'flexed' ? Math.min(l, r) : Math.max(l, r) };
     }
-    return { value: val(side === 'auto' ? this.side : side) };
+    return out(val(side === 'auto' ? this.side : side));
   }
 
   /**
    * Robust per-series noise (1 SD): 1.4826 × median |residual| (MAD; Hampel 1974, Rousseeuw & Croux 1993) over the last
-   * 90 residuals (≈ 3 s) about a quadratic Savitzky-Golay fit (Savitzky & Golay 1964), ÷ √(1 − h₀), the residual
+   * 3 s and at least 90 residuals (a frame count alone spans 0.75 s at 120 fps: σ̂ then tracks the pose of the moment, not the camera) about a quadratic Savitzky-Golay fit (Savitzky & Golay 1964), ÷ √(1 − h₀), the residual
    * variance factor for white noise. The median ignores 1–2 frame glitches (left/right swaps, occluded-limb collapses),
    * which a mean of |residual| turned into 20–30° 'noise' allowances that hid a different exercise. The SG quadratic is
    * exact for cubics at its centre, so smooth motion barely leaks in (≈ 0.6 % of a 2.5 Hz swing's amplitude). 5 points on raw angles (white jitter); 9 points (`wide`) on the filtered driver, whose noise is correlated —
@@ -980,19 +1043,17 @@ export class MotionSession {
     this.noiseBuf.set(key, b);
     // Skip windows spanning a tracking gap: steps up to 100 ms each (≥ 10 fps), so 15 fps still gets an estimate.
     if (b.length < n || b[n - 1]![0] - b[0]![0] > (n - 1) * 100) return;
-    const y = b.map((x) => x[1]);
-    // Quadratic SG smoothing weights: 5-point (−3 12 17 12 −3)/35, 9-point (−21 14 39 54 59 54 39 14 −21)/231.
-    const w = wide ? [-21, 14, 39, 54, 59, 54, 39, 14, -21].map((k) => k / 231) : [-3, 12, 17, 12, -3].map((k) => k / 35);
-    const c = y[n >> 1]!, fit = y.reduce((a, yi, i) => a + w[i]! * yi, 0);
+    const w = wide ? SG9 : SG5;
+    const c = b[n >> 1]![1], fit = b.reduce((a, yi, i) => a + w[i]! * yi[1], 0);
     const rs = this.noiseRes.get(key) ?? [];
-    rs.push(Math.abs(c - fit)); if (rs.length > 90) rs.shift();
+    rs.push([t, Math.abs(c - fit)]); while (rs.length > 90 && rs[0]![0] <= t - 3000) rs.shift();
     this.noiseRes.set(key, rs);
     this.noiseSd.delete(key); this.noiseK.set(key, 1.4826 / Math.sqrt(1 - w[n >> 1]!));
   }
   /** σ̂, computed on demand (a median per series per frame is the harness's main cost) and cached until the next residual. */
   private sigma(key: string): number {
     let v = this.noiseSd.get(key);
-    if (v === undefined) { const rs = this.noiseRes.get(key); v = rs?.length ? this.noiseK.get(key)! * median(rs) : 0; this.noiseSd.set(key, v); }
+    if (v === undefined) { const rs = this.noiseRes.get(key); v = rs?.length ? this.noiseK.get(key)! * median(rs.map((r) => r[1])) : 0; this.noiseSd.set(key, v); }
     return v;
   }
 
@@ -1060,7 +1121,7 @@ export class MotionSession {
     const rCount = Math.max(0.4 * rCat, 3.3 * Math.max(this.sigma(rule.driver), this.repNoise), sx);
     this.runMax = Math.max(this.runMax, x);
     if (x > this.envMax) { this.envMax = x; this.envMaxT = t; }
-    this.envMin = Math.min(this.envMin, x);
+    if (x < this.envMin) { this.envMin = x; this.envMinT = t; }
     const keep3 = (xs: number[], y: number) => { xs.push(y); if (xs.length > 3) xs.shift(); };
     // Until three crests exist, the latest one is the top (adapts after one rep); then their median (robust to one outlier).
     const band = () => {
@@ -1071,7 +1132,7 @@ export class MotionSession {
     };
     if (this.lookCrest && x < this.envMax - rMin) {
       const b = band(), uCrest = (this.envMax - (b.hi - b.R)) / b.R;
-      keep3(this.crests, this.envMax); this.envMin = x; this.lookCrest = false;
+      keep3(this.crests, this.envMax); this.envMin = x; this.envMinT = t; this.lookCrest = false;
       // Stall fallback: the state machine is still 'down' with its extreme latched, but the athlete has already come back
       // up to a crest and left it — the top was lower than the bootstrap guess (e.g. a start pose taller than the rep
       // top). The excursion between that rep's start and this crest is the rep: complete it at the crest. Only when the
@@ -1085,7 +1146,7 @@ export class MotionSession {
         this.completeRep(this.envMaxT, s, target);
         this.topPeak = this.envMax; this.repReady = true; // the next rep starts from that crest
       }
-    } else if (!this.lookCrest && x > this.envMin + rMin) { keep3(this.troughs, this.envMin); this.envMax = x; this.envMaxT = t; this.lookCrest = true; }
+    } else if (!this.lookCrest && x > this.envMin + rMin) { keep3(this.troughs, this.envMin); keep3(this.troughT, this.envMinT); this.envMax = x; this.envMaxT = t; this.lookCrest = true; }
     const { hi, R } = band();
     // Measured from the top: when the noise floor widens R past hi − lo, the band grows downward, never above hi.
     const u = Math.max(0, Math.min(1, (x - (hi - R)) / R));
@@ -1112,7 +1173,7 @@ export class MotionSession {
         this.repStart = h.length ? h[j]!.t : this.lastTop || t;
         this.extreme = x; this.extremeT = t; this.extremeSnap = { ...v }; this.extremeFs = fs;
         this.repActive = this.def.checks.map(() => ({ good: 0, ok: 0, bad: 0, sum: 0, n: 0 }));
-        for (const q of PROBES) this.probeVals[q] = [];
+        this.probeVals = { knee: [], hip: [], elbow: [], shoulder: [] };
         this.planes = []; this.trunkSum = 0; this.repFrames = 0; this.shortCount = {};
         this.sampleProbes(h[h.length - 1]);
       }
@@ -1135,7 +1196,7 @@ export class MotionSession {
   /** Accumulate the movement signature for the rep in progress (side facing the camera). */
   private sampleProbes(f: Frame | undefined): void {
     if (!f) return;
-    for (const q of PROBES) { const a = f.pr[`~${q}`]; if (a !== undefined) this.probeVals[q].push(a); }
+    for (const k of Object.keys(f.pr)) if (k !== '~trunk') (this.probeVals[k.slice(1)] ??= []).push(f.pr[k]!);
     if (f.pl !== undefined) this.planes.push(f.pl);
     this.trunkSum += f.pr['~trunk'] ?? 0;
     this.repFrames++;
@@ -1143,10 +1204,11 @@ export class MotionSession {
   }
 
   /** Signature from accumulated samples (ROM = p95 − p5, plane = median), with this camera's probe noise. */
-  private sigOf(vals: Record<Probe, number[]>, planes: number[], trunk: number, short: Partial<Record<SegKey, number>>, n: number): RepSignature {
+  private sigOf(vals: Record<string, number[]>, planes: number[], trunk: number, short: Partial<Record<SegKey, number>>, n: number): RepSignature {
     return {
-      rom: Object.fromEntries(PROBES.map((q) => [q, range90(vals[q])])) as Record<Probe, number>,
-      pose: Object.fromEntries(PROBES.map((q) => [q, vals[q].length ? median(vals[q]) : NaN])) as Record<Probe, number>,
+      rom: Object.fromEntries(PROBES.map((q) => [q, range90(vals[q]!)])) as Record<Probe, number>,
+      romMax: Object.fromEntries(PROBES.map((q) => [q, Math.max(range90(vals[q]!), range90(vals[`${q}:left`] ?? []), range90(vals[`${q}:right`] ?? []))])) as Record<Probe, number>,
+      pose: Object.fromEntries(PROBES.map((q) => [q, vals[q]!.length ? median(vals[q]!) : NaN])) as Record<Probe, number>,
       trunk: trunk / Math.max(1, n),
       outOfPlane: Object.fromEntries((Object.keys(SEGMENTS) as SegKey[]).map((g) => [g, (short[g] ?? 0) / Math.max(1, n)])) as Record<SegKey, number>,
       ...(planes.length ? { plane: median(planes) } : {}),
@@ -1242,7 +1304,11 @@ export class MotionSession {
     if (this.checkMovement) {
       const why = movementMismatch(this.def, sig, referenceSignature(this.def));
       if (why) {
-        // A different movement: don't count it, and tell the athlete right away.
+        // A different movement: don't count it, and tell the athlete right away. Its trough may only make counting
+        // stricter: one shallower than the catalog range below the rep's top is dropped from the athlete's band (lo), or a
+        // jerk's dips set a squat's depth and its shallow last dip then counted as a squat.
+        const rCat = s * rule.exit - s * rule.target;
+        for (let i = this.troughT.length - 1; i >= 0; i--) if (this.troughT[i]! >= this.repStart && this.troughs[i]! > this.repTop - rCat) { this.troughs.splice(i, 1); this.troughT.splice(i, 1); }
         this.flagMismatch(t, why);
         return;
       }
@@ -1312,15 +1378,28 @@ export class MotionSession {
       const pts = (f: Frame) => (world ? f.wr! : f.rp);
       const det = (f: Frame) => (world ? f.w! : f.pts);
       const bodyH = (world ? this.bodyHMaxW : this.bodyHMax) / 0.8 || 1;
-      // Monocular depth is the noisiest world axis: weight it by σ̂_xy/σ̂_z (≤ 1), i.e. whiten the axes to the in-plane
-      // noise (inverse-SD weighting), so z jitter can't fake or bury the speed peak. σ̂ from the raw shoulders.
-      const wr = h[n - 1]!.wr;
-      if (wr) for (const [i, k] of [[L.shoulder, 'l'], [R.shoulder, 'r']] as const) { this.noise(`~w${k}x`, t, wr[i]!.x); this.noise(`~w${k}z`, t, wr[i]!.z ?? 0); }
-      const sxy = this.sigma('~wlx') + this.sigma('~wrx'), sz = this.sigma('~wlz') + this.sigma('~wrz');
-      const wz = world && sz > 0.02 ? Math.min(1, Math.max(sxy, 0.01) / sz) : 1;
+      // Noise SD of a lag-k depth displacement of the detection points: 1.4826 × median |z(t) − z(t − k)| over the last 90
+      // frames (MAD; Rousseeuw & Croux 1993), so slow depth drift counts, not just jitter; of the noisier shoulder, since
+      // a far (occluded, guessed) side carries more and either wrist may be the one that peaks.
+      const lagSd = (k: number) => Math.max(...[L.shoulder, R.shoulder].map((i) => {
+        const r: number[] = [];
+        for (let j = Math.max(k, n - 90); j < n; j++) r.push(Math.abs((det(h[j]!)[i]!.z ?? 0) - (det(h[j - k]!)[i]!.z ?? 0)));
+        return r.length ? 1.4826 * median(r) : 0;
+      }));
+      // Monocular depth is the noisiest world axis. A depth displacement d is firm-shrunk against that noise σ̂ (Gao &
+      // Bruce 1997): 0 below 3σ̂, d itself above 5σ̂, linear between, so z jitter can't fake or bury a peak while a punch
+      // or throw turned into depth keeps its true size against the physical speed and travel gates (the old σ̂_xy/σ̂_z
+      // scaling shrank a 45–90°-turned punch below them). Lag-2 σ̂ refreshed every 200 ms.
+      if (world && !(t - this.sz2T < 200 && t >= this.sz2T)) { this.sz2 = lagSd(2); this.sz2T = t; }
+      // A point below MediaPipe's 0.5 presence cut at either end is a guess whose depth jumps when it collapses onto its
+      // near-side counterpart (side-on, mostly a depth step): its displacement is taken in the image plane only.
+      const wz = (u: P, v: P, sd: number) => {
+        const d = (v.z ?? 0) - (u.z ?? 0), r = sd > 0 ? Math.abs(d) / sd : Infinity;
+        return Math.min(u.v, v.v) < FILTER.minVisibility || r <= 3 ? 0 : r >= 5 ? d : (d * 5 * (r - 3)) / (2 * r);
+      };
       const a = det(h[n - 3]!), b = det(h[n - 1]!), dt = (h[n - 1]!.t - h[n - 3]!.t) / 1000;
       if (dt <= 0) return;
-      const speedOf = (i: number) => Math.hypot(b[i]!.x - a[i]!.x, b[i]!.y - a[i]!.y, wz * ((b[i]!.z ?? 0) - (a[i]!.z ?? 0))) / dt / bodyH;
+      const speedOf = (i: number) => Math.hypot(b[i]!.x - a[i]!.x, b[i]!.y - a[i]!.y, wz(a[i]!, b[i]!, world ? this.sz2 : 0)) / dt / bodyH;
       const wrist = speedOf(L.wrist) > speedOf(R.wrist) ? L.wrist : R.wrist;
       const sp = speedOf(wrist);
       const tk = h[n - 2]!.t;
@@ -1353,7 +1432,8 @@ export class MotionSession {
         const o = onset();
         if (!o) return true;
         const p0 = det(o.f0)[this.speedPeakWrist]!, p1 = det(h[n - 1]!)[this.speedPeakWrist]!;
-        const travel = Math.hypot(p1.x - p0.x, p1.y - p0.y, wz * ((p1.z ?? 0) - (p0.z ?? 0))) / bodyH;
+        const k = Math.max(1, n - 1 - h.indexOf(o.f0));
+        const travel = Math.hypot(p1.x - p0.x, p1.y - p0.y, wz(p0, p1, world ? lagSd(k) : 0)) / bodyH;
         return tk - o.t0 <= 540 && travel >= 0.2;
       };
       if (this.speedPeak >= 1.5 && sp < 0.55 * this.speedPeak && h[this.speedPeakFrame]!.t - this.lastEventT > 1200) {
@@ -1516,8 +1596,8 @@ export class MotionSession {
     this.previousTracked = false;
     this.repState = 'top'; this.repReady = false; this.repActive = []; this.topPeak = -Infinity; this.lastTop = 0;
     this.drv = []; this.runMax = -Infinity; this.topAcc = 0; this.topT = NaN; this.envMax = -Infinity; this.envMin = Infinity; this.lookCrest = true;
-    this.crests = []; this.troughs = []; this.reached = false;
-    this.worldFilters.clear(); this.kBlend.clear(); this.dzEma.clear(); this.lastGood.clear(); this.holdBuf.clear(); this.inPosT = NaN;
+    this.crests = []; this.troughs = []; this.troughT = []; this.reached = false;
+    this.worldFilters.clear(); this.kBlend.clear(); this.dzEma.clear(); this.d23.clear(); this.kMse.clear(); this.lastGood.clear(); this.visLowT.clear(); this.holdBuf.clear(); this.inPosT = NaN;
     this.holdRun = 0; this.holdWinStart = NaN; this.holdWinMs = 0; this.holdWinHeld = 0;
     this.holdWinFrames = 0; this.holdEntries = 0; this.wasOut = true; this.heldTs.clear(); this.prevWin = { start: NaN, entries: 0, ms: 0, best: 0, cycled: false };
     this.bestBeforeWin = this.bestHold;
@@ -1605,6 +1685,7 @@ export class MotionSession {
   // -------------------------------------------------------------------------
 
   finish(): SessionReport {
+    if (process.env.DBG && (this as any).dbgBad) { const g = (this as any).dbgBad; console.log('HOLDBAD', this.def.id, Object.entries(g).map(([k, v]) => Array.isArray(v) ? `${k}=${(v as number[]).filter((_, i) => i % 15 === 0).slice(0, 12).join(',')}` : `${k}:${v}`).join(' ')); }
     this.flushRelease();
     if (this.def.mode === 'hold' && this.lastTrackedT - this.holdWinStart >= 1000) this.stepHoldWindow(this.lastTrackedT, false, 0, true);
     const def = this.def;
