@@ -39,7 +39,7 @@ describe('movement check (wrong exercise)', () => {
 
   it('never flags any of the 90 exercises performed as defined', () => {
     for (const d of EXERCISES) expect(session(d.id, simulateExercise(d)).mismatched, d.id).toHaveLength(0);
-  }, 30_000); // simulates and scores the whole catalog
+  }, 60_000); // simulates and scores the whole catalog (~17 s alone, >30 s when the suite runs in parallel)
 
   it('holds: squats while a plank is selected are flagged and get no hold time', () => {
     const r = session('plank', simulateExercise(exerciseById('back-squat')!));
