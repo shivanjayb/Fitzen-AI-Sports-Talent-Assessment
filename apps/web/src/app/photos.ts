@@ -30,6 +30,8 @@ const TALL = ['tree-pose', 'chair-pose', 'mountain-pose', 'triangle-pose', 'warr
 export interface Photo { frames: string[]; credit: string; href: string; tall: boolean }
 
 export function photoOf(id: string): Photo | null {
+  // The vendored squat photo shows a barbell; use the equipment-correct demonstrator.
+  if (id === 'bodyweight-squat') return null;
   const n = TWO.includes(id) ? 2 : ONE.includes(id) || COMMONS[id] ? 1 : 0;
   if (!n) return null;
   const frames = Array.from({ length: n }, (_, i) => `/exercises/${id}-${i}.jpg`);

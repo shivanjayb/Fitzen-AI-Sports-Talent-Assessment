@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 import './app/glass.css';
+import './app/quiet.css';
 import { isLowEndDevice } from './pose/poseSource';
 import { languageReady } from './app/language';
 

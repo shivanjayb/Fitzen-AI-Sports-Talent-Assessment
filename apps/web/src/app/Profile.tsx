@@ -1,3 +1,4 @@
+import { purgeWellnessRecords } from './wellnessStore';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { assessDiet, maturityOffset, type DietPattern } from '@fitzen/engines';
@@ -57,7 +58,7 @@ export default function Profile() {
           <label className="field"><span>{t("State")}</span><select value={p.state} onChange={(e) => setP({ ...p, state: e.target.value })}><option value="">{t("Choose…")}</option>{INDIAN_STATES.map((x) => <option key={x}>{x}</option>)}</select></label>
         </div>
         <label className="field"><span>{t("Main sport")}</span><input value={p.sport} placeholder={t("e.g. athletics, kabaddi, hockey")} onChange={(e) => setP({ ...p, sport: e.target.value })} /></label>
-        <p className="faint" style={{ margin: 0, fontSize: '.8rem' }}>{t("Used for your BMI, diet targets, norms and growth estimates. Everything stays on this device.")}</p>
+        <p className="faint" style={{ margin: 0, fontSize: '.8rem' }}>{t("Used for your BMI, diet targets, norms and growth estimates. Saved on this device and privately backed up when you sign in.")}</p>
       </section>
 
       <h2 className="section-title">{t("Training & sleep")}</h2>
@@ -255,9 +256,10 @@ function Account({ p }: { p: P }) {
         }}>{t("Import my guest sessions")}</button>
         <div className="row" style={{ flexWrap: 'wrap' }}>
           <button className="btn danger" disabled={busy} onClick={() => {
-            if (!confirm('Delete your account data? Your uploaded scores, synced reports, groups you own and memberships are removed. Sessions on this phone stay.')) return;
+            if (!confirm('Delete your account data? Your wellness records, uploaded scores, synced reports, groups you own and memberships are removed. Assessment sessions on this phone stay.')) return;
             void run(async () => {
               // Synced sessions and the profile copy belong to the login, not the public profile: remove them too.
+              await purgeWellnessRecords();
               for (const t of ['sessions', 'athlete_data'] as const) { const { error } = await supabase!.from(t).delete().eq('user_id', user.id); if (error) throw error; }
               const { error } = await supabase!.from('profiles').delete().eq('id', user.id);
               if (error) throw error;

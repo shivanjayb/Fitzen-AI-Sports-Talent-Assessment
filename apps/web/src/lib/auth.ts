@@ -2,7 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 /** Only known app routes may be a post-login destination. Never accept an external URL. */
 export function authDestination(value: string | null): string {
-  if (!value || !/^\/(app|profile|progress|history|compete|guided|validation|consent|coach|admin)(?:[?#]|$)/.test(value) || /[\\\r\n]/.test(value)) return '/profile';
+  if (!value || !/^\/(home|app|profile|progress|history|compete|guided|validation|consent|coach|admin|recovery|vitals|sleep|body|nutrition|journal|blood-records|integrations)(?:[?#]|$)/.test(value) || /[\\\r\n]/.test(value)) return '/profile';
   return value;
 }
 
