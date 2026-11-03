@@ -1,0 +1,76 @@
+/* Sleep page (spec 07-sleep.md): dark "Last night" hero spanning 2 cols, night goals card, light tiles. */
+.x-sleep-grid { display: grid; gap: var(--x-gap); grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: minmax(498px, auto); grid-auto-rows: minmax(280px, auto); }
+.x-sleep-grid > .x-card { padding: 22px; }
+.x-sleep-grid .x-mini-plot { min-height: 76px; }
+.x-sleep-muted { color: var(--x-on-dark-2); }
+.x-sleep-empty { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; margin-top: 14px; }
+.x-sleep-hint { margin-top: 10px; font-size: 13px; color: var(--x-on-dark-2); }
+
+/* hero */
+.x-sleep-grid > .x-sleep-hero { grid-column: span 2; }
+.x-sleep-hero-body { display: grid; grid-template-columns: 374px minmax(0, 1fr); gap: 32px; margin-top: 18px; flex: 1; }
+.x-sleep-hero-main { display: flex; flex-direction: column; min-width: 0; }
+.x-sleep-hero .x-stat { margin-top: 0; }
+.x-sleep-hero .x-stat b { letter-spacing: -2.88px; }
+.x-sleep-hero-main > .x-caption { margin-top: 8px; }
+.x-sleep-stage-bar { display: flex; gap: 3px; height: 10px; margin-top: 24px; }
+.x-sleep-stage-bar i { border-radius: 3px; flex-basis: 0; }
+.x-sleep-stage-list { list-style: none; margin: 6px 0 0; padding: 0; }
+.x-sleep-stage-list li { display: grid; grid-template-columns: 8px 1fr auto; gap: 10px; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--x-dark-line); }
+.x-sleep-stage-list i { width: 8px; height: 8px; border-radius: 50%; }
+.x-sleep-stage-list span { font-size: 13px; color: var(--x-on-dark-2); }
+.x-sleep-stage-list b { font-size: 17px; line-height: 25.5px; font-weight: 300; font-variant-numeric: tabular-nums; }
+.x-sleep-stage-list b small { font-size: 12px; color: var(--x-on-dark-2); margin-left: 3px; }
+.x-sleep-chart { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.x-sleep-vplot { position: relative; display: block; flex: 1; min-height: 260px; }
+.x-sleep-vplot svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.x-sleep-vscale { display: flex; justify-content: space-between; font-size: 12px; color: var(--x-on-dark-2); font-variant-numeric: tabular-nums; }
+.x-sleep-hero-foot { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--x-dark-line); font-size: 12px; color: var(--x-on-dark-2); }
+.x-sleep-hero-foot b { font-weight: 500; color: var(--x-on-dark); }
+
+/* goals */
+.x-sleep-change.x-btn { background: #ffffff14; box-shadow: inset 0 0 0 1px #ffffff1a; color: var(--x-on-dark) !important; }
+.x-sleep-change.x-btn:hover { background: #ffffff24; }
+.x-sleep-goal-list { list-style: none; margin: 18px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.x-sleep-goal-list li { min-height: 58px; border-radius: var(--x-radius-row); background: linear-gradient(#f3f3f1, #dededa); color: var(--x-ink);
+  padding: 9px 16px; display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.x-sleep-goal-list li > span:first-child { display: flex; flex-direction: column; min-width: 0; }
+.x-sleep-goal-list li > span:first-child b { font-size: 13px; line-height: 16.9px; font-weight: 500; }
+.x-sleep-goal-list li > span:first-child small { font-size: 12px; color: var(--x-ink-2); }
+.x-sleep-goal-value { white-space: nowrap; }
+.x-sleep-goal-value b { font-size: 24px; line-height: 36px; font-weight: 300; letter-spacing: -.72px; font-variant-numeric: tabular-nums; }
+.x-sleep-goal-value small { font-size: 13px; color: var(--x-ink-2); margin-left: 3px; }
+.x-sleep-goal-chart { padding-top: 24px; display: flex; flex-direction: column; gap: 10px; margin-top: auto; }
+.x-sleep-goal-title { font-size: 12px; color: var(--x-on-dark-2); }
+.x-sleep-goal-bars { position: relative; height: 104px; display: flex; align-items: flex-end; justify-content: flex-end; gap: 6px; margin-top: 8px; }
+.x-sleep-goal-bars i { flex: 1 1 0; max-width: 28px; border-radius: 4px 4px 2px 2px; background: #ffffff26; transform-origin: bottom; animation: x-sleep-grow .5s var(--x-ease) both; }
+.x-sleep-goal-bars i.met { background-image: var(--x-accent-fill); }
+.x-sleep-goal-line { position: absolute; left: 0; right: 0; border-top: 1px dashed #ffffffb3; pointer-events: none; }
+.x-sleep-goal-line b { position: absolute; right: 0; bottom: 4px; font-size: 12px; font-weight: 500; padding: 1px 7px; border-radius: 999px; background: #1c1f1dcc; white-space: nowrap; }
+.x-sleep-goal-scale { display: flex; justify-content: space-between; font-size: 12px; color: var(--x-on-dark-2); }
+.x-legend i.x-sleep-goal-key { background: #ffffff4d; }
+@keyframes x-sleep-grow { from { transform: scaleY(0); } to { transform: none; } }
+
+/* dialogs */
+.x-sleep-dialog-lede { color: var(--x-ink-2); margin-bottom: 16px; }
+.x-sleep-error { margin-top: 12px; font-size: 13px; color: var(--x-red-deep); }
+.x-sleep-dialog-foot { align-items: center; justify-content: space-between; padding-top: 16px; border-top: 1px solid var(--x-line); }
+.x-sleep-dialog-foot span { font-size: 12px; color: var(--x-ink-3); }
+
+/* Fitzen: sleep and performance (coming soon) */
+.x-sleep-grid > .x-sleep-perf { grid-column: 1 / -1; min-height: 0; }
+.x-sleep-perf-line { display: flex; gap: 10px; align-items: center; margin-top: 12px; color: var(--x-ink-2); }
+.x-sleep-perf-line svg { width: 18px; height: 18px; flex: none; color: var(--x-accent-deep); }
+
+@media (max-width: 1180px) {
+  .x-sleep-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .x-sleep-hero-body { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+}
+@media (max-width: 760px) {
+  .x-sleep-grid { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; grid-auto-rows: minmax(240px, auto); }
+  .x-sleep-grid > .x-sleep-hero { grid-column: auto; }
+  .x-sleep-hero .x-card-head { flex-wrap: wrap; }
+  .x-sleep-hero-body { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+  .x-sleep-vplot { min-height: 200px; }
+}

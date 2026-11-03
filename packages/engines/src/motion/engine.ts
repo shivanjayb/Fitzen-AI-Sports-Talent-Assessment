@@ -732,7 +732,7 @@ export class MotionSession {
         // can't unfold for slow, correlated error such as an occluded far hip's), then unfolded as above with the
         // median's own standard error, √(π/2)·σ̂/√n (asymptotic, normal samples; Kenney & Keeping 1962). Others as above.
         const m = median(win.map((b) => b[1])), sm = (1.2533 * sg) / Math.sqrt(win.length);
-        if (zoneOf(signed[c.angle] === undefined ? unfold(m) : c.ok[0] <= 0 ? Math.sqrt(Math.max(0, m * m - sm * sm)) : Math.abs(m), c.good, ok) === 'bad') { inPos = false; if (process.env.DBG) { const g = ((this as any).dbgBad ??= {}); g[c.angle] = (g[c.angle] ?? 0) + 1; (g[c.angle + ':v'] ??= []).push(Math.round(m * 10) / 10); } }
+        if (zoneOf(signed[c.angle] === undefined ? unfold(m) : c.ok[0] <= 0 ? Math.sqrt(Math.max(0, m * m - sm * sm)) : Math.abs(m), c.good, ok) === 'bad') { inPos = false; }
         if (zoneOf(unfold(v), c.good, ok) === 'bad') inPosNow = false;
       }
       const holding = holdIdx.length > 0 && measured >= Math.max(1, Math.ceil(holdIdx.length / 2)) && inPos;
@@ -1685,7 +1685,6 @@ export class MotionSession {
   // -------------------------------------------------------------------------
 
   finish(): SessionReport {
-    if (process.env.DBG && (this as any).dbgBad) { const g = (this as any).dbgBad; console.log('HOLDBAD', this.def.id, Object.entries(g).map(([k, v]) => Array.isArray(v) ? `${k}=${(v as number[]).filter((_, i) => i % 15 === 0).slice(0, 12).join(',')}` : `${k}:${v}`).join(' ')); }
     this.flushRelease();
     if (this.def.mode === 'hold' && this.lastTrackedT - this.holdWinStart >= 1000) this.stepHoldWindow(this.lastTrackedT, false, 0, true);
     const def = this.def;

@@ -1,0 +1,54 @@
+/* Vitals page (spec 03-vitals.md): 3-col grid, dark Recovery hero spanning 2x2, light tiles. */
+.x-vitals-grid { display: grid; gap: var(--x-gap); grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(317.5px, auto)); grid-auto-rows: minmax(280px, auto); }
+.x-vitals-grid > .x-card { padding: 22px; }
+.x-vitals-grid .x-mini-plot { min-height: 76px; }
+.x-vitals-grid .x-vitals-tall .x-mini-plot { min-height: 114px; }
+.x-vitals-empty { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; margin-top: 14px; }
+
+/* hero */
+.x-vitals-grid > .x-vitals-hero { grid-column: span 2; grid-row: span 2; padding: 26px; }
+.x-vitals-muted { color: var(--x-on-dark-2); }
+.x-vitals-hero .x-stat { gap: 6px; margin-top: 18px; }
+.x-vitals-hero .x-stat b { letter-spacing: -3.24px; }
+.x-vitals-hero .x-stat small { font-size: 18px; }
+.x-vitals-hero > .x-caption { margin-top: 8px; }
+.x-vitals-trend { margin-top: 24px; padding-left: 44px; display: flex; flex-direction: column; gap: 10px; }
+.x-vitals-plot { position: relative; height: 204px; border-radius: 12px; box-shadow: inset 0 0 0 1px #ffffff1f; }
+.x-vitals-plot svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.x-vitals-axis { position: absolute; left: -44px; width: 36px; text-align: right; transform: translateY(-50%);
+  font-size: 12px; font-variant-numeric: tabular-nums; color: var(--x-on-dark); }
+.x-vitals-now { position: absolute; width: 10px; height: 10px; border-radius: 50%; background: var(--x-accent);
+  box-shadow: 0 0 0 4px #ff6a1a40; transform: translate(-50%, -50%); }
+.x-vitals-dates { position: relative; height: 18px; font-size: 12px; color: var(--x-on-dark-2); white-space: nowrap; }
+.x-vitals-dates span { position: absolute; top: 0; transform: translateX(-50%); }
+.x-vitals-dates span:last-child { transform: translateX(-100%); }
+.x-vitals-legend { margin-top: 16px; }
+.x-legend i.x-vitals-band-key { width: 14px; height: 8px; border-radius: 2px;
+  background: repeating-linear-gradient(90deg, #ffffff66 0 1px, transparent 1px 3px); }
+.x-vitals-cells { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 18px -26px 0; border-top: 1px solid var(--x-dark-line); }
+.x-vitals-cells > span { display: flex; flex-direction: column; gap: 4px; padding: 18px 26px 0; }
+.x-vitals-cells > span + span { border-left: 1px solid var(--x-dark-line); }
+.x-vitals-cells small { font-size: 12px; color: var(--x-on-dark-2); }
+.x-vitals-cells b { font-size: 26px; line-height: 39px; font-weight: 300; letter-spacing: -.78px; font-variant-numeric: tabular-nums; }
+.x-vitals-cells b small { font-size: 13px; letter-spacing: 0; margin-left: 4px; }
+.x-vitals-foot { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--x-dark-line); font-size: 12px; color: var(--x-on-dark-2); }
+.x-vitals-foot b { font-weight: 500; color: var(--x-on-dark); }
+
+/* Fitzen: heart rate from training (coming soon) */
+.x-vitals-train-body { display: flex; gap: 14px; align-items: flex-start; margin-top: 18px; }
+.x-vitals-train-icon { width: 44px; height: 44px; border-radius: 14px; flex: none; display: grid; place-items: center; background: var(--x-accent-soft); color: var(--x-accent-deep); }
+.x-vitals-train-icon svg { width: 22px; height: 22px; }
+.x-vitals-train-body p { display: flex; flex-direction: column; gap: 6px; }
+.x-vitals-train-body b { font-weight: 500; font-size: 14px; }
+.x-vitals-train-body span { font-size: 13px; color: var(--x-ink-2); }
+
+@media (max-width: 1180px) { .x-vitals-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 760px) {
+  .x-vitals-grid { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; grid-auto-rows: minmax(240px, auto); }
+  .x-vitals-grid > .x-vitals-hero { grid-column: auto; grid-row: auto; padding: 22px; }
+  .x-vitals-cells { margin: 18px -22px 0; }
+  .x-vitals-cells > span { padding: 16px 14px 0; }
+  /* Xeyo's 5 date labels collide at phone width; keep first, middle and last. */
+  .x-vitals-dates span:nth-child(2), .x-vitals-dates span:nth-child(4) { display: none; }
+}

@@ -1,0 +1,86 @@
+/* Restyle-only bridge: older pages (Exercise, Results, History, Progress, Compete, Guided, Coach) rendered inside the
+   Fitzen shell pick up the Xeyo look by remapping their glass.css/quiet.css tokens, then tuning a few shared parts. */
+.x {
+  color-scheme: light;
+  --font: 'DM Sans', system-ui, sans-serif; --display: var(--font); --rounded: var(--font);
+  --bg: var(--x-frame); --bg-2: #fff; --bg-3: var(--x-well); --bg-4: var(--x-line-strong);
+  --text: var(--x-ink); --text-2: var(--x-ink-2); --text-3: var(--x-ink-3); --sep: var(--x-line); --fill: var(--x-well);
+  --accent: var(--x-accent-deep); --accent-ink: #fff; --accent-2: #3d6f9e;
+  --cta: var(--x-ink); --cta-ink: #fff;
+  --move: var(--x-accent); --exercise: #4f7f2a; --stand: var(--x-blue); --yellow: #9a6b00;
+  --good: #267347; --ok: #9a5b00; --bad: var(--x-red-deep);
+  --glass: #fff; --glass-strong: var(--x-line-strong);
+  --material: #ffffffdb; --material-thick: #fffffff2;
+  --glass-rim: inset 0 1px 0 #fff, inset 0 0 0 1px #ffffffa6; --shadow-glass: 0 1px 2px #0000000a, 0 10px 30px -14px #00000024;
+  --shadow-sheet: var(--x-shadow-pop); --scrim: #16161633;
+  --r-sm: 10px; --r-md: 14px; --r-lg: 20px; --r-xl: 28px;
+  --ease: var(--x-ease);
+}
+
+/* layout: the shell already pads the frame */
+.x .page { max-width: none; margin: 0; padding: 0 0 40px; animation: x-enter .35s var(--x-ease) both; }
+.x .page-head { margin-bottom: 20px; padding-top: 0; align-items: flex-end; }
+.x .large-title { font-size: 30px; line-height: 33px; letter-spacing: -.9px; font-weight: 400; }
+.x .large-title::after { display: none; }
+.x .subtitle { color: var(--x-ink-2); font-size: 14px; font-weight: 400; letter-spacing: 0; text-transform: none; margin-top: 6px; }
+.x .section-title { font-size: 18px; line-height: 24px; letter-spacing: -.3px; font-weight: 400; margin: 28px 0 12px; }
+.x .section-title small { font-size: 12px; color: var(--x-ink-3); }
+.x .see-all { color: var(--x-ink-2); font-size: 13px; font-weight: 400; }
+.x .see-all:hover { color: var(--x-ink); text-decoration: underline; }
+.x .back-link { color: var(--x-ink-2); font-size: 13px; min-height: 32px; }
+.x .muted, .x .faint { color: var(--x-ink-2); }
+
+/* surfaces: light glass cards */
+.x .glass, .x .panel, .x .rows, .x .tile, .x .insight, .x .kv > div, .x .empty {
+  background-color: transparent; background-image: var(--x-glass); box-shadow: var(--x-glass-edge); border: 0;
+}
+.x .glass, .x .panel, .x .tile { border-radius: var(--x-radius-card) !important; }
+.x .panel { padding: 20px; }
+.x .list-item { border-radius: var(--x-radius-row) !important; }
+.x .rows { border-radius: var(--x-radius-card); }
+.x .rows > a, .x .rows > button { min-height: 48px; font-size: 14px; }
+.x .rows .ic { border-radius: 50%; background: var(--x-accent-soft); color: var(--x-accent-deep); }
+.x .tile > b { font-weight: 300; font-size: 34px; letter-spacing: -1.5px; }
+.x .empty { border-radius: var(--x-radius-card); padding: 40px 20px; color: var(--x-ink-2); }
+.x .empty .big { background: var(--x-accent-soft); color: var(--x-accent-deep); }
+.x .glassy { -webkit-backdrop-filter: none; backdrop-filter: none; }
+
+/* controls: pill buttons, chips, inputs */
+.x .btn { min-height: 40px; padding: 0 18px; border-radius: 999px; font-size: 14px; font-weight: 450; letter-spacing: 0;
+  background: #fff; color: var(--x-ink); border: 0; box-shadow: inset 0 0 0 1px var(--x-line); filter: none;
+  transition: background .15s ease, transform .15s var(--x-ease); }
+.x .btn:hover { background: var(--x-well); filter: none; }
+.x .btn:active { transform: scale(.97); }
+.x .btn svg { width: 16px; height: 16px; }
+.x .btn.primary { background: var(--x-ink); color: #fff; box-shadow: none; }
+.x .btn.primary:hover { background: #2a2a2a; }
+.x .btn.tint { background-image: var(--x-accent-fill); color: #fff; box-shadow: none; }
+.x .btn.danger { background: var(--x-red); color: #fff; box-shadow: none; }
+.x .btn.icon { width: 40px; height: 40px; min-height: 40px; padding: 0; }
+.x .on-media .btn:not(.primary) { background: #ffffff2e; color: #fff; box-shadow: inset 0 0 0 1px #ffffff40; }
+.x .on-media .btn.primary { background-image: var(--x-accent-fill); color: #fff; }
+.x .chip { min-height: 32px; padding: 0 14px; border-radius: 999px; font-size: 13px; font-weight: 400; letter-spacing: 0;
+  background: #fff; color: var(--x-ink); border: 0; box-shadow: inset 0 0 0 1px var(--x-line); }
+.x .chip:hover { background: var(--x-well); }
+.x .chip.on, .x .chip[aria-pressed='true'] { background: var(--x-ink); color: #fff; box-shadow: none; }
+.x .segmented { background: var(--x-well) !important; border-radius: 999px !important; padding: 3px; }
+.x .segmented button { border-radius: 999px; font-weight: 400; font-size: 13px; }
+.x .segmented button.on { background: var(--x-ink); color: #fff; box-shadow: none; }
+.x .search { background: #fff !important; box-shadow: inset 0 0 0 1px var(--x-line); min-height: 40px; }
+.x .search input { font: 400 14px var(--font); letter-spacing: 0; }
+.x .search:focus-within { box-shadow: inset 0 0 0 1.5px var(--x-accent); }
+.x .field span { font-size: 12px; color: var(--x-ink-2); }
+.x .field input, .x .field select, .x .field textarea, .x .page input[type=date], .x .page textarea {
+  background: var(--x-well); border: 0; border-radius: var(--x-radius-control); font: 400 14px var(--font); letter-spacing: 0; color: var(--x-ink); }
+.x .field input:focus, .x .field select:focus, .x .field textarea:focus, .x .page textarea:focus { background: #fff; box-shadow: inset 0 0 0 1.5px var(--x-accent); outline: 0; }
+
+/* small parts */
+.x .spinner { border-color: var(--x-line); border-top-color: var(--x-accent); }
+.x .tag { border-radius: 6px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.x .grade { font-family: var(--font); font-weight: 400; }
+.x .press:hover { filter: none; }
+
+@media (max-width: 760px) {
+  .x .large-title { font-size: 26px; line-height: 30px; }
+  .x .page-head { flex-wrap: wrap; }
+}

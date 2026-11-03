@@ -1,0 +1,81 @@
+/* Nutrition page (spec 05-nutrition, dialog D3). */
+.x-nutrition-day { display: flex; align-items: center; gap: 6px; height: 40px; padding: 0 6px 0 16px; border-radius: 999px; background: #fff;
+  box-shadow: inset 0 0 0 1px var(--x-line); font-size: 13px; color: var(--x-ink-3); }
+.x-nutrition-day input { height: 30px; padding: 0 10px; border: 0; border-radius: 999px; background: var(--x-well); color: var(--x-ink);
+  font-size: 13px; font-variant-numeric: tabular-nums; outline: 0; }
+.x-nutrition-day input:focus-visible { box-shadow: inset 0 0 0 1.5px var(--x-accent); }
+
+.x-nutrition-grid { display: grid; gap: var(--x-gap); grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-areas: 'chat chat balance' 'chat chat log' 'fuel fuel fuel'; grid-template-rows: minmax(275px, auto) minmax(292px, auto) auto; }
+.x-nutrition-grid .x-card { padding: 22px; }
+.x-nutrition-chat { grid-area: chat; }
+.x-nutrition-balance { grid-area: balance; }
+.x-nutrition-log { grid-area: log; }
+.x-nutrition-fuel { grid-area: fuel; gap: 8px; }
+.x-nutrition-muted { color: var(--x-ink-3); }
+.x-tile.dark .x-nutrition-muted { color: var(--x-on-dark-2); }
+
+/* ---------- composer (AI: coming soon) ---------- */
+.x-nutrition-lead { font-size: 14px; line-height: 22.4px; color: var(--x-ink-2); margin-top: 6px; }
+.x-nutrition-conversation { flex: 1; padding: 6px; display: flex; flex-direction: column; justify-content: flex-end; gap: 12px; min-height: 120px; }
+.x-nutrition-welcome { display: grid; grid-template-columns: 44px 1fr; column-gap: 14px; padding: 4px 2px; align-items: center; }
+.x-nutrition-welcome .x-nutrition-talk { grid-row: span 2; box-shadow: 0 0 0 5px #ff6a1a0d; }
+.x-nutrition-welcome h3 { font-size: 16px; line-height: 20px; letter-spacing: -.32px; align-self: end; }
+.x-nutrition-welcome p { font-size: 13px; line-height: 20.8px; color: var(--x-ink-3); align-self: start; }
+.x-nutrition-talk { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; flex: none; }
+.x-nutrition-talk .x-orb { width: 34px; height: 34px; }
+.x-nutrition-talk.is-small { opacity: .5; }
+.x-nutrition-talk:active .x-orb { animation: x-meal-listen 1.2s ease-out; }
+.x-nutrition-composer { display: flex; align-items: center; gap: 6px; padding: 8px; border-radius: 30px; background: var(--x-well); margin-top: 8px;
+  transition: box-shadow .15s ease, background .15s ease; }
+.x-nutrition-composer textarea { flex: 1; min-width: 0; border: 0; outline: 0; resize: none; background: transparent; font-size: 15px; line-height: 24px; padding: 10px 6px; }
+.x-nutrition-composer textarea::placeholder { color: var(--x-ink-3); }
+.x-nutrition-composer textarea:disabled { cursor: not-allowed; }
+.x-nutrition-attach { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; flex: none; background: #fff; box-shadow: inset 0 0 0 1px var(--x-line); }
+.x-nutrition-attach svg, .x-nutrition-send svg { width: 17px; height: 17px; }
+.x-nutrition-send { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; flex: none; background-image: var(--x-accent-fill); color: #fff;
+  transition: transform .15s var(--x-ease); }
+.x-nutrition-send:active { transform: scale(.94); }
+.x-nutrition-connect { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 16px; margin-top: 14px; }
+.x-nutrition-connect p { font-size: 13px; color: var(--x-ink-2); }
+.x-nutrition-connect .x-text-button { color: var(--x-ink); text-decoration: underline; }
+@keyframes x-meal-listen { 0% { box-shadow: 0 0 0 0 #ff6a1a66; } 70% { box-shadow: 0 0 0 12px #ff6a1a00; } 100% { box-shadow: 0 0 0 0 #ff6a1a00; } }
+
+/* ---------- daily balance ---------- */
+.x-nutrition-balance .x-stat b { letter-spacing: -1.98px; }
+.x-nutrition-macros { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; padding-top: 22px; margin-top: auto; }
+.x-nutrition-macro { display: flex; flex-direction: column; gap: 10px; }
+.x-nutrition-macro span { display: flex; flex-direction: column; }
+.x-nutrition-macro b { font-size: 20px; line-height: 30px; font-weight: 300; letter-spacing: -.6px; font-variant-numeric: tabular-nums; }
+.x-nutrition-macro b small { font-size: 13px; letter-spacing: 0; margin-left: 2px; color: var(--x-on-dark-2); }
+.x-nutrition-macro > span > small { font-size: 12px; color: var(--x-on-dark-2); }
+
+/* ---------- food journal ---------- */
+.x-nutrition-meals { list-style: none; margin: 16px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; overflow-y: auto; min-height: 0; flex: 1; }
+.x-nutrition-meal { display: flex; align-items: center; gap: 12px; padding: 8px; border-radius: 28px; background: var(--x-well); }
+.x-nutrition-meal-icon { width: 38px; height: 38px; border-radius: 50%; background: #fff; display: grid; place-items: center; flex: none; }
+.x-nutrition-meal-icon svg { width: 16px; height: 16px; }
+.x-nutrition-meal-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.x-nutrition-meal-copy b { font-size: 14px; line-height: 18.2px; font-weight: 450; overflow-wrap: anywhere; }
+.x-nutrition-meal-copy small { font-size: 12px; color: var(--x-ink-3); }
+.x-nutrition-kcal { white-space: nowrap; }
+.x-nutrition-kcal b { font-size: 17px; line-height: 25.5px; font-weight: 400; letter-spacing: -.34px; font-variant-numeric: tabular-nums; }
+.x-nutrition-kcal small { font-size: 12px; color: var(--x-ink-3); margin-left: 3px; }
+.x-nutrition-meal .x-badge { margin-right: 4px; background: transparent; }
+.x-nutrition-empty { margin-top: 16px; }
+
+/* ---------- dialog ---------- */
+.x-nutrition-form { display: flex; flex-direction: column; gap: 14px; }
+.x-nutrition-dialog-lead { font-size: 14px; color: var(--x-ink-2); }
+.x-nutrition-error { font-size: 13px; color: var(--x-accent-deep); background: var(--x-accent-soft); padding: 10px 14px; border-radius: 12px; }
+.x-nutrition-dialog-foot { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+  border-top: 1px solid var(--x-line); padding-top: 18px; margin-top: 4px; font-size: 12px; color: var(--x-ink-3); }
+
+@media (max-width: 1180px) {
+  .x-nutrition-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-areas: 'chat chat' 'balance log' 'fuel fuel'; grid-template-rows: auto; }
+  .x-nutrition-chat { min-height: 420px; }
+}
+@media (max-width: 760px) {
+  .x-nutrition-grid { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'chat' 'balance' 'log' 'fuel'; }
+  .x-nutrition-chat { min-height: 0; }
+}

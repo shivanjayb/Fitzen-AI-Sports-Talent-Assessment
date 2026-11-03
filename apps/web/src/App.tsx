@@ -1,8 +1,9 @@
 import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import Shell from './app/Shell';
+import XShell from './x/XShell';
 import Home from './app/Home';
+import XHome from './x/Home';
 import Landing from './app/Landing';
 import { applyTheme, getTheme } from './app/theme';
 import { useIdentity } from './lib/supabase';
@@ -16,7 +17,6 @@ const Results = lazy(() => import('./app/Results'));
 const Coach = lazy(() => import('./app/Coach'));
 const Admin = lazy(() => import('./app/Admin'));
 const History = lazy(() => import('./app/History'));
-const Profile = lazy(() => import('./app/Profile'));
 const Progress = lazy(() => import('./app/Progress'));
 const Compete = lazy(() => import('./app/Compete'));
 const Consent = lazy(() => import('./app/Consent'));
@@ -24,8 +24,9 @@ const Validation = lazy(() => import('./app/Validation'));
 const Guided = lazy(() => import('./app/Guided'));
 const Auth = lazy(() => import('./app/Auth'));
 const Dashboard = lazy(() => import('./app/Dashboard'));
-const Wellness = lazy(() => import('./app/Wellness'));
 const Exercise = lazy(() => import('./app/Exercise'));
+const X = Object.fromEntries((['Train', 'Reports', 'Vitals', 'Sleep', 'Body', 'Nutrition', 'Journal', 'Labs', 'Profile', 'Integrations', 'Privacy'] as const)
+  .map((k) => [k, lazy(() => import(`./x/${k}.tsx`))])) as Record<string, React.LazyExoticComponent<() => JSX.Element>>;
 
 applyTheme(getTheme());
 
@@ -57,23 +58,25 @@ export default function App() {
         <Suspense fallback={<Loading />}>
           <Routes key={`${identity.user?.id ?? 'guest'}:${language}`}>
             <Route path="/" element={<Landing />} />
-            <Route element={<Shell />}>
+            <Route element={<XShell />}>
               <Route path="/auth" element={<Auth />} />
               <Route path="/auth/callback" element={<Auth />} />
-              <Route path="/home" element={<Dashboard />} />
+              <Route path="/home" element={<XHome />} />
+              {([['/train', 'Train'], ['/reports', 'Reports'], ['/vitals', 'Vitals'], ['/sleep', 'Sleep'], ['/body', 'Body'], ['/nutrition', 'Nutrition'], ['/journal', 'Journal'],
+                ['/blood-records', 'Labs'], ['/profile', 'Profile'], ['/integrations', 'Integrations'], ['/privacy', 'Privacy']] as const).map(([path, k]) => { const C = X[k]!; return <Route key={path} path={path} element={<C />} />; })}
+              <Route path="/recovery" element={<Navigate to="/vitals" replace />} />
               <Route path="/app" element={<Home />} />
-              {(['recovery', 'vitals', 'sleep', 'body', 'nutrition', 'journal', 'blood-records', 'integrations'] as const).map((kind) => <Route key={kind} path={`/${kind}`} element={<Wellness kind={kind} />} />)}
               <Route path="/search" element={<Home search />} />
               <Route path="/exercise/:id" element={<Exercise />} />
               <Route path="/progress" element={<Progress />} />
               <Route path="/compete" element={<Compete />} />
               <Route path="/history" element={<History />} />
-              <Route path="/profile" element={<Profile />} />
               <Route path="/validation" element={<Validation />} />
               <Route path="/guided" element={<Guided />} />
               <Route path="/results/:id" element={<Results />} />
               <Route path="/coach" element={<Coach />} />
               <Route path="/admin" element={<Admin />} />
+              <Route path="/dashboard-old" element={<Dashboard />} />
             </Route>
             <Route path="/train/:id" element={<Session />} />
             <Route path="/consent" element={<Consent />} />
