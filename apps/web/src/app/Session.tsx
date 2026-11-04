@@ -12,7 +12,9 @@ import { IconAlert, IconBulb, IconCamera, IconClose, IconFlip, IconVolume } from
 
 // Demo canvas matches the screen's shape so the figure is never cropped.
 const DEMO_H = 900;
-const DEMO_W = typeof window === 'undefined' ? 1600 : Math.round(DEMO_H * Math.max(0.5, Math.min(2, window.innerWidth / window.innerHeight)));
+const screenRatio = typeof window === 'undefined' ? NaN : window.innerWidth / window.innerHeight;
+// A hidden tab or zero-height viewport gives NaN/Infinity, which would blank the demo canvas.
+const DEMO_W = Math.round(DEMO_H * (Number.isFinite(screenRatio) && screenRatio > 0 ? Math.max(0.5, Math.min(2, screenRatio)) : 16 / 9));
 const DEMO_GROUND = DEMO_W < DEMO_H ? 0.74 : 0.86;
 
 type Stage = 'loading' | 'framing' | 'countdown' | 'active' | 'error';
