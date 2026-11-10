@@ -37,7 +37,9 @@ export const getWellnessRecords = (): WellnessRecord[] => read().records.filter(
 export const getWellnessSyncStatus = () => status.get(storageOwner()) ?? (storageOwner() === 'guest' ? 'Saved on this device. Sign in to sync future records.' : read().pending.length ? 'Changes are waiting to sync.' : 'Your records are saved on this device.');
 export const wellnessToday = () => { const date = new Date(); return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`; };
 const limits: Record<WellnessKind, Record<string, [number, number]>> = {
-  vitals: { rhr: [25, 240], hrv: [1, 400] }, sleep: { hours: [0, 24] }, body: { weight: [15, 350], bodyfat: [1, 75] },
+  vitals: { rhr: [25, 240], hrv: [1, 400], hr: [25, 240], spo2: [50, 100], resp: [4, 60], skin: [-5, 5], steps: [0, 200000], active: [0, 10000], burned: [0, 15000], strain: [0, 21], recovery: [0, 100] },
+  sleep: { hours: [0, 24], deep: [0, 24], rem: [0, 24], light: [0, 24], awake: [0, 1440], efficiency: [0, 100], bedtime: [0, 1440], wake: [0, 1440] },
+  body: { weight: [15, 350], bodyfat: [1, 75], lean: [5, 250] },
   nutrition: { calories: [0, 10000], protein: [0, 1000], carbs: [0, 2000], fat: [0, 1000] }, journal: { mood: [1, 5] }, 'blood-records': { value: [0, 1000000], low: [0, 1000000], high: [0, 1000000] },
 };
 export function validateWellness(input: WellnessInput, stored = false): string | null {

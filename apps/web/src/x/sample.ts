@@ -113,3 +113,39 @@ export function versusAverage(id: string, pts = series(id, 30)) {
   const p = Math.abs(pct) >= 10 ? Math.round(Math.abs(pct)) : Math.round(Math.abs(pct) * 10) / 10;
   return { text: `${arrow} ${p}%`, title: `${p}% ${up ? 'above' : 'below'} your 30-day average`, avg, last };
 }
+
+/* ---------- real data: the same metric ids, read from the user's own wellness records ---------- */
+import { getWellnessRecords, subscribeWellness, type WellnessKind } from '../app/wellnessStore';
+
+/** Which saved record field feeds each metric. Metrics missing here only ever come from a connected source. */
+export const SOURCE: Partial<Record<string, [WellnessKind, string, number?]>> = {
+  recovery: ['vitals', 'recovery'], hrv: ['vitals', 'hrv'], rhr: ['vitals', 'rhr'], hr: ['vitals', 'hr'], spo2: ['vitals', 'spo2'],
+  resp: ['vitals', 'resp'], skin: ['vitals', 'skin'], steps: ['vitals', 'steps'], active: ['vitals', 'active'], burned: ['vitals', 'burned'],
+  strain: ['vitals', 'strain'], sleep: ['sleep', 'hours'], deep: ['sleep', 'deep'], rem: ['sleep', 'rem'], light: ['sleep', 'light'],
+  awake: ['sleep', 'awake'], efficiency: ['sleep', 'efficiency'], weight: ['body', 'weight'],
+};
+
+/** Daily points from saved records, oldest first: the newest record of each day wins. Empty when nothing was recorded. */
+export function realSeries(id: string, days = 90): Point[] {
+  const src = SOURCE[id];
+  if (!src) return [];
+  const [kind, key] = src;
+  const from = new Date(dayStart().getTime() - (days - 1) * DAY);
+  const byDay = new Map<string, number>();
+  for (const r of getWellnessRecords()) { // newest first, so the first value seen per day is kept
+    const v = r.kind === kind ? r.values[key] : undefined;
+    if (v !== undefined && !byDay.has(r.date)) byDay.set(r.date, v);
+  }
+  return [...byDay].map(([d, value]) => ({ date: new Date(`${d}T00:00:00`), value }))
+    .filter((p) => p.date >= from).sort((a, b) => +a.date - +b.date);
+}
+
+let version = 0;
+subscribeWellness(() => { version++; });
+/** Re-render on new records or a sample-mode switch. */
+export const useDataVersion = () => {
+  const sample = useSampleMode();
+  return `${useSyncExternalStore(subscribeWellness, () => version)}:${sample}`;
+};
+/** Sample points in sample mode; otherwise the user's real points (possibly empty). */
+export const pointsFor = (id: string, days: number, sample: boolean) => sample ? series(id, days) : realSeries(id, days);

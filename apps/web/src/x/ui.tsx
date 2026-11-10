@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useId, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { METRICS, fmt, longDate, mean, series, shortDate, versusAverage, type Point } from './sample';
+import { METRICS, dayStart, fmt, longDate, mean, pointsFor, shortDate, useDataVersion, useSampleMode, versusAverage, type Point } from './sample';
 
 /* ---------- icons: 24x24 line, stroke 1.5 ---------- */
 const PATHS = {
@@ -156,9 +156,15 @@ export function ExploreProvider({ children }: { children: ReactNode }) {
 function MetricExplorer({ id, group, onMove, onClose }: { id: string; group: string[]; onMove: (id: string) => void; onClose: () => void }) {
   const m = METRICS[id]!;
   const [days, setDays] = useState(30);
-  const pts = series(id, days);
+  const sample = useSampleMode(); useDataVersion();
+  const pts = pointsFor(id, days, sample);
   const [sel, setSel] = useState(pts.length - 1);
   useEffect(() => setSel(pts.length - 1), [id, days, pts.length]);
+  if (!pts.length) return <Dialog open onClose={onClose} kicker="Your trend" title={m.label}>
+    <p className="x-empty">No {m.label.toLowerCase()} recorded in the last {days} days. Connect a watch or import a file in <a href="/integrations">Integrations</a>, or turn on sample data to explore.</p>
+    <div className="x-periods">{[7, 30, 90].map((d) => <button key={d} className="x-chip" aria-pressed={days === d} onClick={() => setDays(d)}>{d} days</button>)}</div>
+    <section className="x-explainer"><h3>What {m.label.toLowerCase()} means</h3><p>{m.what}</p><p>{m.context}</p></section>
+  </Dialog>;
   const i = Math.min(sel, pts.length - 1);
   const vals = pts.map((p) => p.value), avg = mean(vals);
   const lo = Math.min(...vals), hi = Math.max(...vals), span = hi - lo || 1;
@@ -171,7 +177,7 @@ function MetricExplorer({ id, group, onMove, onClose }: { id: string; group: str
     setSel(Math.max(0, Math.min(pts.length - 1, Math.round(((clientX - r.left) / r.width * 100 - 3) / 94 * (pts.length - 1)))));
   };
   const line = vals.map((v, k) => `${X(k)},${Y(v)}`).join(' ');
-  return <Dialog open onClose={onClose} kicker="Sample data / Your trend" title={m.label}>
+  return <Dialog open onClose={onClose} kicker={sample ? 'Sample data / Your trend' : 'Your trend'} title={m.label}>
     {group.length > 1 && <nav className="x-switch" aria-label="Metrics">
       <button disabled={pos <= 0} onClick={() => onMove(group[pos - 1]!)}>{pos > 0 ? `← ${METRICS[group[pos - 1]!]!.label}` : ''}</button>
       <span>{pos + 1} of {group.length}</span>
@@ -203,7 +209,7 @@ function MetricExplorer({ id, group, onMove, onClose }: { id: string; group: str
       <div><span>Recorded days</span><strong>{pts.length}<small>/ {days}</small></strong></div>
       <div><span>Daily range</span><strong>{fmt(lo, m.digits)} – {fmt(hi, m.digits)}</strong></div>
     </div>
-    <p className="x-method">Readings from Sample data. Dashed line: the {days}-day average of daily values; missing days are left out. The change compares a day with your other days in the last {days}.</p>
+    <p className="x-method">Readings from {sample ? 'Sample data' : 'your saved and imported records'}. Dashed line: the {days}-day average of daily values; missing days are left out. The change compares a day with your other days in the last {days}.</p>
     <section className="x-explainer"><h3>What {m.label.toLowerCase()} means</h3><p>{m.what}</p><p>{m.context}</p></section>
   </Dialog>;
 }
@@ -214,14 +220,24 @@ export function MetricTile({ id, tone = 'light', group, lastLabel, className, st
 }) {
   const m = METRICS[id]!;
   const { open } = useExplore();
-  const pts = series(id, 14);
-  const vs = versusAverage(id);
+  const sample = useSampleMode(); useDataVersion();
+  const month = pointsFor(id, 30, sample);
+  const last = lastLabel ?? 'Today';
+  if (!month.length) return <Card tone={tone} className={className} style={style}>
+    <CardHead title={m.label} />
+    <p className="x-empty" style={{ marginTop: 22 }}>{m.label} appears once a connected source records it.</p>
+    <div style={{ marginTop: 12 }}><a className="x-btn ghost small" href="/integrations">Connect a source</a></div>
+  </Card>;
+  const vs = versusAverage(id, month);
+  const recent = month.slice(-14);
+  const latest = month[month.length - 1]!.date;
+  const caption = sample || +latest === +dayStart() ? last : `Last recorded ${shortDate(latest)}`;
   return <Card tone={tone} className={className} style={style}>
-    <CardHead title={m.label} badge={vs.text} badgeTitle={vs.title} onOpen={() => open(id, group)} />
+    <CardHead title={m.label} badge={month.length > 1 ? vs.text : undefined} badgeTitle={vs.title} onOpen={() => open(id, group)} />
     <Stat value={fmt(vs.last, m.digits)} unit={m.unit} />
-    <span className="x-caption">{lastLabel ?? 'Today'}</span>
+    <span className="x-caption">{caption}</span>
     {children}
-    <MiniChart points={pts} kind={m.chart} tone={tone} digits={m.digits} lastLabel={lastLabel ?? 'Today'} label={m.label} />
+    {recent.length > 1 && <MiniChart points={recent} kind={m.chart} tone={tone} digits={m.digits} lastLabel={sample ? last : shortDate(latest)} label={m.label} />}
   </Card>;
 }
 
