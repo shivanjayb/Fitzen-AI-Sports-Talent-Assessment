@@ -159,3 +159,4 @@
   .x-home-editbar { border-radius: 20px; }
 }
 @media (prefers-reduced-motion: reduce) { .x-home-beat { animation: none; } }
+.x-home-ready { margin: 4px 0 2px; color: var(--x-on-dark); }

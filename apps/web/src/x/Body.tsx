@@ -5,7 +5,7 @@ import { figureArt } from '../app/Figure';
 import { getProfile } from '../app/store';
 import { getWellnessRecords, saveWellnessRecord, subscribeWellness, wellnessToday, type WellnessRecord } from '../app/wellnessStore';
 import { Card, CardHead, Dialog, Icon, MetricTile, PageHead, Soon, Stat, toast, useExplore } from './ui';
-import { METRICS, fmt, shortDate, useSampleMode } from './sample';
+import { fmt, realSeries, shortDate, useSampleMode } from './sample';
 import './body.css';
 
 const GROUP = ['weight', 'rhr', 'hrv', 'spo2', 'skin', 'resp', 'burned', 'active', 'steps'];
@@ -25,7 +25,7 @@ const readView = (): View => { try { return localStorage.getItem(VIEW_KEY) === '
 
 interface Entry { date: Date; value: number }
 const recordDate = (d: string) => new Date(`${d}T12:00:00`);
-const entriesOf = (records: WellnessRecord[], key: 'weight' | 'bodyfat'): Entry[] => records
+const entriesOf = (records: WellnessRecord[], key: 'bodyfat' | 'lean'): Entry[] => records
   .filter((r) => r.kind === 'body' && r.values[key] !== undefined)
   .map((r) => ({ date: recordDate(r.date), value: r.values[key]! }))
   .sort((a, b) => a.date.getTime() - b.date.getTime());
@@ -39,12 +39,12 @@ export default function Body() {
   const [viewOpen, setViewOpen] = useState(false);
   const [measure, setMeasure] = useState<Kind | null>(null);
 
-  const real = entriesOf(records, 'weight');
+  const real = realSeries('weight', 3650);
   const weights = real.length ? real : sample
     ? SAMPLE_WEIGHTS.map((value, i) => ({ date: new Date(Date.now() - (2 + (7 - i) * 4) * DAY), value })) : [];
   const weightIsSample = !real.length && weights.length > 0;
   const lastWeight = weights[weights.length - 1];
-  const lastFat = entriesOf(records, 'bodyfat').at(-1);
+  const lastFat = entriesOf(records, 'bodyfat').at(-1), lastLean = entriesOf(records, 'lean').at(-1);
   const exploreWeight = () => open('weight', GROUP);
 
   const chooseView = (v: View) => { setView(v); try { localStorage.setItem(VIEW_KEY, v); } catch { /* private mode: keep for this visit */ } };
@@ -55,7 +55,8 @@ export default function Body() {
       onClick: lastWeight ? exploreWeight : () => setMeasure('weight') },
     { id: 'bodyfat', at: [50, 45], title: 'Body fat', entry: lastFat, unit: '%',
       label: lastFat ? `Body fat: ${fmt(lastFat.value, 1)} %. Add a new body fat measurement` : 'Add body fat measurement', onClick: () => setMeasure('bodyfat') },
-    { id: 'lean', at: [53, 59], title: 'Lean body mass', unit: 'kg', label: 'Add lean body mass measurement', onClick: () => setMeasure('lean') },
+    { id: 'lean', at: [53, 59], title: 'Lean body mass', entry: lastLean, unit: 'kg',
+      label: lastLean ? `Lean body mass: ${fmt(lastLean.value, 1)} kg. Add a new lean body mass measurement` : 'Add lean body mass measurement', onClick: () => setMeasure('lean') },
   ];
 
   return <>
@@ -79,7 +80,7 @@ export default function Body() {
             <Stat value={fmt(lastWeight.value, 1)} unit="kg" big={44} />
             {weights.length > 1 && <span className="x-badge">{delta(lastWeight.value - weights[weights.length - 2]!.value)}</span>}
           </div>
-          <span className="x-caption">{weightIsSample ? 'Sample data' : 'Manual entry'} · {shortDate(lastWeight.date)}</span>
+          <span className="x-caption">{weightIsSample ? 'Sample data' : 'Your records'} · {shortDate(lastWeight.date)}</span>
           <div className="x-body-history">
             <Spark entries={weights.slice(-8)} />
             <span>{weights.length} {weights.length === 1 ? 'entry' : 'entries'} since {shortDate(weights[0]!.date)}</span>
@@ -103,20 +104,14 @@ export default function Body() {
         </ul>
       </Card>
 
-      {TILES.map((id) => sample
-        ? <MetricTile key={id} id={id} group={GROUP} className={id === 'steps' ? 'span-3' : undefined} />
-        : <Card key={id} className={id === 'steps' ? 'span-3' : undefined}>
-          <CardHead title={METRICS[id]!.label} />
-          <p className="x-empty x-body-empty">{METRICS[id]!.label} appears once a connected source records it.</p>
-          <Link className="x-btn ghost small x-body-connect" to="/integrations">Connect a source</Link>
-        </Card>)}
+      {TILES.map((id) => <MetricTile key={id} id={id} group={GROUP} className={id === 'steps' ? 'span-3' : undefined} />)}
 
       <TalentCard />
     </div>
 
     <ViewDialog open={viewOpen} view={view} onChoose={chooseView} onClose={() => setViewOpen(false)} />
     {measure && <MeasureDialog key={measure} kind={measure}
-      initial={measure === 'weight' ? lastWeight?.value : measure === 'bodyfat' ? lastFat?.value : undefined}
+      initial={{ weight: lastWeight, bodyfat: lastFat, lean: lastLean }[measure]?.value}
       onExplore={() => { setMeasure(null); exploreWeight(); }} onClose={() => setMeasure(null)} />}
   </>;
 }
@@ -218,13 +213,11 @@ function ViewDialog({ open, view, onChoose, onClose }: { open: boolean; view: Vi
 /* ---------- Measurement entry ---------- */
 function MeasureDialog({ kind, initial, onExplore, onClose }: { kind: Kind; initial?: number; onExplore: () => void; onClose: () => void }) {
   const K = KINDS[kind];
-  const soon = kind === 'lean';
   const [value, setValue] = useState(initial ?? K.init);
   const [date, setDate] = useState(wellnessToday);
   const [error, setError] = useState('');
   const save = (e: FormEvent) => {
     e.preventDefault();
-    if (soon) return;
     if (!Number.isFinite(value) || value < K.min || value > K.max) return setError(`Enter a number between ${K.min} and ${K.max}.`);
     try {
       saveWellnessRecord({ kind: 'body', date, title: K.title, note: 'Manual entry', unit: K.unit, values: { [kind]: value } });
@@ -232,17 +225,17 @@ function MeasureDialog({ kind, initial, onExplore, onClose }: { kind: Kind; init
       onClose();
     } catch (err) { setError(err instanceof Error ? err.message : 'This measurement could not be saved.'); }
   };
-  return <Dialog open onClose={onClose} kicker="Your measurements" title={<>{K.title}{soon && <> <Soon /></>}</>}>
+  return <Dialog open onClose={onClose} kicker="Your measurements" title={K.title}>
     <form className="x-body-measure-form" onSubmit={save} noValidate>
-      <p className="x-body-lead">{soon ? 'Lean body mass tracking is coming soon. Weight and body fat can be saved today.' : 'Add a measurement from your scale, a scan or your own records.'}</p>
-      <Ruler value={value} onChange={(v) => { setValue(v); setError(''); }} min={K.min} max={K.max} unit={K.unit} unitWord={K.unitWord} label={K.title} disabled={soon} />
+      <p className="x-body-lead">Add a measurement from your scale, a scan or your own records.</p>
+      <Ruler value={value} onChange={(v) => { setValue(v); setError(''); }} min={K.min} max={K.max} unit={K.unit} unitWord={K.unitWord} label={K.title} />
       {kind !== 'weight' && <p className="x-body-hint">Drag the scale or type a number</p>}
       <label className="x-field">Measurement date
-        <input type="date" value={date} min="1900-01-01" max={wellnessToday()} disabled={soon} required onChange={(e) => { setDate(e.target.value); setError(''); }} />
+        <input type="date" value={date} min="1900-01-01" max={wellnessToday()} required onChange={(e) => { setDate(e.target.value); setError(''); }} />
       </label>
       <p className="x-body-hint">Saved privately as a manual entry, with your measurement date.</p>
       {error && <p className="x-body-error" role="alert">{error}</p>}
-      <div className="x-body-dialog-foot is-left"><button className="x-btn" type="submit" disabled={soon}>Save measurement</button></div>
+      <div className="x-body-dialog-foot is-left"><button className="x-btn" type="submit">Save measurement</button></div>
     </form>
     {kind === 'weight' && <button className="x-text-button x-body-trend" onClick={onExplore}>Explore the trend ↗</button>}
   </Dialog>;

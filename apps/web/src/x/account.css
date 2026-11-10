@@ -159,3 +159,18 @@
   .x-onboard-inner h1 { font-size: 28px; line-height: 32px; }
   .x-onboard-options { grid-template-columns: 1fr; }
 }
+
+/* wearables: live heart rate, import status, history */
+.x-source-actions { margin-top: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+.x-live-hr { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.x-live-hr b { font-size: 56px; line-height: 56px; font-weight: 300; letter-spacing: -2px; }
+.x-live-hr small { font-size: 13px; color: var(--x-on-dark-2); }
+.x-live-heart { width: 28px; height: 28px; align-self: center; color: var(--x-accent); animation: x-beat .9s infinite; }
+.x-live-heart svg { width: 28px; height: 28px; }
+@media (prefers-reduced-motion: reduce) { .x-live-heart { animation: none; } }
+.x-import-status { font-size: 13px; line-height: 20px; color: var(--x-ink-2); margin-top: 12px; }
+.x-import-status:empty { display: none; }
+.x-tile.dark .x-import-status { color: var(--x-on-dark-2); }
+.x-import-history { list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 10px; }
+.x-import-history li { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 14px; color: var(--x-ink-2); }
+.x-import-history small { display: block; font-size: 12px; color: var(--x-ink-3); overflow-wrap: anywhere; }

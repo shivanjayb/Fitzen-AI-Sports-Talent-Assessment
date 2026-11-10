@@ -4,7 +4,9 @@ import { exerciseById } from '@fitzen/engines';
 import { deleteWellnessRecord, getWellnessRecords, restoreWellnessRecord, saveWellnessRecord, subscribeWellness, syncWellness, validateWellness, wellnessToday, type WellnessRecord } from '../app/wellnessStore';
 import { getHistory } from '../app/store';
 import { Card, CardHead, Icon, PageHead, Soon, toast } from './ui';
-import { dayStart, fmt, useSampleMode } from './sample';
+import { dayStart, fmt, realSeries, useSampleMode } from './sample';
+import { recoveryDays } from './recovery';
+import { readGoals } from './sleepGoals';
 import './journal.css';
 
 const MOODS = ['Great', 'Good', 'Okay', 'Low', 'Rough'] as const;
@@ -69,12 +71,17 @@ export default function Journal() {
   };
   const addNote = (name: string) => { setNote(`After ${name}: `); area.current?.focus(); area.current?.scrollIntoView({ block: 'center', behavior: 'smooth' }); };
 
+  const dates = [...new Set(entries.map((r) => r.date))];
+  const readings = sample ? [] : recoveryDays(dates.map((d) => new Date(`${d}T00:00:00`)), (id) => realSeries(id, 3650), readGoals().sleep);
+  const recoveryByDate = new Map(dates.map((d, i) => [d, readings[i]]));
+  const avgOf = (xs: (number | undefined)[]) => { const v = xs.filter((x): x is number => x !== undefined); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
   const rows: MoodRow[] = sample ? SAMPLE_ROWS : MOODS.flatMap((m) => {
     const days = entries.filter((r) => moodWord(r.values.mood) === m);
     if (!days.length) return [];
-    const hours = days.map((r) => sleepByDate.get(r.date)).filter((h): h is number => h !== undefined);
-    return [{ mood: m, days: days.length, recovery: null, sleep: hours.length ? hours.reduce((a, b) => a + b, 0) / hours.length : null }];
+    const recovery = avgOf(days.map((r) => recoveryByDate.get(r.date)?.value));
+    return [{ mood: m, days: days.length, recovery: recovery === null ? null : Math.round(recovery), sleep: avgOf(days.map((r) => sleepByDate.get(r.date))) }];
   });
+  const estimated = readings.some((r) => r?.estimate);
   const tableCount = sample ? SAMPLE_ENTRIES.length : entries.length;
 
   type Row = { key: string; date: string; mood: Mood; text: string; record?: WellnessRecord };
@@ -140,7 +147,7 @@ export default function Journal() {
             </tr>)}</tbody>
           </table> : <p className="x-empty x-journal-mood-empty">Save a check-in with a mood to see it beside your sleep.</p>}
           <p className="x-journal-note">After 8 check-ins with a mood, Fitzen shows which of your signals actually match how you feel. You have {entries.length} of 8. <Soon /></p>
-          <p className="x-journal-note">Averages of the readings recorded on each check-in’s date. A pattern across your notes, not a cause.</p>
+          <p className="x-journal-note">Averages of the readings recorded on each check-in’s date{estimated ? '; recovery includes Fitzen estimates from your HRV, resting heart rate and sleep' : ''}. A pattern across your notes, not a cause.</p>
         </Card>
 
         <Card className="x-journal-training">

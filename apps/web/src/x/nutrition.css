@@ -15,7 +15,7 @@
 .x-nutrition-muted { color: var(--x-ink-3); }
 .x-tile.dark .x-nutrition-muted { color: var(--x-on-dark-2); }
 
-/* ---------- composer (AI: coming soon) ---------- */
+/* ---------- composer ---------- */
 .x-nutrition-lead { font-size: 14px; line-height: 22.4px; color: var(--x-ink-2); margin-top: 6px; }
 .x-nutrition-conversation { flex: 1; padding: 6px; display: flex; flex-direction: column; justify-content: flex-end; gap: 12px; min-height: 120px; }
 .x-nutrition-welcome { display: grid; grid-template-columns: 44px 1fr; column-gap: 14px; padding: 4px 2px; align-items: center; }
@@ -30,7 +30,6 @@
   transition: box-shadow .15s ease, background .15s ease; }
 .x-nutrition-composer textarea { flex: 1; min-width: 0; border: 0; outline: 0; resize: none; background: transparent; font-size: 15px; line-height: 24px; padding: 10px 6px; }
 .x-nutrition-composer textarea::placeholder { color: var(--x-ink-3); }
-.x-nutrition-composer textarea:disabled { cursor: not-allowed; }
 .x-nutrition-attach { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; flex: none; background: #fff; box-shadow: inset 0 0 0 1px var(--x-line); }
 .x-nutrition-attach svg, .x-nutrition-send svg { width: 17px; height: 17px; }
 .x-nutrition-send { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; flex: none; background-image: var(--x-accent-fill); color: #fff;
@@ -79,3 +78,33 @@
   .x-nutrition-grid { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'chat' 'balance' 'log' 'fuel'; }
   .x-nutrition-chat { min-height: 0; }
 }
+
+/* ---------- meal estimate (photo / text / search) ---------- */
+.x-food-photo { display: grid; grid-template-columns: 140px 1fr; gap: 16px; align-items: start; }
+.x-food-photo img { width: 140px; height: 140px; object-fit: cover; border-radius: 18px; background: var(--x-well); }
+.x-food-predict { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.x-food-status { font-size: 13px; color: var(--x-ink-2); }
+.x-food-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.x-food-honest { font-size: 12px; line-height: 18px; color: var(--x-ink-3); }
+.x-food-results, .x-food-items { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.x-food-results { max-height: 220px; overflow-y: auto; }
+.x-food-results button { width: 100%; display: grid; grid-template-columns: 1fr auto; column-gap: 10px; align-items: center; text-align: left;
+  padding: 8px 14px; border-radius: 16px; background: var(--x-well); }
+.x-food-results button:hover, .x-food-results button:focus-visible { box-shadow: inset 0 0 0 1.5px var(--x-accent); }
+.x-food-results b { font-size: 14px; font-weight: 450; }
+.x-food-results small { grid-column: 1; font-size: 12px; color: var(--x-ink-3); }
+.x-food-results svg { grid-column: 2; grid-row: 1 / span 2; width: 16px; height: 16px; }
+.x-food-none { font-size: 13px; color: var(--x-ink-3); padding: 6px 2px; }
+.x-food-item { padding: 12px 14px; border-radius: 18px; background: var(--x-well); display: flex; flex-direction: column; gap: 8px; }
+.x-food-item-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.x-food-item-head b { font-size: 14px; font-weight: 450; }
+.x-food-item-head span { font-size: 12px; color: var(--x-ink-3); font-variant-numeric: tabular-nums; flex: 1; }
+.x-food-portion { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; font-size: 13px; color: var(--x-ink-2); }
+.x-food-portion > label:first-child { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 160px; }
+.x-food-portion small { color: var(--x-ink-3); }
+.x-food-portion input[type='range'] { accent-color: var(--x-accent); width: 100%; }
+.x-food-portion output { font-variant-numeric: tabular-nums; min-width: 40px; padding-bottom: 4px; }
+.x-food-grams { width: 110px; }
+.x-food-total { font-size: 14px; color: var(--x-ink-2); font-variant-numeric: tabular-nums; }
+.x-food-total b { color: var(--x-ink); font-weight: 500; }
+@media (max-width: 520px) { .x-food-photo { grid-template-columns: 1fr; } .x-food-photo img { width: 100%; height: 180px; } }

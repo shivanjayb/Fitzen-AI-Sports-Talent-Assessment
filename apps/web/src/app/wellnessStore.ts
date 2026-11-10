@@ -64,11 +64,24 @@ export function validateWellness(input: WellnessInput, stored = false): string |
   }
   return null;
 }
-function update(record: WellnessRecord) {
+function update(...batch: WellnessRecord[]) {
   const owner = storageOwner(), data = read(owner);
   if (deleting.has(owner)) throw Error('Your records are being deleted. Please wait.');
-  write(owner, { records: [record, ...data.records.filter((r) => r.id !== record.id)], pending: [...new Set([...data.pending, record.id])] });
+  const ids = new Set(batch.map((r) => r.id));
+  write(owner, { records: [...batch, ...data.records.filter((r) => !ids.has(r.id))], pending: [...new Set([...data.pending, ...ids])] });
   if (!memory.has(owner)) void syncWellness();
+}
+/** Imports: validate everything first, then one storage write and one sync for the whole batch. */
+export function saveWellnessRecords(inputs: WellnessInput[], owner = storageOwner()): WellnessRecord[] {
+  checkOwner(owner);
+  const known = new Set(read().records.map((r) => r.id));
+  for (const input of inputs) {
+    const error = validateWellness(input); if (error) throw Error(error);
+    if (input.id && !known.has(input.id)) throw Error('This record is no longer available in this account.');
+  }
+  const records = inputs.map((input) => ({ ...input, title: input.title.trim(), note: input.note.trim(), unit: input.unit.trim(), id: input.id ?? crypto.randomUUID(), updatedAt: stamp() }));
+  if (records.length) update(...records);
+  return records;
 }
 export function saveWellnessRecord(input: WellnessInput, owner = storageOwner()): WellnessRecord {
   checkOwner(owner);

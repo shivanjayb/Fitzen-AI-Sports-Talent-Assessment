@@ -74,3 +74,13 @@
   .x-sleep-hero-body { grid-template-columns: minmax(0, 1fr); gap: 24px; }
   .x-sleep-vplot { min-height: 200px; }
 }
+
+/* schedule */
+.x-sleep-grid > .x-sleep-schedule { grid-column: 1 / -1; min-height: 0; }
+.x-sleep-schedule .x-sleep-goal-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.x-sleep-muted-light { color: var(--x-ink-3); }
+.x-sleep-schedule-empty { margin-top: 14px; }
+.x-sleep-reminder { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 16px; font-size: 12px; color: var(--x-ink-2); }
+.x-sleep-reminder .x-chip svg { width: 14px; height: 14px; margin-right: 6px; }
+.x-sleep-total { margin: 12px 0 0; }
+@media (max-width: 760px) { .x-sleep-schedule .x-sleep-goal-list { grid-template-columns: minmax(0, 1fr); } }

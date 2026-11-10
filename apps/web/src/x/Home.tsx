@@ -6,7 +6,9 @@ import { getHistory, measureOf, type SavedSession } from '../app/store';
 import { getWellnessRecords, saveWellnessRecord, subscribeWellness, validateWellness, wellnessToday, type WellnessInput, type WellnessRecord } from '../app/wellnessStore';
 import { CUSTOMIZE_EVENT } from './XShell';
 import { Card, CardHead, Dialog, Icon, MetricTile, MiniChart, PageHead, Soon, Stat, toast, useExplore, type Tone } from './ui';
-import { METRICS, dayStart, fmt, longDate, mean, series, setSampleMode, shortDate, useSampleMode, versusAverage, type Point } from './sample';
+import { METRICS, dayStart, fmt, longDate, mean, pointsFor, realSeries, series, setSampleMode, shortDate, useDataVersion, useSampleMode, versusAverage, type Point } from './sample';
+import { RECOVERY_FORMULA, readiness, recoveryDays, type Reading } from './recovery';
+import { readGoals } from './sleepGoals';
 import './home.css';
 
 const HOME = ['recovery', 'hrv', 'rhr', 'sleep', 'strain', 'hr'];
@@ -18,13 +20,12 @@ const HEART = 'M12 20.5s-7.6-4.5-9.7-9.1C.8 8 2.9 4 6.8 4c2.2 0 3.7 1.2 5.2 3.1C
 const MOODS = ['', 'Bad', 'Low', 'Okay', 'Good', 'Great'];
 const SAMPLE_MOODS = ['Good', 'Low', 'Good', 'Great', 'Okay', 'Good'];
 const SUMMARY = ['rhr', 'spo2', 'hrv', 'sleep', 'recovery', 'resp', 'skin', 'performance', 'efficiency', 'deep', 'rem', 'light', 'awake', 'steps', 'active', 'strain', 'burned', 'hr'];
-const SOURCES: Record<string, [WellnessRecord['kind'], string]> = { hrv: ['vitals', 'hrv'], rhr: ['vitals', 'rhr'], sleep: ['sleep', 'hours'] };
+const MOVERS = ['hrv', 'rhr', 'sleep', 'deep', 'steps', 'strain', 'resp', 'spo2'];
 const FIGURE = exerciseById('warrior-ii') ?? EXERCISES[0]!; // arms spread wide, like the Vitruvian figure
 
 const isoDay = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const daysBack = (n: number) => { const t = dayStart(); return Array.from({ length: n }, (_, i) => new Date(t.getFullYear(), t.getMonth(), t.getDate() - (n - 1 - i))); };
 const recordDate = (date: string) => new Date(`${date}T12:00:00`);
-const lastOf = (id: string) => series(id, 30).at(-1)!.value;
 
 interface Layout { order: string[]; removed: string[] }
 function loadLayout(): Layout {
@@ -42,8 +43,9 @@ function useWellness() {
 }
 
 export default function Home() {
-  const sample = useSampleMode();
+  const sample = useSampleMode(); useDataVersion();
   const records = useWellness();
+  const week = recoveryDays(daysBack(7), (id) => pointsFor(id, 60, sample), readGoals().sleep), today = week[6] ?? null;
   const [sessions] = useState(() => getHistory().slice().sort((a, b) => b.report.startedAt.localeCompare(a.report.startedAt)));
   const [saved, setSaved] = useState(loadLayout);
   const [draft, setDraft] = useState<Layout | null>(null);
@@ -77,11 +79,11 @@ export default function Home() {
       <button className="x-icon-btn small" aria-label={`Remove ${label}`} onClick={() => setDraft((d) => d && { ...d, removed: [...d.removed, id] })}><Icon name="close" /></button>
     </span>;
     const cls = `x-home-tile x-home-${id}${draft ? ' is-editing' : ''}`;
-    if (!sample) return id === 'recovery'
-      ? <GetStarted key={id} className={cls}>{tools}</GetStarted>
-      : <RealTile key={id} id={id} tone={tone} records={records} className={cls}>{tools}</RealTile>;
+    if (id === 'recovery' && !realSeries('recovery', 30).length && !sample) return week.some((r) => r)
+      ? <EstimateTile key={id} week={week} tone={tone} className={cls}>{tools}</EstimateTile>
+      : <GetStarted key={id} className={cls}>{tools}</GetStarted>;
     return <MetricTile key={id} id={id} tone={tone} group={HOME} lastLabel={id === 'sleep' ? 'Last night' : undefined} className={cls}>
-      {id === 'sleep' && <Stages />}
+      {id === 'sleep' && <Stages sample={sample} />}
       {id === 'hr' && <span className="x-home-beat" aria-hidden><svg viewBox="0 0 24 24"><path d={HEART} fill="#fff" /></svg></span>}
       {tools}
     </MetricTile>;
@@ -100,11 +102,11 @@ export default function Home() {
     </div>}
     <div className="x-home-grid">
       {tiles}
-      <MonthCard sample={sample} records={records} sessions={sessions} />
+      <MonthCard sample={sample} records={records} sessions={sessions} today={today} />
       <Calories sample={sample} records={records} />
       <Weight sample={sample} records={records} />
-      <Week sample={sample} records={records} onSummary={() => setSummary(true)} />
-      <TrainNow />
+      <Week sample={sample} records={records} sessions={sessions} recovery={week} onSummary={() => setSummary(true)} />
+      <TrainNow today={today} />
       <LatestReport session={sessions[0]} />
       <ProgressCard sessions={sessions} />
       <Demo />
@@ -113,8 +115,12 @@ export default function Home() {
   </>;
 }
 
-function Stages() {
-  const [d, r, l] = [lastOf('deep'), lastOf('rem'), lastOf('light')];
+/** Last night's stages, only when the newest sleep record carries them (sample data or a watch import). */
+function Stages({ sample }: { sample: boolean }) {
+  const night = pointsFor('sleep', 30, sample).at(-1);
+  const stages = ['deep', 'rem', 'light'].map((id) => pointsFor(id, 30, sample).at(-1));
+  if (!night || stages.some((p) => !p || +p.date !== +night.date)) return null;
+  const [d, r, l] = stages.map((p) => p!.value) as [number, number, number];
   return <>
     <div className="x-home-stages" role="img" aria-label={`Deep ${d} hours, REM ${r} hours, Light ${l} hours`}>
       <i className="t-accent" style={{ flex: d }} /><i className="t-violet" style={{ flex: r }} /><i className="t-blue" style={{ flex: l }} />
@@ -123,24 +129,15 @@ function Stages() {
   </>;
 }
 
-const Empty = ({ what }: { what: string }) => <div className="x-home-empty">
-  <p className="x-empty">{what} appears once a connected source records it.</p>
-  <Link className="x-btn small ghost" to="/integrations">Connect a source</Link>
-</div>;
-
-/** Real-data tile: the user's own vitals/sleep records, else Xeyo's empty state. */
-function RealTile({ id, tone, records, className, children }: { id: string; tone: Tone; records: WellnessRecord[]; className: string; children: ReactNode }) {
-  const m = METRICS[id]!, src = SOURCES[id];
-  const pts: Point[] = src ? records.filter((r) => r.kind === src[0] && r.values[src[1]] !== undefined).slice(0, 14).reverse()
-    .map((r) => ({ date: recordDate(r.date), value: r.values[src[1]]! })) : [];
-  const last = pts.at(-1);
+/** Recovery with no device value: the Fitzen estimate from HRV, resting heart rate and sleep. */
+function EstimateTile({ week, tone, className, children }: { week: (Reading | null)[]; tone: Tone; className: string; children: ReactNode }) {
+  const pts: Point[] = daysBack(7).flatMap((date, i) => { const r = week[i]; return r ? [{ date, value: r.value }] : []; });
+  const last = pts.at(-1)!;
   return <Card tone={tone} className={className}>
-    <CardHead title={m.label} />
-    {last ? <>
-      <Stat value={fmt(last.value, m.digits)} unit={m.unit} />
-      <span className="x-caption">Last entry {shortDate(last.date)}</span>
-      {pts.length > 1 && pts.some((p) => p.value > 0) && <MiniChart points={pts} kind={m.chart} tone={tone} digits={m.digits} lastLabel={shortDate(last.date)} label={m.label} />}
-    </> : <Empty what={m.label} />}
+    <CardHead title="Recovery" badge="Fitzen estimate" badgeTitle={RECOVERY_FORMULA} />
+    <Stat value={fmt(last.value)} unit="%" />
+    <span className="x-caption" title={RECOVERY_FORMULA}>{+last.date === +dayStart() ? 'Today' : shortDate(last.date)} · from your HRV, resting heart rate and sleep</span>
+    {pts.length > 1 && <MiniChart points={pts} kind="bars" tone={tone} lastLabel={shortDate(last.date)} label="Recovery estimate" />}
     {children}
   </Card>;
 }
@@ -159,16 +156,21 @@ function GetStarted({ className, children }: { className: string; children: Reac
   </Card>;
 }
 
-function MonthCard({ sample, records, sessions }: { sample: boolean; records: WellnessRecord[]; sessions: SavedSession[] }) {
+function MonthCard({ sample, records, sessions, today: rec }: { sample: boolean; records: WellnessRecord[]; sessions: SavedSession[]; today: Reading | null }) {
   const { open } = useExplore();
   const days = daysBack(10), today = days[9]!;
   const recorded = new Set([...records.map((r) => r.date), ...sessions.map((s) => isoDay(new Date(s.report.startedAt)))]);
-  const score = Math.round(versusAverage('recovery').last);
-  const [head, advice] = !sample ? ['Your day', 'Write a check-in or record a session and your daily brief builds from your own records.']
+  const score = rec ? Math.round(rec.value) : 0;
+  const [head, advice] = !rec ? ['Your day', 'Write a check-in or record a session and your daily brief builds from your own records. Recovery appears after 7 days of HRV or resting heart rate.']
     : score >= 67 ? ['Ready day', 'Your body looks ready. A harder session or an assessment fits today.']
       : score >= 34 ? ['Steady day', 'Train at a moderate effort and notice how you feel as the day goes on.']
         : ['Easy day', 'Keep it light today: mobility, a walk and an early night.'];
-  const news = sample ? (['deep', 'steps'] as const).map((id) => ({ id, vs: versusAverage(id) })).filter((n) => n.vs.text !== 'Steady') : [];
+  const news = MOVERS.flatMap((id) => {
+    const pts = pointsFor(id, 30, sample);
+    if (pts.length < 2 || +pts.at(-1)!.date < +days[8]!) return [];
+    const vs = versusAverage(id, pts);
+    return vs.text === 'Steady' ? [] : [{ id, vs, size: Math.abs(vs.last - vs.avg) / Math.abs(vs.avg || 1) }];
+  }).sort((a, b) => b.size - a.size).slice(0, 2);
   return <Card tone="orange" className="x-home-month">
     <div className="x-home-figure" aria-hidden><FigureArt def={FIGURE} w={600} h={600} /></div>
     <div className="x-home-panel">
@@ -178,8 +180,8 @@ function MonthCard({ sample, records, sessions }: { sample: boolean; records: We
         return <li key={i} className={`${has ? 'has-data' : ''}${i === 9 ? ' today' : ''}`} aria-label={`${shortDate(d)}: ${has ? 'data recorded' : 'no data'}${i === 9 ? ', today' : ''}`}>{String(d.getDate()).padStart(2, '0')}</li>;
       })}</ol>
       <div className="x-home-brief">
-        {sample
-          ? <button className="x-home-brief-head" onClick={() => open('recovery', HOME)}><b>{head}</b><span>Recovery {score}%</span></button>
+        {rec
+          ? <button className="x-home-brief-head" onClick={() => open(rec.estimate ? 'hrv' : 'recovery', HOME)} title={rec.estimate ? RECOVERY_FORMULA : undefined}><b>{head}</b><span>Recovery {score}%{rec.estimate ? ' · Fitzen estimate' : ''}</span></button>
           : <Link className="x-home-brief-head" to="/journal"><b>{head}</b><span>Start with a check-in</span></Link>}
         <p>{advice}</p>
         {news.length > 0 && <ul aria-label="Changes today">{news.map((n) => <li key={n.id}>
@@ -287,16 +289,17 @@ function Weight({ sample, records }: { sample: boolean; records: WellnessRecord[
   </Card>;
 }
 
-function Week({ sample, records, onSummary }: { sample: boolean; records: WellnessRecord[]; onSummary: () => void }) {
+function Week({ sample, records, sessions, recovery, onSummary }: { sample: boolean; records: WellnessRecord[]; sessions: SavedSession[]; recovery: (Reading | null)[]; onSummary: () => void }) {
   const { open } = useExplore();
   const days = daysBack(7);
   const byDay = (kind: WellnessRecord['kind'], key: string) => days.map((d) => records.find((r) => r.kind === kind && r.date === isoDay(d) && r.values[key] !== undefined)?.values[key]);
-  const last7 = (id: string) => series(id, 30).slice(-7).map((p) => p.value);
-  const none = days.map(() => undefined);
+  const at = (id: string) => { const pts = pointsFor(id, 7, sample); return days.map((d) => pts.find((p) => +p.date === +d)?.value); };
+  const trained = days.map((d) => sessions.filter((s) => isoDay(new Date(s.report.startedAt)) === isoDay(d)).length || undefined);
   const rows: { id: string; label: string; unit: string; values: (number | undefined)[] }[] = [
-    { id: 'recovery', label: 'Recovery', unit: '%', values: sample ? last7('recovery') : none },
-    { id: 'sleep', label: 'Sleep', unit: 'h', values: sample ? last7('sleep') : byDay('sleep', 'hours') },
-    { id: 'strain', label: 'Strain', unit: '', values: sample ? last7('strain') : none },
+    { id: 'recovery', label: recovery.some((r) => r?.estimate) ? 'Recovery*' : 'Recovery', unit: '%', values: recovery.map((r) => r?.value) },
+    { id: 'sleep', label: 'Sleep', unit: 'h', values: at('sleep') },
+    { id: 'strain', label: 'Strain', unit: '', values: at('strain') },
+    { id: 'sessions', label: 'Training', unit: 'sessions', values: trained },
   ];
   const realMoods = byDay('journal', 'mood').map((m) => m ? MOODS[m] : undefined);
   const moods = sample ? [...SAMPLE_MOODS, realMoods[6]] : realMoods;
@@ -316,8 +319,9 @@ function Week({ sample, records, onSummary }: { sample: boolean; records: Wellne
           const max = Math.max(1, ...r.values.map((v) => v ?? 0));
           const label = <>{r.label} {r.unit && <small>{r.unit}</small>}</>;
           return <tr key={r.id}>
-            <th scope="row">{sample ? <button className="x-home-signal" onClick={() => open(r.id, HOME)}>{label}</button> : <span className="x-home-signal">{label}</span>}</th>
-            {r.values.map((v, i) => <td key={i} className={today(i)}>{v === undefined ? <span className="x-home-none">—</span> : <><b>{fmt(v, METRICS[r.id]!.digits)}</b><i style={{ width: `${(v / max) * 100}%` }} /></>}</td>)}
+            <th scope="row">{r.id === 'sessions' ? <Link className="x-home-signal" to="/progress">{label}</Link>
+              : <button className="x-home-signal" onClick={() => open(r.id, HOME)}>{label}</button>}</th>
+            {r.values.map((v, i) => <td key={i} className={today(i)}>{v === undefined ? <span className="x-home-none">—</span> : <><b>{fmt(v, METRICS[r.id]?.digits ?? 0)}</b><i style={{ width: `${(v / max) * 100}%` }} /></>}</td>)}
           </tr>;
         })}
         <tr>
@@ -330,6 +334,7 @@ function Week({ sample, records, onSummary }: { sample: boolean; records: Wellne
         </tr>
       </tbody>
     </table>
+    {recovery.some((r) => r?.estimate) && <p className="x-home-note" title={RECOVERY_FORMULA}>* Fitzen estimate from your HRV, resting heart rate and sleep, where no device recovery was recorded.</p>}
   </Card>;
 }
 
@@ -354,9 +359,10 @@ function Summary({ open, onClose, sample, checkins }: { open: boolean; onClose: 
 }
 
 /* ---------- Fitzen's own row ---------- */
-function TrainNow() {
+function TrainNow({ today }: { today: Reading | null }) {
   return <Card tone="dark" className="x-home-train">
     <CardHead title="Train now" />
+    {today && <p className="x-caption x-home-ready" title={today.estimate ? RECOVERY_FORMULA : undefined}>Recovery {Math.round(today.value)}%{today.estimate ? ' (Fitzen estimate)' : ''} · {readiness(today.value)}</p>}
     <div className="x-home-actions">
       <Link className="x-home-action" to="/train"><span><Icon name="camera" /></span><b>Start live session</b><small>Pose tracking with your camera</small></Link>
       <Link className="x-home-action" to="/train?upload=1"><span><Icon name="upload" /></span><b>Analyse a video</b><small>From a file, offline</small></Link>

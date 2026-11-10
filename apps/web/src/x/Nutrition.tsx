@@ -1,17 +1,18 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { getWellnessRecords, saveWellnessRecord, subscribeWellness, validateWellness, wellnessToday } from '../app/wellnessStore';
 import { Card, CardHead, Dialog, Icon, PageHead, Soon, Stat, toast } from './ui';
+import { MEALS, MealEstimate, mealNow } from './food/MealEstimate';
+import { parseMeal, type Food } from './food/nutrition';
 import { fmt, shortDate, useSampleMode } from './sample';
 import './nutrition.css';
 
-const MEALS = ['Breakfast', 'Lunch', 'Dinner', 'Snack'] as const;
 interface Meal { id: string; title: string; note: string; calories: number; protein: number; carbs: number; fat: number; sample?: boolean }
 const SAMPLE: Meal[] = [
   { id: 's1', title: 'Greek yogurt with berries and granola', note: 'Breakfast', calories: 340, protein: 26, carbs: 45, fat: 12, sample: true },
   { id: 's2', title: 'Chicken wrap', note: 'Lunch', calories: 520, protein: 34, carbs: 52, fat: 18, sample: true },
   { id: 's3', title: 'Salmon, rice and greens', note: 'Dinner', calories: 640, protein: 42, carbs: 45, fat: 21, sample: true },
 ];
-const soon = () => toast('AI meal logging is coming soon.');
+const soon = () => toast('Voice notes are coming soon. Type what you ate or snap a photo.');
 const dayDate = (d: string) => new Date(`${d}T12:00:00`);
 
 export default function Nutrition() {
@@ -20,6 +21,17 @@ export default function Nutrition() {
   const [day, setDay] = useState(today);
   const [adding, setAdding] = useState(false);
   const [records, setRecords] = useState(getWellnessRecords);
+  const [estimate, setEstimate] = useState<{ photo?: File; start?: { food: Food; servings: number }[]; unmatched?: string[] } | null>(null);
+  const [text, setText] = useState('');
+  const fileRef = useRef<HTMLInputElement>(null);
+  const closeEstimate = useCallback(() => setEstimate(null), []);
+  const describe = (e: FormEvent) => {
+    e.preventDefault();
+    if (!text.trim()) return toast('Type what you ate, e.g. “2 roti and dal”.');
+    const { items, unmatched } = parseMeal(text);
+    if (!items.length) return toast('No foods recognised. Try simpler names, search, or add the meal manually.');
+    setEstimate({ start: items, unmatched });
+  };
   useEffect(() => subscribeWellness(() => setRecords(getWellnessRecords())), []);
 
   const meals: Meal[] = [
@@ -33,6 +45,8 @@ export default function Nutrition() {
   const energy = grams.protein * 4 + grams.carbs * 4 + grams.fat * 9;
   const share = (g: number, perGram: number) => energy ? Math.round((g * perGram / energy) * 100) : 0;
   const label = shortDate(dayDate(day));
+  const vitals = records.find((r) => r.kind === 'vitals' && r.date === day && (r.values.burned ?? r.values.active) !== undefined);
+  const burned = vitals ? (vitals.values.burned ?? vitals.values.active ?? 0) : null;
 
   return <>
     <PageHead title="Nutrition" subtitle="A conversation about what nourishes you.">
@@ -45,24 +59,29 @@ export default function Nutrition() {
 
     <div className="x-nutrition-grid">
       <Card className="x-nutrition-chat">
-        <CardHead title="What’s on your plate?"><Soon /></CardHead>
-        <p className="x-nutrition-lead">Tell me in your own words. I’ll take care of the numbers.</p>
+        <CardHead title="What’s on your plate?" />
+        <p className="x-nutrition-lead">Snap a photo or type what you ate. Numbers come from a food table, and you check the portion before saving.</p>
         <div className="x-nutrition-conversation">
           <div className="x-nutrition-welcome">
             <button className="x-nutrition-talk" aria-label="Voice notes are coming soon" onClick={soon}><span className="x-orb" /></button>
             <h3>Good food. One simple conversation.</h3>
-            <p>“I had a chicken bowl with rice and avocado.”</p>
+            <p>“2 roti, dal and a bowl of curd.”</p>
           </div>
         </div>
-        <form className="x-nutrition-composer" onSubmit={(e) => { e.preventDefault(); soon(); }}>
-          <button type="button" className="x-nutrition-attach" aria-label="Attach a meal photo (coming soon)" title="Attach a meal photo" onClick={soon}><Icon name="camera" /></button>
-          <textarea aria-label="Message your nutrition companion" placeholder="I ate…" rows={1} disabled />
+        <form className="x-nutrition-composer" onSubmit={describe}>
+          <button type="button" className="x-nutrition-attach" aria-label="Snap or upload a meal photo" title="Snap or upload a meal photo" onClick={() => fileRef.current?.click()}><Icon name="camera" /></button>
+          <input ref={fileRef} type="file" accept="image/*" capture="environment" hidden onChange={(e) => {
+            const photo = e.target.files?.[0]; e.target.value = '';
+            if (photo?.type.startsWith('image/')) setEstimate({ photo }); else if (photo) toast('Choose an image file.');
+          }} />
+          <textarea aria-label="What you ate" placeholder="I ate…" rows={1} value={text} maxLength={500} onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); e.currentTarget.form?.requestSubmit(); } }} />
           <button type="button" className="x-nutrition-talk is-small" aria-label="Voice notes are coming soon" onClick={soon}><span className="x-orb" /></button>
           <button type="submit" className="x-nutrition-send" aria-label="Send meal"><Icon name="arrow" /></button>
         </form>
         <div className="x-nutrition-connect">
           <button className="x-btn" onClick={() => setAdding(true)}>Add a meal manually</button>
-          <p>Or <button className="x-text-button" onClick={() => toast('AI connections are coming soon.')}>connect your AI</button> to describe meals in your own words.</p>
+          <button className="x-btn ghost" onClick={() => setEstimate({})}><Icon name="search" />Search food</button>
         </div>
       </Card>
 
@@ -70,6 +89,7 @@ export default function Nutrition() {
         <CardHead title={<>Daily balance <span className="x-nutrition-muted">· {meals.length} {meals.length === 1 ? 'entry' : 'entries'}</span></>} />
         <Stat value={fmt(sum('calories'))} unit="/kcal" big={44} />
         <span className="x-caption">{day === today ? 'Today' : label} · estimated from your logged meals</span>
+        {burned !== null && <span className="x-caption">Eaten {fmt(sum('calories'))} vs burned {fmt(burned)} kcal · {sum('calories') >= burned ? `${fmt(sum('calories') - burned)} over` : `${fmt(burned - sum('calories'))} under`}</span>}
         <div className="x-nutrition-macros">
           <Macro name="Protein" grams={grams.protein} pct={share(grams.protein, 4)} color="var(--x-accent)" />
           <Macro name="Carbs" grams={grams.carbs} pct={share(grams.carbs, 4)} color="var(--x-violet)" />
@@ -95,6 +115,7 @@ export default function Nutrition() {
       </Card>
     </div>
 
+    {estimate && <MealEstimate day={day} {...estimate} onClose={closeEstimate} onSaved={(d) => { setDay(d); setEstimate(null); setText(''); }} />}
     {adding && <AddMeal day={day} onClose={() => setAdding(false)} onSaved={(d) => { setDay(d); setAdding(false); }} />}
   </>;
 }
@@ -113,7 +134,6 @@ function Macro({ name, grams, pct, color }: { name: string; grams: number; pct: 
   </div>;
 }
 
-const mealNow = () => { const h = new Date().getHours(); return h < 11 ? 'Breakfast' : h < 15 ? 'Lunch' : h < 18 ? 'Snack' : 'Dinner'; };
 const num = (s: string) => s.trim() === '' ? NaN : Number(s);
 
 function AddMeal({ day, onClose, onSaved }: { day: string; onClose: () => void; onSaved: (day: string) => void }) {
