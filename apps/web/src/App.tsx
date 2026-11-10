@@ -4,7 +4,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import XShell from './x/XShell';
 import Home from './app/Home';
 import XHome from './x/Home';
-import Landing from './app/Landing';
+import Landing from './x/XLanding';
 import { applyTheme, getTheme } from './app/theme';
 import { useIdentity } from './lib/supabase';
 import { syncHistory } from './app/store';
@@ -22,7 +22,7 @@ const Compete = lazy(() => import('./app/Compete'));
 const Consent = lazy(() => import('./app/Consent'));
 const Validation = lazy(() => import('./app/Validation'));
 const Guided = lazy(() => import('./app/Guided'));
-const Auth = lazy(() => import('./app/Auth'));
+const Auth = lazy(() => import('./x/XAuth'));
 const Dashboard = lazy(() => import('./app/Dashboard'));
 const Exercise = lazy(() => import('./app/Exercise'));
 const X = Object.fromEntries((['Train', 'Reports', 'Vitals', 'Sleep', 'Body', 'Nutrition', 'Journal', 'Labs', 'Profile', 'Integrations', 'Privacy'] as const)
@@ -58,9 +58,9 @@ export default function App() {
         <Suspense fallback={<Loading />}>
           <Routes key={`${identity.user?.id ?? 'guest'}:${language}`}>
             <Route path="/" element={<Landing />} />
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/auth/callback" element={<Auth />} />
             <Route element={<XShell />}>
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/auth/callback" element={<Auth />} />
               <Route path="/home" element={<XHome />} />
               {([['/train', 'Train'], ['/reports', 'Reports'], ['/vitals', 'Vitals'], ['/sleep', 'Sleep'], ['/body', 'Body'], ['/nutrition', 'Nutrition'], ['/journal', 'Journal'],
                 ['/blood-records', 'Labs'], ['/profile', 'Profile'], ['/integrations', 'Integrations'], ['/privacy', 'Privacy']] as const).map(([path, k]) => { const C = X[k]!; return <Route key={path} path={path} element={<C />} />; })}
