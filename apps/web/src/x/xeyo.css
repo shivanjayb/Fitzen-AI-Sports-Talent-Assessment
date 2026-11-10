@@ -31,8 +31,8 @@ html.x-root body { background-color: var(--x-frame); background-image: var(--x-a
 .x { font-family: 'DM Sans', system-ui, sans-serif; font-optical-sizing: auto; font-synthesis: none;
   -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; color: var(--x-ink); font-size: 14px; line-height: 1.5; }
 .x *, .x *::before, .x *::after { box-sizing: border-box; }
-.x button { font: inherit; color: inherit; cursor: pointer; border: 0; background: none; padding: 0; }
-.x input, .x textarea, .x select { font: inherit; color: inherit; }
+.x :where(button) { font: inherit; color: inherit; cursor: pointer; border: 0; background: none; padding: 0; }
+.x :where(input, textarea, select) { font: inherit; color: inherit; }
 .x h1, .x h2, .x h3, .x p { margin: 0; font-weight: 400; }
 .x a { color: inherit; }
 .x :focus-visible { outline: 2px solid var(--x-accent); outline-offset: 3px; }
