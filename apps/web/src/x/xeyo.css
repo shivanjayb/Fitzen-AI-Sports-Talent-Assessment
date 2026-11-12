@@ -40,7 +40,7 @@ html.x-root body { background-color: var(--x-frame); background-image: var(--x-a
 .x .num { font-variant-numeric: tabular-nums; }
 
 /* ---------- frame + top bar ---------- */
-.x-frame { padding: 20px 28px 24px; display: flex; flex-direction: column; min-height: 100vh; }
+.x-frame { padding: 20px 28px 24px; display: flex; flex-direction: column; min-height: 100dvh; }
 .x-topbar { display: flex; align-items: center; gap: 20px; height: 56px; margin-bottom: 20px; position: relative; z-index: 25; }
 .x-brand { display: flex; align-items: center; gap: 10px; }
 .x-orb { width: 30px; height: 30px; border-radius: 50%; flex: none;
@@ -176,7 +176,7 @@ html.x-root body { background-color: var(--x-frame); background-image: var(--x-a
 .x-popover .x-signout { color: var(--x-accent-deep); }
 .x-popover .x-signout svg { color: var(--x-accent-deep); }
 .x-modal { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 24px; background: #16161633; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
-.x-dialog { position: relative; width: min(640px, 100%); max-height: calc(100vh - 48px); overflow: auto; padding: 26px; border-radius: 24px;
+.x-dialog { position: relative; width: min(640px, 100%); max-height: calc(100dvh - 48px); overflow: auto; padding: 26px; border-radius: 24px;
   background: #fff; box-shadow: var(--x-shadow-pop); animation: x-enter .2s var(--x-ease); }
 .x-dialog.wide { width: min(860px, 100%); }
 .x-dialog > .x-close { position: absolute; top: 18px; right: 18px; }
@@ -245,7 +245,7 @@ html.x-root body { background-color: var(--x-frame); background-image: var(--x-a
   .x-page-head h1 { font-size: 26px; }
   .x-form-grid { grid-template-columns: 1fr; }
   .x-modal { padding: 12px; }
-  .x-dialog { padding: 22px; max-height: calc(100vh - 24px); }
+  .x-dialog { padding: 22px; max-height: calc(100dvh - 24px); }
 }
 @media (forced-colors: active) { .x-card, .x-nav, .x-ask { border: 1px solid CanvasText; } }
 
@@ -253,3 +253,42 @@ html.x-root body { background-color: var(--x-frame); background-image: var(--x-a
 .x-logo { width: 30px; height: 30px; border-radius: 9px; flex: none; object-fit: cover; background: #000; box-shadow: 0 2px 8px #0000002e; }
 .x-brand-name { font-style: italic; font-weight: 700; letter-spacing: -.02em; text-transform: lowercase; }
 .x-brand-name b { font-weight: 700; color: #1fc796; }
+
+/* ---------- phones: iOS 27 / Android 16 ---------- */
+html.x-root { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; overscroll-behavior-y: none; }
+.x { -webkit-tap-highlight-color: transparent; }
+.x img { -webkit-user-drag: none; }
+.x-frame { padding-left: max(28px, env(safe-area-inset-left)); padding-right: max(28px, env(safe-area-inset-right)); padding-top: max(20px, env(safe-area-inset-top)); }
+@media (hover: none) {
+  .x-nav a:hover, .x-icon-btn:hover, .x-btn.ghost:hover, .x-popover a:hover, .x-popover button:hover { background: inherit; }
+  .x-text-button:hover { text-decoration: none; }
+  .x-btn:active, .x-chip:active, .x-icon-btn:active { transform: scale(.96); transition-duration: .08s; }
+}
+@media (max-width: 760px) {
+  .x-frame { padding-left: max(14px, env(safe-area-inset-left)); padding-right: max(14px, env(safe-area-inset-right)); padding-top: max(14px, env(safe-area-inset-top)); }
+  /* iOS zooms into inputs under 16px */
+  .x input, .x select, .x textarea, .x-field input, .x-field select, .x-field textarea, .x-input { font-size: 16px; }
+  .x-icon-btn, .x-chip, .x-btn.small, .x-text-button { min-height: 44px; }
+  .x-chip { padding: 0 16px; }
+  .x-icon-btn.small { width: 40px; height: 40px; }
+  /* dialogs become bottom sheets above the home indicator */
+  .x-modal { place-items: end center; padding: 0; }
+  .x-dialog { width: 100%; max-height: calc(100dvh - max(24px, env(safe-area-inset-top))); border-radius: 24px 24px 0 0;
+    padding: 22px max(18px, env(safe-area-inset-left)) calc(22px + env(safe-area-inset-bottom)); animation: x-sheet .28s var(--x-ease); overscroll-behavior: contain; }
+  .x-dialog::before { content: ''; display: block; width: 36px; height: 5px; border-radius: 3px; background: var(--x-line-strong); margin: -10px auto 12px; }
+  .x-form-actions { position: sticky; bottom: calc(-22px - env(safe-area-inset-bottom)); background: #fff; margin: 18px -18px calc(-22px - env(safe-area-inset-bottom)); padding: 12px 18px calc(12px + env(safe-area-inset-bottom)); box-shadow: 0 -1px 0 var(--x-line); }
+  .x-form-actions .x-btn { flex: 1; height: 48px; }
+  .x-grid, .x-card { min-width: 0; }
+  .x-stat b { font-size: 38px; line-height: 38px; }
+  .x-page-head h1 { font-size: 28px; }
+}
+@keyframes x-sheet { from { transform: translateY(100%); } to { transform: none; } }
+@media (max-width: 760px) {
+  /* collapsed ask pill: the whole 44px pill is the input's tap area */
+  .x-ask { position: relative; }
+  .x-ask input { position: absolute; inset: 0; width: 100%; padding-left: 44px; opacity: 0; }
+  .x-ask:focus-within input { position: static; opacity: 1; padding-left: 0; }
+  .x-brand { min-width: 44px; min-height: 44px; }
+  .x-demo-pill .x-text-button { min-height: 32px; padding: 0 6px; }
+  .x a.faint, .x .x-text-link { display: inline-block; padding: 12px 0; }
+}

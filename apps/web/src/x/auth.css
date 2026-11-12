@@ -1,5 +1,5 @@
 /* Sign-in (Xeyo login layout) and landing page. */
-.x-auth { min-height: 100vh; padding: 20px 28px 32px; display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); max-width: 1180px; margin: 0 auto; }
+.x-auth { min-height: 100dvh; padding: 20px 28px 32px; display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); max-width: 1180px; margin: 0 auto; }
 .x-auth-top { display: flex; align-items: center; justify-content: space-between; height: 44px; }
 .x-auth-hero { position: relative; border-radius: var(--x-radius-card); min-height: 300px; padding: 0; display: grid; grid-template-columns: 1fr 1fr; overflow: hidden; }
 .x-auth-figure { position: relative; mix-blend-mode: multiply; opacity: .7; filter: grayscale(1) contrast(1.15) brightness(1.05); }
@@ -24,10 +24,10 @@
 .x-auth-resend { align-self: flex-start; text-decoration: underline; }
 .x-auth-guest { display: flex; gap: 8px; flex-wrap: wrap; padding-top: 14px; margin-top: 4px; border-top: 1px solid var(--x-line); }
 
-.x-land { min-height: 100vh; padding: 20px 28px 40px; max-width: 1280px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+.x-land { min-height: 100dvh; padding: 20px 28px 40px; max-width: 1280px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
 .x-land-nav { display: flex; align-items: center; justify-content: space-between; gap: 12px; height: 56px; }
 .x-land-nav nav { display: flex; gap: 8px; align-items: center; }
-.x-land-hero { display: grid; grid-template-columns: 1.15fr 1fr; gap: 16px; min-height: min(620px, calc(100vh - 120px)); }
+.x-land-hero { display: grid; grid-template-columns: 1.15fr 1fr; gap: 16px; min-height: min(620px, calc(100dvh - 120px)); }
 .x-land-hero .x-tile.orange { padding: 0; position: relative; }
 .x-land-copy { padding: 44px 40px; justify-content: space-between; gap: 28px; }
 .x-land-copy h1 { font-size: clamp(40px, 5.4vw, 76px); line-height: .98; letter-spacing: -.055em; font-weight: 300; }
