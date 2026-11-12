@@ -1407,11 +1407,12 @@ export class MotionSession {
       while (this.speeds.length && this.speeds[0]![0] < tk - 1500) this.speeds.shift();
       if (sp > this.speedPeak) {
         this.speedPeak = sp; this.speedPeakFrame = n - 2; this.speedPeakWrist = wrist;
-        // Prominence (as in scipy.signal.find_peaks): ≥ 3× the median speed of the second before, so landmark jitter can't
-        // fire it.
-        const before = this.speeds.filter(([ts]) => ts < tk && ts >= tk - 1000).map(([, v]) => v);
+        // Prominence (as in scipy.signal.find_peaks): ≥ 3× the lower-quartile speed of the second before, so landmark
+        // jitter can't fire it. Not the median: a bowler's or smasher's wind-up fills most of that second, and at 24 fps
+        // and below the sampled release peak drops under 3× the wind-up's median, so every delivery was missed.
+        const before = this.speeds.filter(([ts]) => ts < tk && ts >= tk - 1000).map(([, v]) => v).sort((x, y) => x - y);
         // Needs ≥ 0.5 s of history: the filter's start-up transient isn't a release.
-        this.speedPeakOk = this.speeds[0]![0] <= tk - 500 && sp >= 3 * median(before);
+        this.speedPeakOk = this.speeds[0]![0] <= tk - 500 && sp >= 3 * (before[Math.floor(before.length / 4)] ?? 0);
       }
       // Peak confirmed once speed falls to 55 % of a prominent peak of ≥ 1.5 body-heights/s that is a ballistic burst:
       // above half its peak for ≤ 0.54 s (demo releases 0.07–0.51 s even at 1.7× slower tempo; their wind-ups and

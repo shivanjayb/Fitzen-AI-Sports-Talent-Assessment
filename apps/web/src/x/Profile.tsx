@@ -4,7 +4,7 @@ import { EXERCISES, exerciseById, type DietPattern } from '@fitzen/engines';
 import Figure from '../app/Figure';
 import { getHistory, getProfile, importGuestHistory, INDIAN_STATES, measureOf, saveProfile, SYNCED, syncHistory, type Profile as P } from '../app/store';
 import { getWellnessRecords, purgeWellnessRecords } from '../app/wellnessStore';
-import { getAccount, isMinor, supabase, useIdentity, type Account as Acct } from '../lib/supabase';
+import { getAccount, isMinor, isMissingSchema, supabase, useIdentity, type Account as Acct } from '../lib/supabase';
 import { setPassword, signOut } from '../lib/auth';
 import { Card, Dialog, Icon, Marker, PageHead, Soon, toast } from './ui';
 import './account.css';
@@ -342,18 +342,18 @@ function AccountCard() {
       }}>Import my guest sessions</button>}
       <Link className="x-btn ghost" to="/coach">{acct?.role === 'coach' || acct?.role === 'admin' ? 'Open coach portal' : 'Coach portal'}</Link>
       {acct?.role === 'admin' && <Link className="x-btn ghost" to="/admin">Admin portal</Link>}
-      {acct && <button type="button" className="x-btn ghost x-account-danger" disabled={busy} onClick={() => {
+      {/* Wellness, sessions and the profile copy sync before "Finish my account", so deletion never waits for a public profile. */}
+      <button type="button" className="x-btn ghost x-account-danger" disabled={busy} onClick={() => {
         if (!confirm('Delete your account data? Your wellness records, uploaded scores, synced reports, groups you own and memberships are removed. Assessment sessions on this phone stay.')) return;
         void run(async () => {
-          // Synced sessions and the profile copy belong to the login, not the public profile: remove them too.
           await purgeWellnessRecords();
-          for (const t of ['sessions', 'athlete_data'] as const) { const { error } = await supabase!.from(t).delete().eq('user_id', user.id); if (error) throw error; }
+          for (const t of ['sessions', 'athlete_data'] as const) { const { error } = await supabase!.from(t).delete().eq('user_id', user.id); if (error && !isMissingSchema(error)) throw error; }
           const { error } = await supabase!.from('profiles').delete().eq('id', user.id);
           if (error) throw error;
           setAcct(null);
           return 'Account data deleted.';
         });
-      }}>Delete account data</button>}
+      }}>Delete account data</button>
     </div>
   </section>;
 }

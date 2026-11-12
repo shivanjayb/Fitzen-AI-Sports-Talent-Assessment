@@ -47,8 +47,8 @@ export default function XLanding() {
           <Link className="x-btn ghost" to="/home" onClick={() => setSampleMode(true)}>Explore the demo</Link>
         </div>
       </div>
-      <div className="x-card x-tile orange x-land-stage" aria-label={`Animated demonstration of ${HERO.name}`}>
-        <FigureArt def={HERO} frame="mid" w={640} h={640} />
+      <div className="x-card x-tile orange x-land-stage">
+        <div role="img" aria-label={`Animated demonstration of ${HERO.name}`}><FigureArt def={HERO} frame="mid" w={640} h={640} /></div>
         <div className="x-auth-panel">
           <div className="x-land-stats">
             <div><b>{EXERCISES.length}</b><span>exercises measured</span></div>
@@ -67,6 +67,6 @@ export default function XLanding() {
       </article>)}
     </section>
 
-    <footer className="x-land-foot"><span>© Fitzen · Built for every starting point.</span><span><Link to="/privacy">Privacy &amp; data</Link></span></footer>
+    <footer className="x-land-foot"><span>© Fitzen · Built for every starting point.</span><span>{!user && <><Link to="/auth?next=%2Fcoach">For coaches</Link> · </>}<Link to="/privacy">Privacy &amp; data</Link></span></footer>
   </div>;
 }

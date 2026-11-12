@@ -4,7 +4,7 @@
  * on any device, and each camera/video session's headline number goes to the leaderboards. Video never leaves the device.
  * Offline changes wait in local flags (synced, backedUp, profile dirty, deletions) and go up on the next syncHistory().
  */
-import { bestJumpCm, isAssessedReport, percentileFor, personalize, standardReps, usualExtreme, type AthleteProfile, type ExerciseDef, type Personalized, type TrainingLevel, type ForensicsReport, type IntegrityReport, type NormResult, type ReadinessInput, type SessionReport } from '@fitzen/engines';
+import { assessEvidence, exerciseById, bestJumpCm, isAssessedReport, percentileFor, personalize, standardReps, usualExtreme, type AthleteProfile, type ExerciseDef, type Personalized, type TrainingLevel, type ForensicsReport, type IntegrityReport, type NormResult, type ReadinessInput, type SessionReport } from '@fitzen/engines';
 import { isMissingSchema, storageOwner, supabase } from '../lib/supabase';
 import { isLowEndDevice } from '../pose/poseSource';
 
@@ -79,6 +79,8 @@ export function saveSession(s: SavedSession): boolean {
   if (ok) void uploadResult(saved).then(() => backupSession(saved));
   return ok;
 }
+/** Eligible and captured well enough to compare fairly with other attempts (trends, since-last deltas). */
+export const isComparableSession = (s: SavedSession) => isEligibleSession(s) && assessEvidence(exerciseById(s.report.exerciseId), s.report).comparable;
 export const isEligibleSession = (s: SavedSession) => s.source !== 'demo' && s.integrity?.verdict !== 'fail' &&
   !s.forensics?.flags.some((f) => f.severity === 'strong') && isAssessedReport(s.report);
 const isCloudMetric = (s: SavedSession, metric: NonNullable<ReturnType<typeof measureOf>>) =>

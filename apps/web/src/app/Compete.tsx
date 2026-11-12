@@ -64,7 +64,7 @@ export default function Compete() {
   const name = exerciseById(ex)?.name ?? ex;
   const fmt = (r: Row) => `${r.value.toFixed(r.metric === 'reps' ? 0 : 1)} ${UNIT[r.metric]}`;
   const others = rows?.filter((r) => !r.is_me).length ?? 0;
-  const where = { group: t('this group'), city: acct.city || t('your city'), state: acct.state || t('your state'), country: acct.country, world: t('the world') }[scope];
+  const where = { group: t('this group'), city: acct.city || t('your city'), state: acct.state || t('your state'), country: acct.country || t('your country'), world: t('the world') }[scope];
 
   return (
     <main className="page" style={{ maxWidth: 720 }}>
@@ -90,7 +90,7 @@ export default function Compete() {
       {scope === 'group' && !groups.length ? <p className="muted">{t("You're not in a group yet. Create one or join with a code below.")}</p>
         : err ? <section className="glass panel" role="alert"><p style={{ margin: 0 }}>{err[0]!.toUpperCase() + err.slice(1)}.</p>{/profile/.test(err) && <p style={{ marginBottom: 0 }}><Link to="/profile#account">{t("Open your account")}</Link></p>}</section>
         : !rows ? <div className="spinner" aria-label={t("Loading leaderboard")} />
-        : !rows.length ? <Empty>{t('No scores for {name} in {where} yet. Record it with the camera or a video to post the first one.', { name, where })}<br /><br /><Link to={`/train/${ex}`} className="btn primary">{t('Train {name}', { name })}</Link></Empty>
+        : !rows.length ? <Empty>{t('No scores for {name} in {where} yet. Record it with the camera or a video to post the first one.', { name, where })}<br /><br /><Link to={`/exercise/${ex}`} className="btn primary">{t('Train {name}', { name })}</Link></Empty>
         : (<>
           <ol className="list" style={{ listStyle: 'none', padding: 0, margin: 0 }} aria-label={`${name} leaderboard`}>
             {rows.map((r, i) => (<li key={`${r.rank}-${i}`}>

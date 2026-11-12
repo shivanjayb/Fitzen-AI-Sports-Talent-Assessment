@@ -49,7 +49,7 @@ export default function Progress() {
   const p = getProfile(), a = toAthlete(p);
   if (!h.length) return (
     <main className="page">
-      <PageHeader kicker={today()} title={t('Summary')} />
+      <PageHeader kicker={today()} title={t('Progress')} />
       <section className="activity-card">
         <div>
           <h3>{t("Activity")}</h3>
@@ -87,7 +87,7 @@ export default function Progress() {
 
   return (
     <main className="page">
-      <PageHeader kicker={today()} title={t('Summary')} />
+      <PageHeader kicker={today()} title={t('Progress')} />
 
       <div className="summary-top">
       <section className="activity-card">

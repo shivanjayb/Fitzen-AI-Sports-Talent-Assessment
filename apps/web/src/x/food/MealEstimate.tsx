@@ -40,7 +40,7 @@ export function MealEstimate({ day, photo, start = [], unmatched = [], onClose, 
         const top = p[0] && p[0].score >= UNSURE ? foodById(p[0].label) : undefined;
         if (top) setItems((cur) => cur.length ? cur : [item(top)]);
       })
-      .catch(() => { if (live) setStatus('Could not run food recognition on this device. Search for the food below instead.'); });
+      .catch(() => { if (live) setStatus(navigator.onLine ? 'Could not run food recognition on this device. Search for the food below instead.' : 'You are offline. The food model needs a one-time download, so search for the food below instead.'); });
     return () => { live = false; URL.revokeObjectURL(url); };
   }, [photo]);
 

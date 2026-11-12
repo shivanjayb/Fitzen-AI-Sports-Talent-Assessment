@@ -51,7 +51,7 @@ export default function Consent() {
   else if (!req) body = (<>
     <p>{t("We couldn't find a request for")} <b>{user.email}</b>{t(". The link only works for the parent email your child entered in Fitzen, and a child can't confirm for themselves.")}</p>
     <p className="muted">{t("If you signed in with a different email, sign out and open the link again from the right inbox.")}</p>
-    <button className="btn glass press" onClick={() => void supabase!.auth.signOut()}>{t("Sign out")}</button>
+    <button className="btn glass press" onClick={() => void supabase!.auth.signOut({ scope: 'local' })}>{t("Sign out")}</button>
   </>);
   else if (req.consented) body = <>
     <p>{t("You confirmed public leaderboard sharing for")} <b>{req.display_name}</b>. <Link to="/">{t("Open Fitzen")}</Link></p>
@@ -68,7 +68,8 @@ export default function Consent() {
     <ul style={{ paddingLeft: 18, lineHeight: 1.55 }}>
       <li>{t("Others see only their")} <b>{t("initials")}</b>{t(", their best score and form score per exercise, and where they rank in their city, state, country and the world. Never their full name, email, age, photos or video.")}</li>
       <li>{t("Video never leaves their phone. Fitzen stores only the exercise, the headline number, a form score and the date.")}</li>
-      <li>{t("Return to this link to withdraw public sharing consent yourself. This permission is only for public leaderboards, not for AI processing.")}</li>
+      <li>{t("It also lets a coach whose squad they join see their full session reports (initials only). Without it, coaches see nothing.")}</li>
+      <li>{t("Return to this link to withdraw consent yourself. It covers public leaderboards and squad coaches only, never AI processing.")}</li>
       <li>{t("Email sign-in verifies control of this mailbox. It does not independently verify adulthood or guardian status; further verification is required before a public youth release.")}</li>
     </ul>
     <button className="btn primary block" disabled={busy} onClick={() => run(async () => {

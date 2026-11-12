@@ -75,7 +75,7 @@ export class CameraPoseSource implements PoseSource {
   private landmarker: import('@mediapipe/tasks-vision').PoseLandmarker | null = null;
   private generation = 0;
 
-  constructor(private callbacks: PoseSourceCallbacks, private opts: Partial<{ facingMode: 'user' | 'environment'; model: PoseModel }> = {}) {}
+  constructor(private callbacks: PoseSourceCallbacks, private opts: Partial<{ facingMode: 'user' | 'environment'; model: PoseModel; fps: number }> = {}) {}
 
   async start(video: HTMLVideoElement | null): Promise<void> {
     this.stop();
@@ -86,7 +86,7 @@ export class CameraPoseSource implements PoseSource {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         // The pose model sees 256 px; 640×360 halves decode work on weak phones without losing landmarks.
-        video: { facingMode: this.opts.facingMode ?? 'environment', ...(isLowEndDevice() ? { width: { ideal: 640 }, height: { ideal: 360 } } : { width: { ideal: 1280 }, height: { ideal: 720 } }) },
+        video: { facingMode: this.opts.facingMode ?? 'environment', frameRate: { ideal: this.opts.fps ?? 30 }, ...(isLowEndDevice() ? { width: { ideal: 640 }, height: { ideal: 360 } } : { width: { ideal: 1280 }, height: { ideal: 720 } }) },
         audio: false,
       });
       if (run !== this.generation) { stream.getTracks().forEach(t => t.stop()); return; }
@@ -128,12 +128,15 @@ export class CameraPoseSource implements PoseSource {
         this.rafId = rvfc ? video.requestVideoFrameCallback(loop) : requestAnimationFrame(() => loop());
       };
       schedule();
-    } catch {
+    } catch (e) {
       if (run !== this.generation) return;
       this.stop();
-      this.callbacks.onError(stage === 'camera'
-        ? 'Camera unavailable or permission denied. You can still use Guided Demo mode.'
-        : 'Could not load the pose model (first load needs a network connection).');
+      const name = (e as { name?: string } | null)?.name;
+      this.callbacks.onError(stage !== 'camera' ? 'Could not load the pose model (first load needs a network connection).'
+        : name === 'NotAllowedError' || name === 'SecurityError' ? 'Camera permission is off. Allow camera access for this site in your browser settings, then retry.'
+        : name === 'NotFoundError' || name === 'OverconstrainedError' ? 'No camera was found on this device. Upload a video instead.'
+        : name === 'NotReadableError' ? 'Another app is using the camera. Close it, then retry.'
+        : 'Camera unavailable. Retry, or upload a video instead.');
     }
   }
 

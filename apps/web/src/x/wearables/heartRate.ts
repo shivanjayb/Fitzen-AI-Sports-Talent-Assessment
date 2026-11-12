@@ -2,6 +2,7 @@
 export interface HrSample { bpm: number; rr: number[] }
 
 export function parseHeartRate(view: DataView): HrSample {
+  if (view.byteLength < 2 || (view.getUint8(0) & 1 && view.byteLength < 3)) return { bpm: 0, rr: [] }; // truncated packet; 0 bpm is ignored upstream
   const flags = view.getUint8(0);
   const wide = flags & 0x01;
   const bpm = wide ? view.getUint16(1, true) : view.getUint8(1);

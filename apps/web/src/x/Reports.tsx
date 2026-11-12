@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { exerciseById, isAssessedReport, standardReps } from '@fitzen/engines';
 import { Thumb } from '../app/Figure';
-import { getHistory, measureOf, SYNCED, verdictOf, type SavedSession, type Verdict } from '../app/store';
+import { getHistory, isEligibleSession, measureOf, SYNCED, verdictOf, type SavedSession, type Verdict } from '../app/store';
 import { dayStart, shortDate } from './sample';
 import { Card, CardHead, Icon, Marker, MiniChart, PageHead, Stat } from './ui';
 import './reports.css';
@@ -42,7 +42,7 @@ export default function Reports() {
   const today = dayStart().getTime();
   const week = all.filter((s) => Date.parse(s.report.startedAt) >= today - 6 * DAY);
   const weekMin = Math.round(week.reduce((a, s) => a + s.report.durationSec, 0) / 60);
-  const best = real.filter((s) => isAssessedReport(s.report)).reduce<SavedSession | null>((b, s) => !b || s.report.formScore > b.report.formScore ? s : b, null);
+  const best = real.filter(isEligibleSession).reduce<SavedSession | null>((b, s) => !b || s.report.formScore > b.report.formScore ? s : b, null);
   const verdicts = { genuine: 0, review: 0, suspect: 0 };
   for (const s of real) verdicts[verdictOf(s)]++;
   const days = Array.from({ length: 14 }, (_, i) => {

@@ -109,7 +109,7 @@ export default function Exercise() {
           </div>
         </div>
       </section>
-      <input ref={file} type="file" accept="video/*" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) { setPendingVideo(f); go('video'); } }} />
+      <input ref={file} type="file" accept="video/*" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) { setPendingVideo(f); go('video'); } }} />
 
       <section className="exercise-history-link">
         <div><b>{t('Your history')}</b><p>{attempts.length ? t('{n} measured assessments. Open any attempt to review its report and compare your progress.', { n: measuredAttempts }) : t('Your reports and progress will appear here after your first attempt.')}</p></div>

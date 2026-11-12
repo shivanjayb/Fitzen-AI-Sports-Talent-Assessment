@@ -9,7 +9,8 @@ import './vitals.css';
 const TILES = ['rhr', 'spo2', 'hrv', 'resp', 'skin', 'steps', 'active', 'strain', 'burned', 'hr'];
 const GROUP = ['recovery', ...TILES];
 const TICKS = [1, 4, 7, 10, 13];
-const DAY = 864e5;
+/** Local midnight n calendar days ago (not n × 24 h, which drifts an hour across a DST change). */
+const daysAgo = (n: number) => { const t = dayStart(); return new Date(t.getFullYear(), t.getMonth(), t.getDate() - n); };
 const dayLabel = (d: Date) => d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
 
 const ManageSources = () => <Link className="x-btn ghost" to="/integrations">Manage sources<Icon name="arrow" /></Link>;
@@ -20,7 +21,7 @@ const Empty = ({ label }: { label: string }) => <div className="x-vitals-empty">
 
 /** Last 30 days of recovery: device values where recorded, otherwise the Fitzen estimate. */
 function recoveryPoints(sample: boolean): { pts: Point[]; estimated: boolean } {
-  const days = Array.from({ length: 30 }, (_, i) => new Date(dayStart().getTime() - (29 - i) * DAY));
+  const days = Array.from({ length: 30 }, (_, i) => daysAgo(29 - i));
   const readings = recoveryDays(days, (id) => pointsFor(id, 60, sample), readGoals().sleep);
   const pts = days.flatMap((date, i) => { const r = readings[i]; return r ? [{ date, value: r.value }] : []; });
   return { pts, estimated: readings.some((r) => r?.estimate) };
@@ -29,7 +30,7 @@ function recoveryPoints(sample: boolean): { pts: Point[]; estimated: boolean } {
 function RecoveryHero({ month, estimated }: { month: Point[]; estimated: boolean }) {
   const { open } = useExplore();
   const clip = `x-above-${useId().replace(/:/g, '')}`;
-  const cutoff = dayStart().getTime() - 13 * DAY;
+  const cutoff = +daysAgo(13);
   const pts = month.filter((p) => +p.date >= cutoff), vals = pts.map((p) => p.value), n = vals.length;
   const avg = mean(vals), sd = Math.sqrt(mean(vals.map((v) => (v - avg) ** 2)));
   const lo = Math.min(...vals, avg - sd), hi = Math.max(...vals, avg + sd);
@@ -39,7 +40,7 @@ function RecoveryHero({ month, estimated }: { month: Point[]; estimated: boolean
   const trace = vals.map((v, i) => `${X(i)},${Y(v)}`).join(' ');
   const avgY = Y(avg), bandTop = Y(avg + sd), bandBottom = Y(avg - sd);
   return <Card tone="dark" className="x-vitals-hero">
-    <CardHead title={<>Recovery <span className="x-vitals-muted">· 14 days</span></>} badge={vs.text} badgeTitle={vs.title}
+    <CardHead title={<>Recovery <span className="x-vitals-muted">· 14 days</span></>} badge={month.length > 1 ? vs.text : undefined} badgeTitle={vs.title}
       onOpen={estimated ? undefined : () => open('recovery', GROUP)} openLabel={`Open Recovery details (${vs.title})`} />
     <Stat value={fmt(vs.last)} unit="%" big={72} />
     <span className="x-caption">{today ? 'Today' : dayLabel(lastDate)} · {month.length > 1 ? vs.title : 'First reading'}</span>
@@ -89,8 +90,8 @@ export default function Vitals() {
       <ManageSources />
     </PageHead>
     <div className="x-vitals-grid">
-      {pts.length ? <RecoveryHero month={pts} estimated={estimated} /> : <Card tone="dark" className="x-vitals-hero"><CardHead title="Recovery" /><Empty label="Recovery" />
-        <p className="x-vitals-estimate">Or record 7 days of HRV or resting heart rate and Fitzen estimates it for you.</p></Card>}
+      {pts.some((p) => +p.date >= +daysAgo(13)) ? <RecoveryHero month={pts} estimated={estimated} /> : <Card tone="dark" className="x-vitals-hero"><CardHead title="Recovery" /><Empty label="Recovery" />
+        <p className="x-vitals-estimate">{pts.length ? `No recovery in the last 14 days; the latest was ${fmt(pts.at(-1)!.value)}% on ${dayLabel(pts.at(-1)!.date)}.` : 'Or record 7 days of HRV or resting heart rate and Fitzen estimates it for you.'}</p></Card>}
       {TILES.map((id, i) => <MetricTile key={id} id={id} group={GROUP} className={tall(i)} />)}
       <TrainingHeart />
     </div>

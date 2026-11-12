@@ -30,3 +30,7 @@ export function socialJetLag(nights: { weekday: number; bed: number; wake: numbe
 
 export const clock = (m: number) => { const t = Math.round(wrap(m)) % DAY_MIN; return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`; };
 export const parseClock = (s: string) => { const m = /^(\d{1,2}):(\d{2})$/.exec(s); return m && +m[1]! < 24 && +m[2]! < 60 ? +m[1]! * 60 + +m[2]! : null; };
+
+/** Whole calendar days from `d` back to `today` (0 = same day), ignoring clock time and DST. */
+export const daysBefore = (d: Date, today: Date) =>
+  Math.round((Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()) - Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())) / 864e5);

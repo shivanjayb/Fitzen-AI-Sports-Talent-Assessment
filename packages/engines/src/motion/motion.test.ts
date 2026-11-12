@@ -108,6 +108,12 @@ describe('motion engine', () => {
       // 2 decimals: the hip-velocity term scales by the session's world/image body-height ratio, which the prefix changes.
       a.forEach((x, i) => expect(x).toBeCloseTo(ref[i]!, 2));
     });
+    it('a wind-up does not mask the release at 24 fps (phone video): fast bowling and the overhead smash', () => {
+      // The second before the release is mostly wind-up; a median baseline put the sampled peak under 3x it at 24 fps.
+      for (const [id, fps] of [['fast-bowling-delivery', 24], ['overhead-smash', 24], ['overhead-smash', 15]] as const) {
+        expect(report(id, simulateExercise(exerciseById(id)!, { fps })).events, `${id} ${fps} fps`).toHaveLength(3);
+      }
+    });
     it('an athlete facing the other way gets the same release angles', () => {
       const mirror = mapLm(fwd, (lm) => ({ x: 1 - lm.x })).map((f) => ({ ...f, world: f.world?.map((p) => ({ ...p, x: -p.x })) }));
       const a = angles(mirror), ref = angles(fwd);

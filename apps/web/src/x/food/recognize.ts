@@ -20,10 +20,13 @@ export function recognizeFood(image: Blob, onDownload: (d: Download) => void): P
         return;
       }
       if (data.id !== id) return;
-      w.removeEventListener('message', listen);
+      w.removeEventListener('message', listen); w.removeEventListener('error', crash);
       if (data.type === 'result') resolve(data.labels); else reject(Error(data.message));
     };
+    // A crashed worker (out of memory, blocked script) never answers; reject and start a fresh one next time.
+    const crash = () => { w.removeEventListener('message', listen); if (worker === w) { worker.terminate(); worker = null; files.clear(); } reject(Error('The food model stopped unexpectedly.')); };
     w.addEventListener('message', listen);
+    w.addEventListener('error', crash, { once: true });
     w.postMessage({ id, image } satisfies WorkerIn);
   });
 }

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
-import { getWellnessRecords, saveWellnessRecord, subscribeWellness, validateWellness, wellnessToday } from '../app/wellnessStore';
+import { deleteWellnessRecord, getWellnessRecords, restoreWellnessRecord, saveWellnessRecord, saveWellnessRecords, subscribeWellness, validateWellness, wellnessToday, type WellnessRecord } from '../app/wellnessStore';
 import { Card, CardHead, Dialog, Icon, PageHead, Soon, Stat, toast } from './ui';
 import { MEALS, MealEstimate, mealNow } from './food/MealEstimate';
 import { parseMeal, type Food } from './food/nutrition';
@@ -14,12 +14,14 @@ const SAMPLE: Meal[] = [
 ];
 const soon = () => toast('Voice notes are coming soon. Type what you ate or snap a photo.');
 const dayDate = (d: string) => new Date(`${d}T12:00:00`);
+const prevDay = (d: string) => { const x = dayDate(d); x.setDate(x.getDate() - 1); return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`; };
+const MAX_PHOTO = 25e6; // larger files are camera RAW or panoramas; decoding them can exhaust a phone's memory
 
 export default function Nutrition() {
   const sample = useSampleMode();
   const today = wellnessToday();
   const [day, setDay] = useState(today);
-  const [adding, setAdding] = useState(false);
+  const [adding, setAdding] = useState<Meal | true | null>(null);
   const [records, setRecords] = useState(getWellnessRecords);
   const [estimate, setEstimate] = useState<{ photo?: File; start?: { food: Food; servings: number }[]; unmatched?: string[] } | null>(null);
   const [text, setText] = useState('');
@@ -34,9 +36,23 @@ export default function Nutrition() {
   };
   useEffect(() => subscribeWellness(() => setRecords(getWellnessRecords())), []);
 
+  const logged = (d: string) => records.filter((r) => r.kind === 'nutrition' && r.date === d);
+  const yesterday = logged(prevDay(day));
+  const remove = (m: Meal) => {
+    const record = records.find((r) => r.id === m.id); if (!record) return;
+    try { deleteWellnessRecord(record.id); toast('Meal deleted.', { label: 'Undo', run: () => { try { restoreWellnessRecord(record); } catch (e) { toast(e instanceof Error ? e.message : 'Could not restore.'); } } }); }
+    catch (e) { toast(e instanceof Error ? e.message : 'This meal could not be deleted.'); }
+  };
+  const copyYesterday = () => {
+    try {
+      const made = saveWellnessRecords(yesterday.map(({ kind, title, note, unit, values }: WellnessRecord) => ({ kind, date: day, title, note, unit, values })));
+      toast(`Copied ${made.length} meal${made.length === 1 ? '' : 's'} from ${shortDate(dayDate(prevDay(day)))}.`, { label: 'Undo', run: () => made.forEach((r) => deleteWellnessRecord(r.id)) });
+    } catch (e) { toast(e instanceof Error ? e.message : 'Meals could not be copied.'); }
+  };
+
   const meals: Meal[] = [
     ...(sample && day === today ? SAMPLE : []),
-    ...records.filter((r) => r.kind === 'nutrition' && r.date === day).reverse().map((r) => ({
+    ...logged(day).reverse().map((r) => ({
       id: r.id, title: r.title, note: r.note, calories: r.values.calories ?? 0, protein: r.values.protein ?? 0, carbs: r.values.carbs ?? 0, fat: r.values.fat ?? 0,
     })),
   ];
@@ -47,6 +63,7 @@ export default function Nutrition() {
   const label = shortDate(dayDate(day));
   const vitals = records.find((r) => r.kind === 'vitals' && r.date === day && (r.values.burned ?? r.values.active) !== undefined);
   const burned = vitals ? (vitals.values.burned ?? vitals.values.active ?? 0) : null;
+  const burnLabel = vitals?.values.burned !== undefined ? 'burned' : 'active energy'; // active alone excludes resting energy, so don't call it total burn
 
   return <>
     <PageHead title="Nutrition" subtitle="A conversation about what nourishes you.">
@@ -72,7 +89,8 @@ export default function Nutrition() {
           <button type="button" className="x-nutrition-attach" aria-label="Snap or upload a meal photo" title="Snap or upload a meal photo" onClick={() => fileRef.current?.click()}><Icon name="camera" /></button>
           <input ref={fileRef} type="file" accept="image/*" capture="environment" hidden onChange={(e) => {
             const photo = e.target.files?.[0]; e.target.value = '';
-            if (photo?.type.startsWith('image/')) setEstimate({ photo }); else if (photo) toast('Choose an image file.');
+            if (photo && photo.size > MAX_PHOTO) toast('This photo is over 25 MB. Take a new photo or choose a smaller one.');
+            else if (photo?.type.startsWith('image/')) setEstimate({ photo }); else if (photo) toast('Choose an image file.');
           }} />
           <textarea aria-label="What you ate" placeholder="I ate…" rows={1} value={text} maxLength={500} onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); e.currentTarget.form?.requestSubmit(); } }} />
@@ -89,7 +107,7 @@ export default function Nutrition() {
         <CardHead title={<>Daily balance <span className="x-nutrition-muted">· {meals.length} {meals.length === 1 ? 'entry' : 'entries'}</span></>} />
         <Stat value={fmt(sum('calories'))} unit="/kcal" big={44} />
         <span className="x-caption">{day === today ? 'Today' : label} · estimated from your logged meals</span>
-        {burned !== null && <span className="x-caption">Eaten {fmt(sum('calories'))} vs burned {fmt(burned)} kcal · {sum('calories') >= burned ? `${fmt(sum('calories') - burned)} over` : `${fmt(burned - sum('calories'))} under`}</span>}
+        {burned !== null && <span className="x-caption">Eaten {fmt(sum('calories'))} vs {burnLabel} {fmt(burned)} kcal · {sum('calories') >= burned ? `${fmt(sum('calories') - burned)} over` : `${fmt(burned - sum('calories'))} under`}</span>}
         <div className="x-nutrition-macros">
           <Macro name="Protein" grams={grams.protein} pct={share(grams.protein, 4)} color="var(--x-accent)" />
           <Macro name="Carbs" grams={grams.carbs} pct={share(grams.carbs, 4)} color="var(--x-violet)" />
@@ -98,13 +116,18 @@ export default function Nutrition() {
       </Card>
 
       <Card className="x-nutrition-log">
-        <CardHead title={<>Food journal <span className="x-nutrition-muted">· {label}</span></>} />
+        <CardHead title={<>Food journal <span className="x-nutrition-muted">· {label}</span></>}>
+          {yesterday.length > 0 && <button type="button" className="x-text-button" onClick={copyYesterday}>Copy previous day</button>}
+        </CardHead>
         {meals.length ? <ul className="x-nutrition-meals" aria-label={`Meals for ${label}`}>
           {meals.map((m) => <li key={m.id} className="x-nutrition-meal">
             <span className="x-nutrition-meal-icon"><Icon name="nutrition" /></span>
             <span className="x-nutrition-meal-copy"><b>{m.title}</b><small>{m.note} · {fmt(m.protein)} g protein</small></span>
             <span className="x-nutrition-kcal"><b>{fmt(m.calories)}</b><small>kcal</small></span>
-            {m.sample && <span className="x-badge">Sample</span>}
+            {m.sample ? <span className="x-badge">Sample</span> : <>
+              <button type="button" className="x-icon-btn small" aria-label={`Edit ${m.title}`} title="Edit or change portion" onClick={() => setAdding(m)}><Icon name="pencil" /></button>
+              <button type="button" className="x-icon-btn small" aria-label={`Delete ${m.title}`} title="Delete" onClick={() => remove(m)}><Icon name="close" /></button>
+            </>}
           </li>)}
         </ul> : <p className="x-empty x-nutrition-empty">No meals logged for {label}. Add one manually to start your food journal.</p>}
       </Card>
@@ -116,7 +139,7 @@ export default function Nutrition() {
     </div>
 
     {estimate && <MealEstimate day={day} {...estimate} onClose={closeEstimate} onSaved={(d) => { setDay(d); setEstimate(null); setText(''); }} />}
-    {adding && <AddMeal day={day} onClose={() => setAdding(false)} onSaved={(d) => { setDay(d); setAdding(false); }} />}
+    {adding && <AddMeal day={day} edit={adding === true ? undefined : adding} onClose={() => setAdding(null)} onSaved={(d) => { setDay(d); setAdding(null); }} />}
   </>;
 }
 
@@ -136,37 +159,47 @@ function Macro({ name, grams, pct, color }: { name: string; grams: number; pct: 
 
 const num = (s: string) => s.trim() === '' ? NaN : Number(s);
 
-function AddMeal({ day, onClose, onSaved }: { day: string; onClose: () => void; onSaved: (day: string) => void }) {
-  const [f, setF] = useState({ what: '', meal: mealNow(), day, kcal: '', protein: '0', carbs: '0', fat: '0' });
+const str = (n: number) => String(Math.round(n * 10) / 10);
+/** Add a meal, or edit a saved one: its values can be typed or scaled by a portion factor from what was saved. */
+function AddMeal({ day, edit, onClose, onSaved }: { day: string; edit?: Meal; onClose: () => void; onSaved: (day: string) => void }) {
+  const [f, setF] = useState(edit
+    ? { what: edit.title, meal: (MEALS as readonly string[]).includes(edit.note) ? edit.note : mealNow(), day, kcal: str(edit.calories), protein: str(edit.protein), carbs: str(edit.carbs), fat: str(edit.fat) }
+    : { what: '', meal: mealNow(), day, kcal: '', protein: '0', carbs: '0', fat: '0' });
+  const [portion, setPortion] = useState('1');
+  const scale = (v: string) => {
+    setPortion(v); const k = Number(v);
+    if (edit && k > 0) setF({ ...f, kcal: str(edit.calories * k), protein: str(edit.protein * k), carbs: str(edit.carbs * k), fat: str(edit.fat * k) });
+  };
   const [error, setError] = useState('');
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => { setF({ ...f, [k]: e.target.value }); setError(''); };
   const submit = (e: FormEvent) => {
     e.preventDefault();
     if (!f.what.trim()) return setError('Add what you ate.');
     if (!f.kcal.trim()) return setError('Add the meal’s calories.');
-    const input = { kind: 'nutrition' as const, date: f.day, title: f.what, note: f.meal, unit: 'kcal',
+    const input = { id: edit?.id, kind: 'nutrition' as const, date: f.day, title: f.what, note: f.meal, unit: 'kcal',
       values: { calories: num(f.kcal), protein: num(f.protein), carbs: num(f.carbs), fat: num(f.fat) } };
     const problem = validateWellness(input);
     if (problem) return setError(problem);
-    try { saveWellnessRecord(input); toast('Meal added to your food journal.'); onSaved(f.day); }
+    try { saveWellnessRecord(input); toast(edit ? 'Meal updated.' : 'Meal added to your food journal.'); onSaved(f.day); }
     catch (err) { setError(err instanceof Error ? err.message : 'This meal could not be saved.'); }
   };
   const numberField = (label: string, k: 'kcal' | 'protein' | 'carbs' | 'fat') =>
     <label className="x-field">{label}<input type="number" inputMode="decimal" min={0} max={10000} step="any" value={f[k]} required={k === 'kcal'} onChange={set(k)} /></label>;
-  return <Dialog open onClose={onClose} kicker="Nutrition" title="Add a meal">
+  return <Dialog open onClose={onClose} kicker="Nutrition" title={edit ? 'Edit meal' : 'Add a meal'}>
     <form className="x-nutrition-form" onSubmit={submit} noValidate>
       <p className="x-nutrition-dialog-lead">Enter what you know. Values from a label or another app work best.</p>
       <label className="x-field">What you ate<input value={f.what} maxLength={100} placeholder="e.g. Greek yogurt with berries" required onChange={set('what')} /></label>
       <div className="x-form-grid">
         <label className="x-field">Meal<select value={f.meal} onChange={set('meal')}>{MEALS.map((m) => <option key={m}>{m}</option>)}</select></label>
         <label className="x-field">Day<input type="date" value={f.day} max={wellnessToday()} required onChange={set('day')} /></label>
+        {edit && <label className="x-field">Portion (× as saved)<input type="number" inputMode="decimal" min={0.1} max={10} step={0.25} value={portion} onChange={(e) => scale(e.target.value)} /></label>}
         {numberField('Calories (kcal)', 'kcal')}
         {numberField('Protein (g)', 'protein')}
         {numberField('Carbs (g)', 'carbs')}
         {numberField('Fat (g)', 'fat')}
       </div>
       {error && <p className="x-nutrition-error" role="alert">{error}</p>}
-      <div className="x-nutrition-dialog-foot"><span>Saved to your food journal.</span><button className="x-btn" type="submit">Add meal</button></div>
+      <div className="x-nutrition-dialog-foot"><span>Saved to your food journal.</span><button className="x-btn" type="submit">{edit ? 'Save changes' : 'Add meal'}</button></div>
     </form>
   </Dialog>;
 }

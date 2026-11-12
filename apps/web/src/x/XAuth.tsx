@@ -6,6 +6,7 @@ import { supabase, useIdentity } from '../lib/supabase';
 import { authDestination, callbackError, passwordAuth, requestSignIn } from '../lib/auth';
 import { Icon, Marker } from './ui';
 import { setSampleMode } from './sample';
+import { authMessage, authProblem } from './authMessage';
 import './xeyo.css';
 import './auth.css';
 
@@ -21,6 +22,8 @@ export default function XAuth() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
+  const [show, setShow] = useState(false);
+  const [resend, setResend] = useState(false);
   const [notice, setNotice] = useState('');
   const [error, setError] = useState(() => callbackError(loc.search, loc.hash));
 
@@ -37,10 +40,19 @@ export default function XAuth() {
   const submit = (e: FormEvent) => {
     e.preventDefault();
     if (busy) return;
-    setBusy(true); setError(null); setNotice('');
+    setBusy(true); setError(null); setNotice(''); setResend(false);
     passwordAuth(supabase, email, password, create, location.origin, next)
-      .then((r) => { if (r === 'confirm-email') setNotice(`Check ${email.trim()} for a confirmation link, then sign in.`); })
-      .catch((err: unknown) => setError(err instanceof Error ? err.message : 'Could not sign in. Check your connection and try again.'))
+      .then((r) => { if (r === 'confirm-email') { setNotice(`Check ${email.trim()} for a confirmation link, then sign in.`); setResend(true); } })
+      .catch((err: unknown) => { setError(authMessage(err)); setResend(authProblem(err) === 'unconfirmed'); })
+      .finally(() => setBusy(false));
+  };
+  const resendConfirmation = () => {
+    setBusy(true); setError(null);
+    const redirect = new URL('/auth/callback', location.origin);
+    redirect.searchParams.set('next', next);
+    supabase!.auth.resend({ type: 'signup', email: email.trim().toLowerCase(), options: { emailRedirectTo: redirect.href } })
+      .then(({ error: err }) => { if (err) throw err; setNotice(`Confirmation email sent again to ${email.trim()}. Check spam too.`); })
+      .catch((err: unknown) => setError(authMessage(err, 'Could not resend the email.')))
       .finally(() => setBusy(false));
   };
   const forgot = () => {
@@ -48,7 +60,7 @@ export default function XAuth() {
     setBusy(true); setError(null);
     requestSignIn(supabase, email, location.origin, '/profile')
       .then(() => setNotice(`A sign-in link is on its way to ${email.trim()}. Set a new password in Profile after you sign in.`))
-      .catch((err: unknown) => setError(err instanceof Error ? err.message : 'Could not send the link.'))
+      .catch((err: unknown) => setError(authMessage(err, 'Could not send the link.')))
       .finally(() => setBusy(false));
   };
 
@@ -71,13 +83,17 @@ export default function XAuth() {
             <label className="x-field"><span>Email address</span>
               <input type="email" required maxLength={254} autoComplete="email" inputMode="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} disabled={busy} /></label>
             <label className="x-field"><span>Password</span>
-              <input type="password" required minLength={8} maxLength={72} autoComplete={create ? 'new-password' : 'current-password'} placeholder={create ? 'At least 8 characters' : 'Your password'} value={password} onChange={(e) => setPassword(e.target.value)} disabled={busy} /></label>
+              <span className="x-auth-pw">
+                <input type={show ? 'text' : 'password'} required minLength={8} maxLength={72} autoComplete={create ? 'new-password' : 'current-password'} placeholder={create ? 'At least 8 characters' : 'Your password'} value={password} onChange={(e) => setPassword(e.target.value)} disabled={busy} />
+                <button type="button" className="x-text-button" aria-pressed={show} onClick={() => setShow(!show)}>{show ? 'Hide' : 'Show'}<span className="sr-only"> password</span></button>
+              </span></label>
             {error && <p className="x-auth-error" role="alert">{error}</p>}
             {notice && <p className="x-auth-notice" role="status">{notice}</p>}
+            {resend && email.trim() && <button type="button" className="x-text-button x-auth-resend" onClick={resendConfirmation} disabled={busy}>Resend confirmation email</button>}
             <button className="x-btn x-auth-submit" disabled={busy}>{busy ? 'Please wait…' : create ? 'Create account' : 'Sign in'}<Icon name="arrow" /></button>
           </form>}
         <div className="x-auth-links">
-          <button className="x-text-button" onClick={() => { setCreate(!create); setError(null); setNotice(''); }}>{create ? 'I already have an account' : 'Create an account'}</button>
+          <button className="x-text-button" onClick={() => { setCreate(!create); setError(null); setNotice(''); setResend(false); }}>{create ? 'I already have an account' : 'Create an account'}</button>
           {!create && supabase && <button className="x-text-button" onClick={forgot} disabled={busy}>Forgot password?</button>}
         </div>
         <div className="x-auth-guest">

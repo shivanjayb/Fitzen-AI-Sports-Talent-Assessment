@@ -164,7 +164,7 @@ function Report({ row }: { row: Row }) {
     <details className="session-row" style={{ display: 'block' }}>
       <summary style={{ display: 'flex', gap: 10, alignItems: 'center', cursor: 'pointer', listStyle: 'none' }}>
         <span style={{ minWidth: 0, flex: 1 }}><b>{exerciseById(row.exercise_id)?.name ?? r.name}</b>
-          <small>{day(row.started_at)} · {row.source} · {m ? `${m.value} ${m.unit}` : 'no headline'} · form {row.form_score}</small></span>
+          <small>{day(row.started_at)} · {row.source} · {m ? `${Number(m.value.toFixed(m.unit === 'reps' ? 0 : 1))} ${m.unit}` : 'no headline'} · form {row.form_score}</small></span>
         <span className={`tag ${v.cls}`}>{v.label}</span>
       </summary>
       <div style={{ padding: '8px 0 4px', fontSize: '.85rem' }}>

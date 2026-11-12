@@ -53,3 +53,39 @@ test('portion maths scales and sums', () => {
   assert.equal(api.servingsFromGrams(dal, 300), 1.5);
   assert.deepEqual(api.totalPortions([{ food: roti, servings: 2 }, { food: dal, servings: 1 }]), { calories: 440, protein: 17, carbs: 62, fat: 13.4 });
 });
+
+test('parseMeal: Hindi names, combos, fractions, units and piece counts', () => {
+  const ids = (t) => api.parseMeal(t).items.map((i) => [i.food.id, Math.round(i.servings * 100) / 100]);
+  assert.deepEqual(ids('rajma chawal'), [['rajma', 1], ['rice', 1]]);
+  assert.deepEqual(ids('i had idli sambar'), [['idli', 1], ['sambar', 1]]);
+  assert.deepEqual(ids('chole bhature'), [['chole_bhature', 1]]);
+  assert.deepEqual(ids('for breakfast I had 3 idlis and chutney'), [['idli', 3], ['coconut_chutney', 1]]);
+  assert.deepEqual(ids('1 and a half roti'), [['roti', 1.5]]);
+  assert.deepEqual(ids('1½ roti'), [['roti', 1.5]]);
+  assert.deepEqual(ids('half a roti'), [['roti', 0.5]]);
+  assert.deepEqual(ids('roti 2, dal 1 bowl'), [['roti', 2], ['dal', 1]]);
+  assert.deepEqual(ids('1 scoop whey with 250 ml milk'), [['whey_protein', 1], ['milk', 1.02]]);
+  assert.deepEqual(ids('egg fried rice'), [['fried_rice', 1]]);
+  assert.deepEqual(ids('mutton biryani'), [['mutton_biryani', 1]]);
+  assert.deepEqual(ids('4 egg whites'), [['egg_white', 4]]);
+  assert.deepEqual(ids('3 egg omelette'), [['omelette', 1.5]]);
+  assert.deepEqual(ids('3 pc chicken tikka'), [['chicken_tikka', 0.5]]);
+  assert.deepEqual(ids('1 plate pani puri'), [['pani_puri', 1]]);
+  assert.deepEqual(ids('2 nos idly'), [['idli', 2]]);
+  assert.deepEqual(ids('2 phulkas and sabji'), [['roti', 2], ['mixed_veg', 1]]);
+  assert.deepEqual(ids('grilled chicken with sweet potato'), [['chicken_breast', 1], ['sweet_potato', 1]]);
+  assert.deepEqual(ids('a handful of almonds'), [['almonds', 1]]);
+});
+
+test('Indian portions sit in realistic ranges and every entry is Atwater-consistent within 12.5%', () => {
+  const f = api.foodById;
+  assert.ok(f('roti').grams >= 30 && f('roti').grams <= 40 && f('roti').kcal >= 100 && f('roti').kcal <= 120);
+  assert.ok(f('idli').kcal >= 50 && f('idli').kcal <= 70);
+  assert.ok(f('dal').kcal >= 150 && f('dal').kcal <= 200);
+  assert.ok(f('oats').kcal < 200, 'a bowl of oats is not 250 kcal before milk');
+  for (const x of api.FOODS) if (x.kcal > 20) {
+    const atwater = x.protein * 4 + x.carbs * 4 + x.fat * 9;
+    // fruit carbs include fibre, so USDA's own fruit values run ~11-12% under plain 4/4/9
+    assert.ok(Math.abs(atwater - x.kcal) <= x.kcal * 0.125, `${x.id}: ${x.kcal} vs ${atwater}`);
+  }
+});

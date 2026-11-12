@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useId, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { Link } from 'react-router-dom';
 import { METRICS, dayStart, fmt, longDate, mean, pointsFor, shortDate, useDataVersion, useSampleMode, versusAverage, type Point } from './sample';
 
 /* ---------- icons: 24x24 line, stroke 1.5 ---------- */
@@ -161,7 +162,7 @@ function MetricExplorer({ id, group, onMove, onClose }: { id: string; group: str
   const [sel, setSel] = useState(pts.length - 1);
   useEffect(() => setSel(pts.length - 1), [id, days, pts.length]);
   if (!pts.length) return <Dialog open onClose={onClose} kicker="Your trend" title={m.label}>
-    <p className="x-empty">No {m.label.toLowerCase()} recorded in the last {days} days. Connect a watch or import a file in <a href="/integrations">Integrations</a>, or turn on sample data to explore.</p>
+    <p className="x-empty">No {m.label.toLowerCase()} recorded in the last {days} days. Connect a watch or import a file in <Link to="/integrations">Integrations</Link>, or turn on sample data to explore.</p>
     <div className="x-periods">{[7, 30, 90].map((d) => <button key={d} className="x-chip" aria-pressed={days === d} onClick={() => setDays(d)}>{d} days</button>)}</div>
     <section className="x-explainer"><h3>What {m.label.toLowerCase()} means</h3><p>{m.what}</p><p>{m.context}</p></section>
   </Dialog>;
@@ -226,7 +227,7 @@ export function MetricTile({ id, tone = 'light', group, lastLabel, className, st
   if (!month.length) return <Card tone={tone} className={className} style={style}>
     <CardHead title={m.label} />
     <p className="x-empty" style={{ marginTop: 22 }}>{m.label} appears once a connected source records it.</p>
-    <div style={{ marginTop: 12 }}><a className="x-btn ghost small" href="/integrations">Connect a source</a></div>
+    <div style={{ marginTop: 12 }}><Link className="x-btn ghost small" to="/integrations">Connect a source</Link></div>
   </Card>;
   const vs = versusAverage(id, month);
   const recent = month.slice(-14);

@@ -5,7 +5,7 @@ import { useSyncExternalStore } from 'react';
 
 const KEY = 'fitzen-sample-data';
 const listeners = new Set<() => void>();
-const readOn = () => { try { return localStorage.getItem(KEY) !== 'off'; } catch { return true; } };
+const readOn = () => { try { return localStorage.getItem(KEY) === 'on'; } catch { return false; } };
 let on = readOn();
 export const useSampleMode = () => useSyncExternalStore((f) => { listeners.add(f); return () => { listeners.delete(f); }; }, () => on);
 export function setSampleMode(value: boolean) {
@@ -91,7 +91,7 @@ function seriesFull(id: string, days: number): Point[] {
     walk = walk * .7 + (r() - .5) * 1.1;
     const v = m.base + m.swing * (walk + Math.sin((days - i) / 4.3) * .45);
     const k = 10 ** m.digits;
-    out.push({ date: new Date(today.getTime() - i * DAY), value: Math.round(Math.min(m.max, Math.max(m.min, v)) * k) / k });
+    out.push({ date: new Date(today.getFullYear(), today.getMonth(), today.getDate() - i), value: Math.round(Math.min(m.max, Math.max(m.min, v)) * k) / k });
   }
   return out;
 }

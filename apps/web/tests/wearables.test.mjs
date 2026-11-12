@@ -88,3 +88,25 @@ test('CSV: Fitzen template, WHOOP columns, Garmin durations and Fitbit HRV summa
   assert.deepEqual(d['2026-01-05'], { sleep: { hours: 7.5 }, body: { weight: 74.8 } });
   assert.equal(d['2026-01-06'].vitals.hrv, 41.2);
 });
+
+test('RMSSD and heart-rate packet match hand-computed values; truncated packets are ignored', () => {
+  // 1000,980,1010,990 ×16 = 64 s. 63 diffs: 15×(400+900+400+100) + 400+900+400 = 28700; √(28700/63) = 21.34
+  assert.equal(hr.rmssd(Array.from({ length: 64 }, (_, i) => [1000, 980, 1010, 990][i % 4])), 21.3);
+  assert.deepEqual(hr.parseHeartRate(view([0x00])), { bpm: 0, rr: [] });
+  assert.deepEqual(hr.parseHeartRate(view([0x01, 0x48])), { bpm: 0, rr: [] });
+});
+
+test('CSV: day-first dates, European separators, epoch seconds, CR-only lines, per-file sums', () => {
+  const acc = new p.Acc();
+  assert.equal(p.parseCsv('﻿Date;Steps;Weight (lbs)\r\n13/01/2026;8.123;165,4\r\n02/01/2026;9000;164,8\r\n', acc, 'eu.csv'), 2);
+  assert.equal(p.parseCsv('timestamp,steps\n1767225600,5000\n', acc, 'epoch.csv'), 1);
+  assert.equal(p.parseCsv('date,steps\r2026-03-01,7000\r', acc, 'cr.csv'), 1);
+  p.parseCsv('date,steps\n2026-02-01,8000\n', acc, 'a.csv');
+  p.parseCsv('Date,Total Steps\n2026-02-01,8000\n', acc, 'b.csv');
+  const d = acc.days();
+  assert.deepEqual(d['2026-01-13'], { vitals: { steps: 8123 }, body: { weight: 75 } });
+  assert.equal(d['2026-01-02'].vitals.steps, 9000);
+  assert.equal(d['2026-01-01'].vitals.steps, 5000);
+  assert.equal(d['2026-03-01'].vitals.steps, 7000);
+  assert.equal(d['2026-02-01'].vitals.steps, 8000, 'the same day in two files is not doubled');
+});

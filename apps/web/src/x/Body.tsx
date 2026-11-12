@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { exerciseById } from '@fitzen/engines';
 import { figureArt } from '../app/Figure';
 import { getProfile } from '../app/store';
-import { getWellnessRecords, saveWellnessRecord, subscribeWellness, wellnessToday, type WellnessRecord } from '../app/wellnessStore';
+import { deleteWellnessRecord, getWellnessRecords, restoreWellnessRecord, saveWellnessRecord, subscribeWellness, wellnessToday, type WellnessRecord } from '../app/wellnessStore';
 import { Card, CardHead, Dialog, Icon, MetricTile, PageHead, Soon, Stat, toast, useExplore } from './ui';
 import { fmt, realSeries, shortDate, useSampleMode } from './sample';
 import './body.css';
@@ -110,13 +110,13 @@ export default function Body() {
     </div>
 
     <ViewDialog open={viewOpen} view={view} onChoose={chooseView} onClose={() => setViewOpen(false)} />
-    {measure && <MeasureDialog key={measure} kind={measure}
+    {measure && <MeasureDialog key={measure} kind={measure} records={records} weight={real.at(-1)?.value}
       initial={{ weight: lastWeight, bodyfat: lastFat, lean: lastLean }[measure]?.value}
       onExplore={() => { setMeasure(null); exploreWeight(); }} onClose={() => setMeasure(null)} />}
   </>;
 }
 
-const delta = (d: number) => Math.abs(d) < 0.05 ? 'Steady' : `${d > 0 ? '↑' : '↓'} ${fmt(Math.abs(d), 1)}`;
+const delta = (d: number) => Math.abs(d) < 0.05 ? 'Steady' : `${d > 0 ? '↑' : '↓'} ${fmt(Math.abs(d), 1)} kg`;
 
 /* ---------- figure with pins ---------- */
 interface PinDef { id: string; at: [number, number]; title: string; entry?: Entry; unit: string; label: string; onClick: () => void }
@@ -211,19 +211,28 @@ function ViewDialog({ open, view, onChoose, onClose }: { open: boolean; view: Vi
 }
 
 /* ---------- Measurement entry ---------- */
-function MeasureDialog({ kind, initial, onExplore, onClose }: { kind: Kind; initial?: number; onExplore: () => void; onClose: () => void }) {
+function MeasureDialog({ kind, records, weight, initial, onExplore, onClose }: { kind: Kind; records: WellnessRecord[]; weight?: number; initial?: number; onExplore: () => void; onClose: () => void }) {
   const K = KINDS[kind];
   const [value, setValue] = useState(initial ?? K.init);
   const [date, setDate] = useState(wellnessToday);
   const [error, setError] = useState('');
+  // Your own entry of this kind on the chosen date: saving updates it, and it can be deleted.
+  const prior = records.find((r) => r.kind === 'body' && r.date === date && r.title === K.title && r.values[kind] !== undefined);
   const save = (e: FormEvent) => {
     e.preventDefault();
     if (!Number.isFinite(value) || value < K.min || value > K.max) return setError(`Enter a number between ${K.min} and ${K.max}.`);
+    if (kind === 'lean' && weight !== undefined && value >= weight) return setError(`Lean body mass must be less than your latest weight (${fmt(weight, 1)} kg).`);
     try {
-      saveWellnessRecord({ kind: 'body', date, title: K.title, note: 'Manual entry', unit: K.unit, values: { [kind]: value } });
-      toast(`${K.title} saved.`);
+      saveWellnessRecord({ kind: 'body', date, title: K.title, note: prior?.note ?? 'Manual entry', unit: K.unit, values: { ...prior?.values, [kind]: value }, id: prior?.id });
+      toast(`${K.title} ${prior ? 'updated' : 'saved'}.`);
       onClose();
     } catch (err) { setError(err instanceof Error ? err.message : 'This measurement could not be saved.'); }
+  };
+  const remove = () => {
+    if (!prior) return;
+    try { deleteWellnessRecord(prior.id); } catch (err) { return setError(err instanceof Error ? err.message : 'This entry could not be deleted.'); }
+    toast(`${K.title} entry deleted.`, { label: 'Undo', run: () => { try { restoreWellnessRecord(prior); } catch (err) { toast(err instanceof Error ? err.message : 'Could not undo.'); } } });
+    onClose();
   };
   return <Dialog open onClose={onClose} kicker="Your measurements" title={K.title}>
     <form className="x-body-measure-form" onSubmit={save} noValidate>
@@ -233,9 +242,12 @@ function MeasureDialog({ kind, initial, onExplore, onClose }: { kind: Kind; init
       <label className="x-field">Measurement date
         <input type="date" value={date} min="1900-01-01" max={wellnessToday()} required onChange={(e) => { setDate(e.target.value); setError(''); }} />
       </label>
-      <p className="x-body-hint">Saved privately as a manual entry, with your measurement date.</p>
+      <p className="x-body-hint">{prior ? `You saved ${fmt(prior.values[kind]!, 1)} ${K.unit} on this date; saving replaces it.` : 'Saved privately as a manual entry, with your measurement date.'}</p>
       {error && <p className="x-body-error" role="alert">{error}</p>}
-      <div className="x-body-dialog-foot is-left"><button className="x-btn" type="submit">Save measurement</button></div>
+      <div className="x-body-dialog-foot is-left">
+        <button className="x-btn" type="submit">{prior ? 'Update measurement' : 'Save measurement'}</button>
+        {prior && <button className="x-btn ghost" type="button" onClick={remove}>Delete this entry</button>}
+      </div>
     </form>
     {kind === 'weight' && <button className="x-text-button x-body-trend" onClick={onExplore}>Explore the trend ↗</button>}
   </Dialog>;
@@ -256,7 +268,7 @@ function Ruler({ value, onChange, min, max, unit, unitWord, label, disabled }: {
       <span className="sr-only">{label} in {unit}</span>
       <input className="x-ruler-input" inputMode="decimal" value={text} placeholder={KINDS.weight.init.toFixed(1)} title="Enter a number like 70.5" disabled={disabled}
         size={Math.max(3, text.length)}
-        onChange={(e) => { setText(e.target.value); const n = parseFloat(e.target.value); if (Number.isFinite(n) && n >= min && n <= max) onChange(n); else onChange(NaN); }}
+        onChange={(e) => { setText(e.target.value); const n = Number(e.target.value.trim().replace(',', '.')) || NaN; if (Number.isFinite(n) && n >= min && n <= max) onChange(n); else onChange(NaN); }}
         onBlur={() => { if (Number.isFinite(value)) setText(value.toFixed(1)); }} />
       <span className="x-ruler-unit">{unit}</span>
     </label>

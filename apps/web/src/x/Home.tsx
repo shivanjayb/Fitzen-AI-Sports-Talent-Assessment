@@ -3,10 +3,11 @@ import { Link, useNavigate } from 'react-router-dom';
 import { EXERCISES, exerciseById } from '@fitzen/engines';
 import { ExerciseArt, FigureArt } from '../app/Figure';
 import { getHistory, measureOf, type SavedSession } from '../app/store';
-import { getWellnessRecords, saveWellnessRecord, subscribeWellness, validateWellness, wellnessToday, type WellnessInput, type WellnessRecord } from '../app/wellnessStore';
+import { deleteWellnessRecord, getWellnessRecords, saveWellnessRecord, subscribeWellness, validateWellness, wellnessToday, type WellnessInput, type WellnessRecord } from '../app/wellnessStore';
 import { CUSTOMIZE_EVENT } from './XShell';
-import { Card, CardHead, Dialog, Icon, MetricTile, MiniChart, PageHead, Soon, Stat, toast, useExplore, type Tone } from './ui';
-import { METRICS, dayStart, fmt, longDate, mean, pointsFor, realSeries, series, setSampleMode, shortDate, useDataVersion, useSampleMode, versusAverage, type Point } from './sample';
+import { Card, CardHead, Dialog, Icon, MetricTile, MiniChart, PageHead, Stat, toast, useExplore, type Tone } from './ui';
+import { METRICS, dayStart, fmt, longDate, pointsFor, realSeries, setSampleMode, shortDate, useDataVersion, useSampleMode, versusAverage, type Point } from './sample';
+import { changeText, energyOn, sameDay, weekCompare } from './homeMath';
 import { RECOVERY_FORMULA, readiness, recoveryDays, type Reading } from './recovery';
 import { readGoals } from './sleepGoals';
 import './home.css';
@@ -17,7 +18,7 @@ const NEWS_GROUP = [...HOME, 'deep', 'steps'];
 const SLOT_TONES: Tone[] = ['dark', 'light', 'light', 'night', 'light', 'pulse'];
 const LAYOUT_KEY = 'fitzen-home-layout';
 const HEART = 'M12 20.5s-7.6-4.5-9.7-9.1C.8 8 2.9 4 6.8 4c2.2 0 3.7 1.2 5.2 3.1C13.5 5.2 15 4 17.2 4c3.9 0 6 4 4.5 7.4-2.1 4.6-9.7 9.1-9.7 9.1z';
-const MOODS = ['', 'Bad', 'Low', 'Okay', 'Good', 'Great'];
+const MOODS = ['', 'Rough', 'Low', 'Okay', 'Good', 'Great']; // same words as Journal
 const SAMPLE_MOODS = ['Good', 'Low', 'Good', 'Great', 'Okay', 'Good'];
 const SUMMARY = ['rhr', 'spo2', 'hrv', 'sleep', 'recovery', 'resp', 'skin', 'performance', 'efficiency', 'deep', 'rem', 'light', 'awake', 'steps', 'active', 'strain', 'burned', 'hr'];
 const MOVERS = ['hrv', 'rhr', 'sleep', 'deep', 'steps', 'strain', 'resp', 'spo2'];
@@ -102,7 +103,7 @@ export default function Home() {
     </div>}
     <div className="x-home-grid">
       {tiles}
-      <MonthCard sample={sample} records={records} sessions={sessions} today={today} />
+      <MonthCard sample={sample} records={records} sessions={sessions} week={week} />
       <Calories sample={sample} records={records} />
       <Weight sample={sample} records={records} />
       <Week sample={sample} records={records} sessions={sessions} recovery={week} onSummary={() => setSummary(true)} />
@@ -147,7 +148,7 @@ function GetStarted({ className, children }: { className: string; children: Reac
     <CardHead title="Get started" />
     <p>Three steps to fill your dashboard with your own data.</p>
     <ol className="x-home-steps">
-      <li><Link to="/integrations"><b>1</b>Connect a wearable<Soon /></Link></li>
+      <li><Link to="/integrations"><b>1</b>Import from your wearable</Link></li>
       <li><Link to="/journal"><b>2</b>Write your first check-in</Link></li>
       <li><Link to="/nutrition"><b>3</b>Log a meal</Link></li>
     </ol>
@@ -156,12 +157,14 @@ function GetStarted({ className, children }: { className: string; children: Reac
   </Card>;
 }
 
-function MonthCard({ sample, records, sessions, today: rec }: { sample: boolean; records: WellnessRecord[]; sessions: SavedSession[]; today: Reading | null }) {
+function MonthCard({ sample, records, sessions, week }: { sample: boolean; records: WellnessRecord[]; sessions: SavedSession[]; week: (Reading | null)[] }) {
+  const rec = week[6] ?? null, lastIdx = week.map((r) => !!r).lastIndexOf(true);
   const { open } = useExplore();
   const days = daysBack(10), today = days[9]!;
   const recorded = new Set([...records.map((r) => r.date), ...sessions.map((s) => isoDay(new Date(s.report.startedAt)))]);
   const score = rec ? Math.round(rec.value) : 0;
-  const [head, advice] = !rec ? ['Your day', 'Write a check-in or record a session and your daily brief builds from your own records. Recovery appears after 7 days of HRV or resting heart rate.']
+  const [head, advice] = !rec ? ['Your day', lastIdx >= 0 ? `Today’s recovery is not in yet; your latest was ${Math.round(week[lastIdx]!.value)}% on ${shortDate(daysBack(7)[lastIdx]!)}. Import or sync today’s data to update your brief.`
+    : 'Write a check-in or record a session and your daily brief builds from your own records. Recovery appears after 7 days of HRV or resting heart rate.']
     : score >= 67 ? ['Ready day', 'Your body looks ready. A harder session or an assessment fits today.']
       : score >= 34 ? ['Steady day', 'Train at a moderate effort and notice how you feel as the day goes on.']
         : ['Easy day', 'Keep it light today: mobility, a walk and an early night.'];
@@ -197,19 +200,21 @@ function Calories({ sample, records }: { sample: boolean; records: WellnessRecor
   const today = wellnessToday();
   const meals = records.filter((r) => r.kind === 'nutrition' && r.date === today);
   const sum = (k: string) => meals.reduce((a, r) => a + (r.values[k] ?? 0), 0);
-  const eaten = sample ? 1500 : sum('calories'), burned = sample ? 2342 : null;
+  const energy = sample ? { value: 2342, total: true } : energyOn(records, today), burned = energy?.value ?? null;
+  const eaten = sample ? 1500 : sum('calories');
   const [p, c, f] = sample ? [102, 142, 51] : [sum('protein'), sum('carbs'), sum('fat')];
   const kcal = p * 4 + c * 4 + f * 9, pct = (g: number, per: number) => kcal ? Math.round((g * per / kcal) * 100) : 0;
   return <Card className="x-home-cal" onClick={() => navigate('/nutrition')}>
     <CardHead title="Calories" onOpen={() => navigate('/nutrition')} openLabel="Open Nutrition" />
     <div className="x-home-pair">
       <div><span className="x-caption">Eaten</span><Stat value={fmt(eaten)} unit="kcal" big={34} /></div>
-      <div><span className="x-caption">Burned</span>{burned != null ? <Stat value={fmt(burned)} unit="kcal" big={34} /> : <Stat value="—" big={34} />}</div>
+      <div><span className="x-caption">{energy && !energy.total ? 'Active energy' : 'Burned'}</span>{burned != null ? <Stat value={fmt(burned)} unit="kcal" big={34} /> : <Stat value="—" big={34} />}</div>
     </div>
-    {burned != null ? <>
+    {energy && !energy.total ? <span className="x-caption x-home-calnote">Active energy only: no source recorded your resting energy today, so there is no balance to show.</span>
+    : burned != null ? <>
       <div className="x-home-calbar" role="img" aria-label={`Eaten ${eaten} of ${burned} kcal burned`}><i style={{ width: `${Math.min(100, (eaten / burned) * 100)}%` }} /></div>
-      <span className="x-caption">{fmt(Math.abs(burned - eaten))} kcal {eaten <= burned ? 'under' : 'over'} what you burned</span>
-    </> : <span className="x-caption x-home-calnote">{meals.length ? `${meals.length} ${meals.length === 1 ? 'meal' : 'meals'} logged today` : 'No meals logged today'}. Burned energy needs a connected source.</span>}
+      <span className="x-caption">{fmt(Math.abs(burned - eaten))} kcal {eaten <= burned ? 'under' : 'over'} what you burned{sample ? ' · Sample data' : ''}</span>
+    </> : <span className="x-caption x-home-calnote">{meals.length ? `${meals.length} ${meals.length === 1 ? 'meal' : 'meals'} logged today` : 'No meals logged today'}. No burned energy recorded today; import or sync a source.</span>}
     <div className="x-legend x-home-macros">
       <span><i className="t-accent" />Protein {fmt(p)} g · {pct(p, 4)}%</span>
       <span><i className="t-violet" />Carbs {fmt(c)} g · {pct(c, 4)}%</span>
@@ -255,7 +260,7 @@ function Weight({ sample, records }: { sample: boolean; records: WellnessRecord[
     }
   } else if (sample) {
     const [before, entry] = [daysBack(7)[0]!, daysBack(3)[0]!];
-    caption = `Last entry 71.3 kg · ${shortDate(entry)}`; badge = '↓ 0.3 kg'; badgeTitle = `Since ${shortDate(before)}`;
+    caption = `Sample data · 71.3 kg · ${shortDate(entry)}`; badge = '↓ 0.3 kg'; badgeTitle = `Since ${shortDate(before)}`;
   }
   const [kg, setKg] = useState(() => last?.values.weight ?? (sample ? 71.3 : 70));
   const [text, setText] = useState(kg.toFixed(1));
@@ -263,10 +268,18 @@ function Weight({ sample, records }: { sample: boolean; records: WellnessRecord[
   const set = (v: number) => { const k = clampKg(v); setKg(k); setText(k.toFixed(1)); };
   const save = (e: FormEvent) => {
     e.preventDefault();
-    const input: WellnessInput = { kind: 'body', date: wellnessToday(), title: 'Weight', note: '', unit: 'kg', values: { weight: kg } };
+    const date = wellnessToday();
+    // Today's manual entry is updated, not duplicated; Undo puts the previous value back.
+    const prior = records.find((r) => r.kind === 'body' && r.date === date && r.title === 'Weight' && r.values.weight !== undefined);
+    const input: WellnessInput = { kind: 'body', date, title: 'Weight', note: prior?.note ?? '', unit: 'kg', values: { ...prior?.values, weight: kg }, id: prior?.id };
     const err = validateWellness(input);
     if (err) { setError(err); return; }
-    try { saveWellnessRecord(input); setError(''); toast(`Saved ${kg.toFixed(1)} kg for today.`); }
+    try {
+      const saved = saveWellnessRecord(input); setError('');
+      toast(prior ? `Updated today to ${kg.toFixed(1)} kg.` : `Saved ${kg.toFixed(1)} kg for today.`, { label: 'Undo', run: () => {
+        try { if (prior) saveWellnessRecord({ ...prior }); else deleteWellnessRecord(saved.id); } catch (x) { toast(x instanceof Error ? x.message : 'Could not undo.'); }
+      } });
+    }
     catch (x) { setError(x instanceof Error ? x.message : 'Could not save this entry.'); }
   };
   return <Card className="x-home-weight">
@@ -293,7 +306,7 @@ function Week({ sample, records, sessions, recovery, onSummary }: { sample: bool
   const { open } = useExplore();
   const days = daysBack(7);
   const byDay = (kind: WellnessRecord['kind'], key: string) => days.map((d) => records.find((r) => r.kind === kind && r.date === isoDay(d) && r.values[key] !== undefined)?.values[key]);
-  const at = (id: string) => { const pts = pointsFor(id, 7, sample); return days.map((d) => pts.find((p) => +p.date === +d)?.value); };
+  const at = (id: string) => { const pts = pointsFor(id, 7, sample); return days.map((d) => pts.find((p) => sameDay(p.date, d))?.value); };
   const trained = days.map((d) => sessions.filter((s) => isoDay(new Date(s.report.startedAt)) === isoDay(d)).length || undefined);
   const rows: { id: string; label: string; unit: string; values: (number | undefined)[] }[] = [
     { id: 'recovery', label: recovery.some((r) => r?.estimate) ? 'Recovery*' : 'Recovery', unit: '%', values: recovery.map((r) => r?.value) },
@@ -327,7 +340,7 @@ function Week({ sample, records, sessions, recovery, onSummary }: { sample: bool
         <tr>
           <th scope="row"><Link className="x-home-signal" to="/journal">Mood</Link></th>
           {moods.map((m, i) => <td key={i} className={today(i)}>
-            {m ? <span className="x-home-mood">{m}</span>
+            {m ? <span className="x-home-mood" title={m}>{m}</span>
               : i === 6 ? <Link className="x-home-add" to="/journal" aria-label="Check in for today"><Icon name="plus" /></Link>
                 : <span className="x-home-none">—</span>}
           </td>)}
@@ -339,22 +352,21 @@ function Week({ sample, records, sessions, recovery, onSummary }: { sample: bool
 }
 
 function Summary({ open, onClose, sample, checkins }: { open: boolean; onClose: () => void; sample: boolean; checkins: number }) {
+  const rows = open ? SUMMARY.flatMap((id) => { const w = weekCompare(pointsFor(id, 14, sample), dayStart()); return w ? [{ id, ...w }] : []; }) : [];
   return <Dialog open={open} onClose={onClose} wide kicker="Last 7 days compared with the 7 before" title="Your week, in summary">
-    {sample ? <div className="x-home-weekly-wrap"><table className="x-home-weekly">
+    {rows.length ? <div className="x-home-weekly-wrap"><table className="x-home-weekly">
       <thead><tr><th scope="col">Signal</th><th scope="col">Last 7 days</th><th scope="col">7 days before</th><th scope="col">Change</th></tr></thead>
-      <tbody>{SUMMARY.map((id) => {
-        const m = METRICS[id]!, v = series(id, 30).map((p) => p.value);
-        const a = mean(v.slice(-7)), b = mean(v.slice(-14, -7)), pct = ((a - b) / b) * 100, steady = Math.abs(pct) < 1;
-        const p = Math.abs(pct) >= 10 ? Math.round(Math.abs(pct)) : Math.abs(pct).toFixed(1);
+      <tbody>{rows.map(({ id, a, b, na, nb }) => {
+        const m = METRICS[id]!, change = changeText(a, b, m.unit === '%');
         return <tr key={id}>
-          <td><b>{m.label}</b><small>7 days recorded</small></td>
+          <td><b>{m.label}</b><small>{na} of 7 days recorded{nb < 7 ? ` · ${nb} before` : ''}</small></td>
           <td><span className="x-home-weekly-value">{fmt(a, m.digits)}</span> <small>{m.unit}</small></td>
           <td>{fmt(b, m.digits)} <small>{m.unit}</small></td>
-          <td><span className={`x-badge${steady ? '' : ' solid'}`}>{steady ? 'Steady' : `${pct > 0 ? '↑' : '↓'} ${p}%`}</span></td>
+          <td><span className={`x-badge${change === 'Steady' ? '' : ' solid'}`}>{change}</span></td>
         </tr>;
       })}</tbody>
-    </table></div> : <p className="x-empty">Weekly comparisons appear once a connected source records two weeks of readings.</p>}
-    <p className="x-home-note">{checkins} journal check-in{checkins === 1 ? '' : 's'} this week{sample ? ' · Sample data' : ''}. Averages of daily means. A change describes a difference, not whether it is good or bad.</p>
+    </table></div> : <p className="x-empty">Weekly comparisons appear once your records cover both of the last two weeks.</p>}
+    <p className="x-home-note">{checkins} journal check-in{checkins === 1 ? '' : 's'} this week{sample ? ' · Sample data' : ''}. Averages of the days recorded. A change describes a difference, not whether it is good or bad.</p>
   </Dialog>;
 }
 

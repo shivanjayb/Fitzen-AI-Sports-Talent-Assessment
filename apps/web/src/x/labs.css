@@ -41,3 +41,4 @@
 .x-labs-mini { margin: 12px 0 14px; font-size: 12px; line-height: 19.2px; color: var(--x-ink-3); }
 
 @media (max-width: 1180px) { .x-labs-grid { grid-template-columns: minmax(0, 1fr); } .x-labs-results { grid-column: auto; } }
+.x-labs-del { margin-left: 6px; vertical-align: middle; }

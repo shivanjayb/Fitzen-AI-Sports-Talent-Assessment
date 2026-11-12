@@ -8,7 +8,8 @@ import { drawOverlay } from './overlay';
 import { drawAthlete } from './Figure';
 import { getProfile, personalFor, saveSession } from './store';
 import { getPendingVideo, setPendingVideo } from './pendingVideo';
-import { IconAlert, IconBulb, IconCamera, IconClose, IconFlip, IconVolume } from './icons';
+import { IconAlert, IconBulb, IconCamera, IconCheck, IconClose, IconFlip, IconVolume } from './icons';
+import './capture.css';
 
 // Demo canvas matches the screen's shape so the figure is never cropped.
 const DEMO_H = 900;
@@ -66,6 +67,32 @@ const Silhouette = () => (
   </svg>
 );
 
+/** Setup checks shown before the countdown. `ok: null` = not known yet. Only "body" gates the start; the rest advise. */
+interface SetupCheck { id: string; label: string; ok: boolean | null; fix?: string }
+const dist = (a: { x: number; y: number }, b: { x: number; y: number }, aspect: number) => Math.hypot((a.x - b.x) * aspect, a.y - b.y);
+function setupChecks(f: PoseFrame, l: LiveState, aspect: number, side: boolean, fps: number, needFps: number, luma: number | null): SetupCheck[] {
+  const p = f.landmarks;
+  const seen = (i: number) => (p[i]?.visibility ?? 0) >= 0.5;
+  const torso = [11, 12, 23, 24].every(seen);
+  let distance: SetupCheck = { id: 'distance', label: 'Distance', ok: null };
+  let view: SetupCheck = { id: 'view', label: side ? 'Side-on to the camera' : 'Facing the camera', ok: null };
+  if (torso) {
+    const vis = p.filter((q) => (q.visibility ?? 0) >= 0.5);
+    const span = Math.max(Math.max(...vis.map((q) => q.y)) - Math.min(...vis.map((q) => q.y)), (Math.max(...vis.map((q) => q.x)) - Math.min(...vis.map((q) => q.x))));
+    distance = span < 0.4 ? { ...distance, ok: false, fix: 'Come closer' } : span > 0.95 ? { ...distance, ok: false, fix: 'Step back' } : { ...distance, ok: true };
+    // Shoulder width over torso length: about 0.6–0.8 seen from the front, near 0 from the side.
+    const mid = (a: number, b: number) => ({ x: (p[a]!.x + p[b]!.x) / 2, y: (p[a]!.y + p[b]!.y) / 2 });
+    const ratio = dist(p[11]!, p[12]!, aspect) / Math.max(1e-3, dist(mid(11, 12), mid(23, 24), aspect));
+    view = side ? { ...view, ok: ratio < 0.45, fix: 'Turn sideways to the camera' } : { ...view, ok: ratio > 0.4, fix: 'Turn to face the camera' };
+  }
+  return [
+    { id: 'body', label: 'Whole body in view', ok: l.tracking, fix: l.framing ?? undefined },
+    distance, view,
+    { id: 'light', label: 'Enough light', ok: luma === null ? null : luma >= 45, fix: 'Add light or face a window' },
+    { id: 'speed', label: 'Smooth tracking', ok: fps ? fps >= needFps * 0.8 : null, fix: 'Close other apps; tracking is slow' },
+  ];
+}
+
 const zoneColor = (score: number) => (score >= 85 ? 'var(--good)' : score >= 65 ? 'var(--ok)' : 'var(--bad)');
 const mmss = (ms: number) => { const s = Math.max(0, Math.floor(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
 
@@ -100,6 +127,19 @@ export default function Session() {
   const [voice, setVoice] = useState(profile.voice);
   const [facing, setFacing] = useState<'user' | 'environment'>(def?.camera === 'front' ? 'user' : 'environment');
   const [flash, setFlash] = useState<{ k: number; c: string } | null>(null);
+  const [setup, setSetup] = useState<SetupCheck[]>([]);
+  const [steady, setSteady] = useState(0);
+  const [lostFor, setLostFor] = useState(0);
+  const [fps, setFps] = useState(0);
+  const [retry, setRetry] = useState(0);
+  const [notice, setNotice] = useState<string | null>(null);
+  // A jump's flight is ~0.5 s: ask the camera for 60 fps and expect 30; reps and holds are fine at half that.
+  const needFps = def?.mode === 'event' ? 30 : 15;
+  const fpsRef = useRef({ last: 0, ema: 0 });
+  const luma = useRef<{ at: number; v: number | null; cv: HTMLCanvasElement | null }>({ at: 0, v: null, cv: null });
+  const lastTracked = useRef(0);
+  const lastSpoke = useRef(0);
+  const lostSaid = useRef(false);
   const voiceRef = useRef(voice); voiceRef.current = voice;
 
   const setStage = (s: Stage) => { stageRef.current = s; setStageState(s); };
@@ -132,6 +172,7 @@ export default function Session() {
     if (!def) return;
     session.current = new MotionSession(def, { weightKg: profile.weightKg ?? undefined });
     prev.current = { reps: 0, events: 0, cue: null, wrong: 0 };
+    lastTracked.current = 0; lostSaid.current = false; setLostFor(0);
     setStage('active');
     say(def.mode === 'hold' ? 'Hold it' : 'Go', voiceRef.current);
   }, [def, profile.weightKg]);
@@ -145,6 +186,28 @@ export default function Session() {
     if (cv && (cv.width !== W || cv.height !== H)) { cv.width = W; cv.height = H; }
     const aspect = W / H;
     const st = stageRef.current;
+    // Measured frame rate (EMA of frame intervals): what the engine actually receives, not what the camera claims.
+    const fr = fpsRef.current;
+    const dt = f.timestampMs - fr.last;
+    if (fr.last && dt > 0 && dt < 1000) fr.ema = fr.ema ? fr.ema + 0.1 * (1000 / dt - fr.ema) : 1000 / dt;
+    fr.last = f.timestampMs;
+    // Scene brightness once a second from a 32×18 copy of the frame (Rec. 601 luma). Stays on the device.
+    const lu = luma.current;
+    if (src === 'camera' && v && v.videoWidth && f.timestampMs - lu.at > 1000) {
+      lu.at = f.timestampMs;
+      try {
+        lu.cv ??= Object.assign(document.createElement('canvas'), { width: 32, height: 18 });
+        const c2 = lu.cv.getContext('2d', { willReadFrequently: true });
+        if (c2) {
+          c2.drawImage(v, 0, 0, 32, 18);
+          const d = c2.getImageData(0, 0, 32, 18).data;
+          let sum = 0;
+          for (let i = 0; i < d.length; i += 4) sum += 0.299 * d[i]! + 0.587 * d[i + 1]! + 0.114 * d[i + 2]!;
+          lu.v = sum / (d.length / 4);
+        }
+      } catch { lu.v = null; }
+      setFps(Math.round(fr.ema));
+    }
     let l: LiveState;
     if (st === 'active' && session.current) {
       l = session.current.push(f, aspect);
@@ -167,8 +230,15 @@ export default function Session() {
         setFlash({ k: Date.now(), c: e.score >= 0.75 ? 'var(--good)' : e.score >= 0.5 ? 'var(--ok)' : 'var(--bad)' });
         say(e.jumpHeightCm !== undefined ? `${Math.round(e.jumpHeightCm)} centimetres` : e.releaseAngle !== undefined ? `Release ${Math.round(e.releaseAngle)} degrees` : 'Good', voiceRef.current);
       }
-      if (l.cue && l.cue !== p.cue && l.reps === p.reps && l.mismatchedReps === p.wrong) say(l.cue, voiceRef.current);
+      // One spoken correction every 3 s at most: a stream of cues is noise the athlete cannot act on mid-rep.
+      if (l.cue && l.cue !== p.cue && l.reps === p.reps && l.mismatchedReps === p.wrong && f.timestampMs - lastSpoke.current > 3000) { lastSpoke.current = f.timestampMs; say(l.cue, voiceRef.current); }
       prev.current = { reps: l.reps, events: l.events.length, cue: l.cue, wrong: l.mismatchedReps };
+      // Tracking loss: after 1.2 s tell the athlete what to fix; counting resumes by itself when they are back in view.
+      if (l.tracking || !lastTracked.current) lastTracked.current = f.timestampMs;
+      const lost = src === 'camera' ? f.timestampMs - lastTracked.current : 0;
+      setLostFor(lost > 1200 ? lost : 0);
+      if (lost > 1200 && !lostSaid.current) { lostSaid.current = true; say(l.framing ?? 'Step back into the frame', voiceRef.current); }
+      if (lost === 0 && lostSaid.current) { lostSaid.current = false; say('Tracking again', voiceRef.current); }
     } else {
       probe.current ??= new MotionSession(def);
       l = probe.current.push(f, aspect);
@@ -180,20 +250,23 @@ export default function Session() {
         if (st === 'loading') setStage('framing');
         if (!lost) {
           okSince.current ??= f.timestampMs;
-          if (f.timestampMs - okSince.current > 1000) setStage('countdown');
+          if (f.timestampMs - okSince.current > 1500) setStage('countdown');
         } else okSince.current = null;
+        setSteady(okSince.current === null ? 0 : Math.min(1, (f.timestampMs - okSince.current) / 1500));
+        if (src === 'camera') setSetup(setupChecks(f, l, aspect, def.camera === 'side', fr.ema, needFps, lu.v));
       }
     }
     if (cv) drawOverlay(cv, f, l, mirror, src === 'demo' ? (ctx, fr) => drawAthlete(ctx, fr.landmarks, DEMO_GROUND, def) : undefined);
     setLive(l);
-  }, [def, src, mirror]);
+  }, [def, src, mirror, needFps]);
 
   // Source lifecycle
   useEffect(() => {
     if (!def) return;
     source.current?.stop();
     session.current = null; probe.current = null; okSince.current = null; badSince.current = null;
-    setStage('loading'); setError(null); setLive(null);
+    setStage('loading'); setError(null); setLive(null); setSetup([]); setSteady(0); setLostFor(0);
+    fpsRef.current = { last: 0, ema: 0 }; luma.current.v = null;
     const cb = {
       onFrame: (f: PoseFrame) => onFrameRef.current(f),
       onStatus: (s: string) => {
@@ -202,7 +275,7 @@ export default function Session() {
       },
       onError: (m: string) => { setError(m); setStage('error'); },
     };
-    if (src === 'camera') source.current = new CameraPoseSource(cb, { facingMode: facing, model: profile.model });
+    if (src === 'camera') source.current = new CameraPoseSource(cb, { facingMode: facing, model: profile.model, fps: def.mode === 'event' ? 60 : 30 });
     else if (src === 'video') {
       const file = selectedVideo.current;
       setPendingVideo(null);
@@ -227,7 +300,24 @@ export default function Session() {
     void source.current.start(video.current);
     return () => source.current?.stop();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [def, src, facing]);
+  }, [def, src, facing, retry]);
+
+  // Keep the screen awake while capturing, and say so when the tab was hidden (the camera delivers no frames then).
+  useEffect(() => {
+    if (src === 'demo') return;
+    type Lock = { release: () => Promise<void> };
+    let lock: Lock | null = null, gone = false;
+    const wl = (navigator as Navigator & { wakeLock?: { request: (t: 'screen') => Promise<Lock> } }).wakeLock;
+    const hold = () => { void wl?.request('screen').then((x) => { if (gone) void x.release(); else lock = x; }, () => undefined); };
+    const onVis = () => {
+      if (document.visibilityState !== 'visible') return;
+      hold();
+      if (stageRef.current === 'active' && src === 'camera') { setNotice('Capture paused while the screen was hidden. Time away is not counted.'); window.setTimeout(() => setNotice(null), 5000); }
+    };
+    hold();
+    document.addEventListener('visibilitychange', onVis);
+    return () => { gone = true; document.removeEventListener('visibilitychange', onVis); void lock?.release().catch(() => undefined); };
+  }, [src]);
 
   const onFrameRef = useRef(onFrame); onFrameRef.current = onFrame;
   const finishRef = useRef(finish); finishRef.current = finish;
@@ -278,7 +368,9 @@ export default function Session() {
           {src === 'camera' && <button className="btn icon glass press" onClick={() => setFacing((f) => (f === 'user' ? 'environment' : 'user'))} aria-label={t("Switch camera")}><IconFlip /></button>}
         </div>
 
-        {stage === 'active' && live?.cue && <div key={live.cue} className={`cue glass ${cueZone}`}>{live.framing ? <IconCamera /> : cueZone === 'bad' ? <IconAlert /> : <IconBulb />} {t(live.cue)}</div>}
+        {notice && <div className="cap-notice glass" role="status">{t(notice)}</div>}
+        {stage === 'active' && src === 'camera' && fps > 0 && fps < needFps * 0.6 && lostFor === 0 && <div className="cap-notice glass" role="status">{t('Slow tracking ({n} fps): results will be less precise', { n: fps })}</div>}
+        {stage === 'active' && lostFor === 0 && live?.cue && <div key={live.cue} className={`cue glass ${cueZone}`}>{live.framing ? <IconCamera /> : cueZone === 'bad' ? <IconAlert /> : <IconBulb />} {t(live.cue)}</div>}
 
         {(stage === 'active' || stage === 'countdown' || stage === 'framing') && angles.length > 0 && (
           <div className="hud-angles">
@@ -320,20 +412,37 @@ export default function Session() {
       </div>
 
       {stage === 'loading' && <div className="center-card glass"><div className="spinner" /><b>{t(status.replace(/ \d+%$/, ''))}{status.match(/ \d+%$/)?.[0]}</b><p className="muted" style={{ color: 'rgba(255,255,255,.7)', fontSize: '.88rem' }}>{t("Pose model runs on this device. Nothing is uploaded.")}</p></div>}
-      {stage === 'framing' && (<>
-        <Silhouette />
-        <div className="center-card glass" style={{ top: 'auto', bottom: 40, transform: 'translateX(-50%)' }}>
-          <b>{t(live?.framing ?? 'Hold still…')}</b>
-          <p style={{ margin: '6px 0 0', fontSize: '.86rem', opacity: 0.75 }}>{t(def.camera === 'side' ? 'Stand side-on to the camera · whole body visible · 2–3 m away' : 'Face the camera · whole body visible · 2–3 m away')}</p>
+      {stage === 'active' && lostFor > 0 && (
+        <div className="cap-lost glass" role="alert">
+          <IconCamera />
+          <b>{t('Tracking paused')}</b>
+          <p>{t(live?.framing ?? 'Step back into the frame')}</p>
+          <small>{t('Counting resumes when you are back in view. Nothing is lost.')}</small>
         </div>
-      </>)}
-      {stage === 'countdown' && <div className="countdown"><span key={count}>{count}</span></div>}
+      )}
+      {stage === 'framing' && (() => {
+        // One instruction at a time: the first failed check, in priority order.
+        const fix = setup.find((c) => c.ok === false);
+        return (<>
+          {!live?.tracking && <Silhouette />}
+          <div className="cap-setup glass">
+            <b className="cap-setup-lead" role="status" aria-live="polite">{t(fix?.fix ?? live?.framing ?? (steady > 0 ? 'Hold still…' : 'Step into the frame'))}</b>
+            <div className="cap-progress" role="progressbar" aria-label={t('Ready check')} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(steady * 100)}><i style={{ transform: `scaleX(${steady})` }} /></div>
+            {setup.length > 0 ? <ul className="cap-checks">
+              {setup.map((c) => <li key={c.id} className={c.ok === true ? 'ok' : c.ok === false ? 'no' : ''}><span aria-hidden>{c.ok === true ? <IconCheck /> : c.ok === false ? <IconAlert /> : <i />}</span>{t(c.label)}<span className="sr-only">{c.ok === true ? t(' — ok') : c.ok === false ? t(' — needs fixing') : ''}</span></li>)}
+            </ul> : <p className="cap-hint">{t(def.camera === 'side' ? 'Stand side-on to the camera · whole body visible · 2–3 m away' : 'Face the camera · whole body visible · 2–3 m away')}</p>}
+            <p className="cap-hint">{t('Prop the phone at hip height. The countdown starts on its own.')}</p>
+          </div>
+        </>);
+      })()}
+      {stage === 'countdown' && <div className="countdown" role="status" aria-live="assertive"><span key={count}>{count}</span><small>{t(def.mode === 'hold' ? 'Get into position' : def.mode === 'event' ? 'One attempt at a time' : 'Start from the top position')}</small></div>}
       {stage === 'error' && (
         <div className="center-card glass">
           <div className="ic-lg"><IconCamera /></div>
           <b>{t(error ?? '')}</b>
           <div style={{ display: 'grid', gap: 8, marginTop: 16 }}>
-            <button className="btn primary" onClick={() => nav(`/train/${def.id}?src=demo`, { replace: true })}>{t("Watch the demo instead")}</button>
+            {src === 'camera' && <button className="btn primary" onClick={() => setRetry((n) => n + 1)}>{t('Retry')}</button>}
+            <button className="btn" onClick={() => nav(`/train/${def.id}?src=demo`, { replace: true })}>{t("Watch the demo instead")}</button>
             <button className="btn" onClick={() => nav(-1)}>{t("Back")}</button>
           </div>
         </div>

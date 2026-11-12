@@ -64,7 +64,7 @@ function ImportDialog({ which, onClose, onImported }: { which: Vendor | null; on
       const read = await readExports(files, lb, (f) => setStatus(`Reading on this device… ${Math.round(f * 100)}%`));
       setStatus('Saving measurements…');
       const saved = await saveDays(read.days, v.record, (f) => setStatus(`Saving measurements… ${Math.round(f * 100)}%`));
-      if (saved.ids.length) { addHistory({ title: v.record, files: read.used, days: saved.days, labels: saved.labels, ids: saved.ids }); onImported(); }
+      if (saved.ids.length || saved.prior.length) { addHistory({ title: v.record, files: read.used, days: saved.days, labels: saved.labels, ids: saved.ids, prior: saved.prior }); onImported(); }
       setFiles([]);
       setStatus((saved.days ? `Imported ${saved.days} day${saved.days === 1 ? '' : 's'}: ${saved.labels.join(', ')}.` : 'No supported measurements were found in these files.')
         + (read.skipped.length ? ` Skipped: ${read.skipped.join(', ')}.` : ''));
@@ -137,7 +137,10 @@ export default function Integrations() {
   const [history, setHistory] = useState(importHistory);
   const refresh = useCallback(() => setHistory(importHistory()), []);
   const close = useCallback(() => setDlg(null), []);
-  const undo = (id: string) => { undoImport(id); refresh(); toast('Import removed.'); };
+  const undo = (id: string) => {
+    try { undoImport(id); toast('Import removed.'); } catch (e) { toast(e instanceof Error ? e.message : 'This import could not be undone.'); }
+    refresh();
+  };
   return <div>
     <PageHead title="Integrations" subtitle="Your account. Your measurements. Your choice." />
     <div className="x-sources">

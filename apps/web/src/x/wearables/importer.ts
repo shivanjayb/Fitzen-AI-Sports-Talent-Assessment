@@ -1,5 +1,6 @@
 import { Unzip, UnzipInflate } from 'fflate';
 import { deleteWellnessRecord, getWellnessRecords, saveWellnessRecords, validateWellness, wellnessToday, type WellnessInput } from '../../app/wellnessStore';
+import { storageOwner } from '../../lib/supabase';
 import { Acc, appleParser, parseCsv, parseFitbitJson, type Days, type Kind } from './parse';
 
 export const MAX_BYTES = 2 * 1024 ** 3;
@@ -12,12 +13,12 @@ export async function readExports(files: File[], weightInLb: boolean, onProgress
   const total = files.reduce((a, f) => a + f.size, 0) || 1;
   let done = 0, sinceYield = 0;
   const parseText = (name: string, text: string) => {
-    try { return (name.toLowerCase().endsWith('.json') ? parseFitbitJson(name, text, acc, weightInLb) : parseCsv(text, acc)) >= 0; } catch { return false; }
+    try { return (name.toLowerCase().endsWith('.json') ? parseFitbitJson(name, text, acc, weightInLb) : parseCsv(text, acc, name)) >= 0; } catch { return false; }
   };
   const isApple = (name: string) => /(^|\/)export\.xml$/i.test(name);
   for (const file of files) {
     const lower = file.name.toLowerCase(), zip = lower.endsWith('.zip');
-    if (!zip && !isApple(lower)) {
+    if (!zip && !lower.endsWith('.xml')) { // a renamed export ("export (1).xml") is still Apple Health
       const ok = /\.(json|csv)$/.test(lower) && parseText(file.name, await file.text());
       (ok ? used : skipped).push(file.name); done += file.size; onProgress(done / total); continue;
     }
@@ -61,7 +62,7 @@ export async function saveDays(days: Days, title: string, onProgress: (fraction:
   const existing = new Map(getWellnessRecords().map((r) => [`${r.kind}|${r.date}|${r.title}`, r]));
   const base = (kind: Kind, date: string, values: Record<string, number>): WellnessInput => ({ kind, date, title, note: '', unit: '', values });
   const fits = (kind: Kind, date: string, k: string, v: number) => !validateWellness(base(kind, date, kind === 'sleep' && k !== 'hours' ? { hours: 1, [k]: v } : { [k]: v }));
-  const batch: WellnessInput[] = [], dates = new Set<string>(), labels = new Set<string>();
+  const batch: WellnessInput[] = [], prior: Prior[] = [], dates = new Set<string>(), labels = new Set<string>();
   const entries = Object.entries(days).sort(([a], [b]) => a.localeCompare(b));
   for (const [i, [date, kinds]] of entries.entries()) {
     for (const [kind, raw] of Object.entries(kinds) as [Kind, Record<string, number>][]) {
@@ -71,28 +72,35 @@ export async function saveDays(days: Days, title: string, onProgress: (fraction:
       const input = { ...base(kind, date, { ...prev?.values, ...values }), id: prev?.id };
       if (validateWellness(input)) continue;
       batch.push(input); dates.add(date);
+      if (prev) prior.push({ id: prev.id, values: prev.values });
       Object.keys(values).forEach((k) => labels.add(label(kind, k)));
     }
     if (i % 40 === 39) { onProgress(i / entries.length); await pause(); }
   }
-  const ids = saveWellnessRecords(batch).map((r) => r.id);
-  return { ids, days: dates.size, labels: [...labels] };
+  const known = new Set(prior.map((p) => p.id));
+  const ids = saveWellnessRecords(batch).map((r) => r.id).filter((id) => !known.has(id));
+  return { ids, prior, days: dates.size, labels: [...labels] };
 }
 export const saveToday = (title: string, values: Record<string, number>) => saveDays({ [wellnessToday()]: { vitals: values } }, title);
 
-export interface ImportEntry { id: string; at: string; title: string; files: string[]; days: number; labels: string[]; ids: string[] }
-const KEY = 'fitzen.wearables.imports.v1';
+type Prior = { id: string; values: Record<string, number> };
+/** ids: records this import created. prior: values of records it updated, restored on undo so an earlier import's days survive. */
+export interface ImportEntry { id: string; at: string; title: string; files: string[]; days: number; labels: string[]; ids: string[]; prior?: Prior[] }
+// Per account, like the records themselves: another account on this device must not see or undo these imports.
+const key = () => `fitzen.wearables.imports.v1.${storageOwner()}`;
 export function importHistory(): ImportEntry[] {
   try {
-    const v: unknown = JSON.parse(localStorage.getItem(KEY) ?? '[]');
+    const v: unknown = JSON.parse(localStorage.getItem(key()) ?? '[]');
     return Array.isArray(v) ? v.filter((e): e is ImportEntry => !!e && typeof e.id === 'string' && Array.isArray(e.ids) && Array.isArray(e.files) && Array.isArray(e.labels)) : [];
   } catch { return []; }
 }
-const writeHistory = (list: ImportEntry[]) => { try { localStorage.setItem(KEY, JSON.stringify(list.slice(0, 20))); } catch { /* history is a convenience; the records themselves are already saved */ } };
+const writeHistory = (list: ImportEntry[]) => { try { localStorage.setItem(key(), JSON.stringify(list.slice(0, 20))); } catch { /* history is a convenience; the records themselves are already saved */ } };
 export const addHistory = (e: Omit<ImportEntry, 'id' | 'at'>) => writeHistory([{ ...e, id: crypto.randomUUID(), at: new Date().toISOString() }, ...importHistory()]);
 export function undoImport(id: string) {
   const entry = importHistory().find((e) => e.id === id); if (!entry) return;
-  const live = new Set(getWellnessRecords().map((r) => r.id));
+  const live = new Map(getWellnessRecords().map((r) => [r.id, r]));
   entry.ids.filter((rid) => live.has(rid)).forEach((rid) => deleteWellnessRecord(rid));
+  const restore = (entry.prior ?? []).flatMap((p) => { const r = live.get(p.id); return r && !validateWellness({ ...r, values: p.values }) ? [{ ...r, values: p.values }] : []; });
+  saveWellnessRecords(restore);
   writeHistory(importHistory().filter((e) => e.id !== id));
 }

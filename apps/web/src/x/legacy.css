@@ -15,13 +15,15 @@
   --shadow-sheet: var(--x-shadow-pop); --scrim: #16161633;
   --r-sm: 10px; --r-md: 14px; --r-lg: 20px; --r-xl: 28px;
   --ease: var(--x-ease);
+  /* Rings (Progress, Results): one accent family instead of Apple's red/green/cyan */
+  --ring-move: var(--x-accent); --ring-exercise: var(--x-accent-2); --ring-stand: var(--x-accent-deep);
 }
 
 /* layout: the shell already pads the frame */
 .x .page { max-width: none; margin: 0; padding: 0 0 40px; animation: x-enter .35s var(--x-ease) both; }
 .x .page-head { margin-bottom: 20px; padding-top: 0; align-items: flex-end; }
 .x .large-title { font-size: 30px; line-height: 33px; letter-spacing: -.9px; font-weight: 400; }
-.x .large-title::after { display: none; }
+.x .large-title::after, .x .page-head .large-title::after { display: none; }
 .x .subtitle { color: var(--x-ink-2); font-size: 14px; font-weight: 400; letter-spacing: 0; text-transform: none; margin-top: 6px; }
 .x .section-title { font-size: 18px; line-height: 24px; letter-spacing: -.3px; font-weight: 400; margin: 28px 0 12px; }
 .x .section-title small { font-size: 12px; color: var(--x-ink-3); }
@@ -75,6 +77,24 @@
 .x .field input:focus, .x .field select:focus, .x .field textarea:focus, .x .page textarea:focus { background: #fff; box-shadow: inset 0 0 0 1.5px var(--x-accent); outline: 0; }
 
 /* small parts */
+.x .steps li::before { background-image: var(--x-accent-fill); color: #fff; font-weight: 500; }
+/* grade: a verdict badge, not a dark disc (glass.css paints it #1c1c1e in light mode) */
+.x .grade { background: var(--x-well); color: var(--x-ink); box-shadow: none; font-size: 18px; }
+.x .grade.A, .x .grade.B { background: #e6f2ea; color: var(--good); }
+.x .grade.C { background: var(--x-accent-soft); color: var(--ok); }
+.x .grade.D, .x .grade.F { background: #fbe9e7; color: var(--bad); }
+.x .history-record .grade { width: 36px; height: 36px; font-size: 15px; }
+/* Progress activity card and the Results ring legend in Xeyo ink */
+.x .activity-card { background-image: var(--x-glass); box-shadow: var(--x-glass-edge); border-radius: var(--x-radius-card); }
+.x .activity-card h3 { font-weight: 400; }
+.x .ring-stat span { font-weight: 400; color: var(--x-ink-2); font-size: 13px; }
+.x .ring-stat b { font: 300 26px/1.15 var(--font); letter-spacing: -.8px; color: var(--x-ink) !important; }
+.x .tile > b, .x .ring-legend b { color: var(--x-ink) !important; }
+/* Results measurements: ink numbers, not a rainbow of yellow/red/green/cyan per cell */
+.x .kv b, .x .kv > div b { color: var(--x-ink); font-family: var(--font); font-weight: 300; letter-spacing: -.6px; }
+.x .kv small { color: var(--x-ink-3); }
+.x .mini-bars i { background: var(--x-accent); }
+.x .mini-bars i.low { background: var(--x-line-strong); }
 .x .spinner { border-color: var(--x-line); border-top-color: var(--x-accent); }
 .x .tag { border-radius: 6px; font-weight: 500; font-variant-numeric: tabular-nums; }
 .x .grade { font-family: var(--font); font-weight: 400; }

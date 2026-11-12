@@ -5,14 +5,15 @@ type Mode = 'avg' | 'sum';
 const LB = 0.45359237;
 
 const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-/** Accepts ISO dates, US M/D/Y(Y) dates, epoch milliseconds and anything Date.parse understands. */
-export function toDate(raw: string): string | null {
+/** Accepts ISO dates, M/D/Y(Y) dates (D/M/Y when dayFirst), epoch seconds or milliseconds and anything Date.parse understands. */
+export function toDate(raw: string, dayFirst = false): string | null {
   const s = raw.trim();
   let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (m) return `${m[1]}-${m[2]}-${m[3]}`;
   m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})\b/);
-  if (m) return `${m[3]!.length === 2 ? `20${m[3]}` : m[3]}-${m[1]!.padStart(2, '0')}-${m[2]!.padStart(2, '0')}`;
+  if (m) { const [mo, d] = dayFirst ? [m[2]!, m[1]!] : [m[1]!, m[2]!]; return `${m[3]!.length === 2 ? `20${m[3]}` : m[3]}-${mo.padStart(2, '0')}-${d.padStart(2, '0')}`; }
   if (/^\d{12,13}$/.test(s)) return ymd(new Date(Number(s)));
+  if (/^\d{10}$/.test(s)) return ymd(new Date(Number(s) * 1000));
   const t = Date.parse(s);
   return s && Number.isFinite(t) ? ymd(new Date(t)) : null;
 }
@@ -181,29 +182,32 @@ function cell(raw: string, key: string, header: string): number {
   let v: number;
   const hm = s.match(/^(\d+)\s*h(?:\s*(\d+)\s*m(?:in)?)?$/i), colon = s.match(/^(\d+):(\d{2})(?::\d{2})?$/);
   if (dur && (hm || colon)) { const m = (hm ?? colon)!; v = Number(m[1]) + Number(m[2] ?? 0) / 60; if (key === 'awake') v *= 60; }
+  else if (key === 'steps' && /^\d{1,3}([.,\s]\d{3})+$/.test(s)) v = Number(s.replace(/\D/g, '')); // 8.123 or 8,123 steps is eight thousand
   else v = parseFloat(/^-?\d{1,3}(,\d{3})+(\.\d+)?/.test(s) ? s.replace(/,/g, '') : s.replace(',', '.'));
   if (key === 'weight' && /lb/i.test(s + header)) v *= LB;
   if (key === 'spo2' && v <= 1) v *= 100;
   return v;
 }
 
-/** Returns the number of data rows that produced at least one value, or -1 when no date column was found. */
-export function parseCsv(text: string, acc: Acc): number {
-  const lines = text.replace(/^﻿/, '').split(/\r?\n/);
+/** Returns the number of data rows that produced at least one value, or -1 when no date column was found. Sums are kept per source (file), so two files with the same days are not added together. */
+export function parseCsv(text: string, acc: Acc, source = ''): number {
+  const lines = text.replace(/^﻿/, '').split(/\r\n?|\n/);
   for (let h = 0; h < Math.min(3, lines.length); h++) {
     const head = lines[h]!;
     const d = [',', ';', '\t'].reduce((a, b) => (head.split(b).length > head.split(a).length ? b : a));
     const cols = split(head, d), names = cols.map(norm), dateAt = names.findIndex((n) => DATE_COLS.has(n));
     if (dateAt < 0) continue;
     let used = 0;
-    for (const line of lines.slice(h + 1)) {
-      if (!line.trim()) continue;
-      const cells = split(line, d), date = toDate(cells[dateAt] ?? '');
+    const rows = lines.slice(h + 1).filter((l) => l.trim()).map((l) => split(l, d));
+    // Day-first (13/01/2026) when any slash date in the file has a first part above 12; one file uses one order.
+    const dayFirst = rows.some((c) => Number(c[dateAt]?.match(/^(\d{1,2})\/\d{1,2}\//)?.[1]) > 12);
+    for (const cells of rows) {
+      const date = toDate(cells[dateAt] ?? '', dayFirst);
       let got = false;
       names.forEach((n, i) => {
         const map = COLS[n]; if (!map || !date) return;
         const v = cell(cells[i] ?? '', map[1], cols[i]!) * (map[2] ?? 1);
-        if (Number.isFinite(v)) { acc.add(date, map[0], map[1], v, map[1] === 'steps' || map[0] === 'vitals' && /calories/.test(n) ? 'sum' : 'avg'); got = true; }
+        if (Number.isFinite(v)) { acc.add(date, map[0], map[1], v, map[1] === 'steps' || map[0] === 'vitals' && /calories/.test(n) ? 'sum' : 'avg', source); got = true; }
       });
       if (got) used++;
     }

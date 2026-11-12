@@ -26,7 +26,7 @@ const FOOD101: Row[] = [
   ['ceviche', 200, '1 cup', 200, 28, 12, 4],
   ['cheesecake', 125, '1 slice', 400, 7, 32, 28],
   ['cheese_plate', 100, '1 small plate with crackers', 380, 20, 12, 28, 'cheese'],
-  ['chicken_curry', 250, '1 bowl', 330, 27, 10, 20, 'murgh curry, chicken gravy'],
+  ['chicken_curry', 250, '1 bowl', 330, 27, 10, 20, 'murgh curry, chicken gravy, chicken'],
   ['chicken_quesadilla', 180, '1 quesadilla', 530, 30, 40, 28, 'quesadilla'],
   ['chicken_wings', 150, '6 wings', 430, 38, 2, 30, 'wings'],
   ['chocolate_cake', 110, '1 slice', 400, 5, 55, 19, 'cake'],
@@ -115,7 +115,7 @@ const FOOD101: Row[] = [
 const INDIAN: Row[] = [
   ['roti', 40, '1 roti', 120, 3.5, 18, 3.7, 'chapati, chapathi, phulka, fulka'],
   ['paratha', 80, '1 plain paratha', 260, 5, 36, 10, 'parantha, parotta'],
-  ['aloo_paratha', 130, '1 paratha', 300, 6, 42, 12],
+  ['aloo_paratha', 130, '1 paratha', 300, 6, 42, 12, 'aaloo paratha, alu paratha'],
   ['naan', 90, '1 naan', 262, 8.7, 45, 5, 'butter naan'],
   ['puri', 25, '1 puri', 100, 2, 12, 5, 'poori'],
   ['bhatura', 70, '1 bhatura', 230, 5, 32, 9, 'bhature'],
@@ -131,7 +131,7 @@ const INDIAN: Row[] = [
   ['rasam', 200, '1 katori', 60, 2, 8, 2],
   ['kadhi', 200, '1 katori', 180, 6, 14, 11, 'kadi'],
   ['rajma', 200, '1 katori', 250, 12, 34, 7, 'rajma masala, kidney beans'],
-  ['chole', 200, '1 katori', 280, 12, 36, 10, 'chana masala, chhole, chickpea curry'],
+  ['chole', 200, '1 katori', 280, 12, 36, 10, 'chana masala, chhole, choley, chickpea curry'],
   ['paneer', 50, '50 g cubes', 133, 9, 2, 10, 'cottage cheese'],
   ['paneer_butter_masala', 200, '1 katori', 420, 15, 14, 34, 'paneer makhani, shahi paneer'],
   ['palak_paneer', 200, '1 katori', 300, 14, 12, 22],
@@ -143,6 +143,7 @@ const INDIAN: Row[] = [
   ['tandoori_chicken', 200, '2 pieces (leg and thigh)', 300, 40, 4, 13],
   ['chicken_breast', 150, '1 grilled breast', 248, 46, 0, 5.4, 'grilled chicken, boiled chicken'],
   ['chicken_biryani', 300, '1 plate', 500, 26, 60, 17, 'biryani, biriyani'],
+  ['mutton_biryani', 300, '1 plate', 540, 28, 58, 21, 'gosht biryani'],
   ['veg_biryani', 300, '1 plate', 420, 9, 64, 14, 'veg pulao, pulao, pulav'],
   ['mutton_curry', 200, '1 katori', 380, 28, 8, 26, 'mutton, goat curry, rogan josh'],
   ['fish_curry', 200, '1 katori', 260, 24, 8, 14, 'fish'],
@@ -160,12 +161,13 @@ const INDIAN: Row[] = [
   ['khichdi', 250, '1 bowl', 290, 11, 46, 7, 'khichri'],
   ['pongal', 200, '1 bowl', 300, 8, 40, 12],
   ['sabudana_khichdi', 200, '1 plate', 380, 4, 60, 14, 'sabudana'],
-  ['oats', 250, '1 bowl with milk', 250, 10, 38, 7, 'oatmeal, porridge, daliya, dalia'],
-  ['aloo_sabzi', 150, '1 katori', 170, 3, 22, 8, 'aloo, potato sabzi, potato curry'],
+  ['oats', 40, '1 bowl (40 g dry, cooked in water)', 152, 5.3, 27, 2.6, 'oatmeal, porridge, rolled oats'],
+  ['dalia', 200, '1 bowl, savoury', 190, 6, 30, 5.5, 'daliya, broken wheat'],
+  ['aloo_sabzi', 150, '1 katori', 170, 3, 22, 8, 'aloo, potato sabzi, potato curry, bhaji, aloo bhaji'],
   ['aloo_gobi', 150, '1 katori', 160, 4, 18, 8, 'gobi'],
   ['bhindi_masala', 150, '1 katori', 150, 3, 12, 10, 'bhindi, okra'],
   ['baingan_bharta', 150, '1 katori', 140, 3, 12, 9, 'baingan, brinjal'],
-  ['mixed_veg', 150, '1 katori', 150, 4, 14, 9, 'sabzi, sabji, vegetable curry, veg curry'],
+  ['mixed_veg', 150, '1 katori', 150, 4, 14, 9, 'sabzi, sabji, subzi, vegetable curry, veg curry'],
   ['soya_chunks_curry', 200, '1 katori', 220, 18, 16, 9, 'soya, soya chunks, nutrela'],
   ['sprouts', 150, '1 bowl', 130, 9, 20, 1, 'sprouts salad, moong sprouts'],
   ['curd', 150, '1 katori', 92, 5, 7, 5, 'dahi, yogurt, yoghurt'],
@@ -175,7 +177,7 @@ const INDIAN: Row[] = [
   ['milk', 244, '1 glass', 149, 7.7, 11.7, 7.9, 'doodh'],
   ['chai', 150, '1 cup with milk and sugar', 80, 2.5, 12, 2.5, 'tea, masala chai'],
   ['filter_coffee', 150, '1 cup with milk and sugar', 90, 3, 11, 3, 'coffee'],
-  ['pakora', 100, '6 pieces', 280, 6, 26, 17, 'pakoda, bhajji, bhaji'],
+  ['pakora', 100, '6 pieces', 280, 6, 26, 17, 'pakoda, pakode, bhajji, bhajiya, bhajia'],
   ['dhokla', 100, '4 pieces', 160, 6, 25, 4],
   ['kachori', 60, '1 kachori', 220, 4, 22, 13],
   ['aloo_tikki', 70, '1 tikki', 150, 3, 20, 7, 'tikki'],
@@ -184,7 +186,7 @@ const INDIAN: Row[] = [
   ['pani_puri', 100, '6 pieces', 180, 4, 30, 5, 'golgappa, gol gappe, puchka'],
   ['bhel_puri', 150, '1 plate', 280, 7, 44, 9, 'bhel'],
   ['maggi', 280, '1 pack, cooked', 310, 7, 44, 12, 'instant noodles'],
-  ['bread', 50, '2 slices', 133, 4.5, 25, 1.7, 'toast, bread slice'],
+  ['bread', 25, '1 slice', 67, 2.3, 12.7, 0.8, 'toast, bread slice'],
   ['peanut_butter', 32, '2 tbsp', 190, 7, 7, 16],
   ['peanuts', 30, '1 handful', 170, 7, 5, 14, 'groundnuts, moongphali'],
   ['roasted_chana', 30, '1 handful', 110, 6, 18, 2, 'bhuna chana'],
@@ -198,6 +200,31 @@ const INDIAN: Row[] = [
   ['kheer', 150, '1 bowl', 230, 6, 35, 7, 'payasam'],
   ['halwa', 100, '1 small bowl', 330, 4, 45, 15, 'sooji halwa, sheera'],
   ['ladoo', 40, '1 ladoo', 190, 4, 22, 10, 'laddu, besan ladoo'],
+  // Plates people name as one dish, and athlete staples (USDA FDC unless a home recipe).
+  ['chole_bhature', 340, '1 plate (2 bhature, 1 katori chole)', 740, 22, 100, 28, 'chhole bhature'],
+  ['coconut_chutney', 30, '2 tbsp', 58, 0.8, 2.5, 5, 'chutney, nariyal chutney'],
+  ['besan_chilla', 80, '1 chilla', 150, 7, 16, 6, 'chilla, cheela, besan cheela, moong chilla'],
+  ['sattu', 40, '1 glass (40 g sattu)', 150, 8.5, 23, 2.5, 'sattu drink, sattu sharbat'],
+  ['boiled_chana', 164, '1 cup', 269, 14.5, 45, 4.2, 'chana, kabuli chana, kala chana, chickpeas, boiled chickpeas'],
+  ['egg_white', 33, '1 large egg white', 17, 3.6, 0.2, 0.1, 'egg whites'],
+  ['greek_yogurt', 170, '1 cup, plain non-fat', 100, 17.3, 6.1, 0.7, 'greek yoghurt, hung curd'],
+  ['tofu', 100, '100 g firm', 144, 17.3, 2.8, 8.7],
+  ['almonds', 28, '1 handful (about 23)', 164, 6, 6.1, 14.2, 'almond, badam'],
+  ['walnuts', 28, '1 handful (about 14 halves)', 185, 4.3, 3.9, 18.5, 'walnut, akhrot'],
+  ['dates', 24, '1 medjool date', 66, 0.4, 18, 0, 'khajur, khajoor'],
+  ['berries', 145, '1 cup', 70, 1, 17, 0.4, 'blueberries, strawberries, mixed berries'],
+  ['orange', 131, '1 medium', 62, 1.2, 15.4, 0.2, 'santra, mosambi, sweet lime'],
+  ['papaya', 145, '1 cup cubed', 62, 0.7, 15.7, 0.4, 'papita'],
+  ['watermelon', 152, '1 cup diced', 46, 0.9, 11.5, 0.2, 'tarbooz'],
+  ['sweet_potato', 130, '1 medium, baked', 117, 2.6, 27, 0.2, 'shakarkandi'],
+  ['boiled_potato', 150, '1 medium', 130, 2.9, 30, 0.2, 'potato, potatoes, boiled aloo'],
+  ['cornflakes', 30, '1 bowl (30 g dry)', 110, 2, 25, 0.3, 'corn flakes'],
+  ['muesli', 50, '1 bowl (50 g dry)', 180, 5, 33, 3],
+  ['protein_bar', 60, '1 bar', 220, 20, 22, 7],
+  ['ghee', 5, '1 tsp', 45, 0, 0, 5, 'desi ghee'],
+  ['coconut_water', 240, '1 glass', 46, 1.7, 8.9, 0.5, 'nariyal pani, tender coconut'],
+  ['green_tea', 240, '1 cup, no sugar', 2, 0.5, 0, 0],
+  ['black_coffee', 240, '1 cup, no sugar', 2, 0.3, 0, 0, 'americano'],
 ];
 
 export const FOODS: Food[] = [...FOOD101, ...INDIAN].map(row);
@@ -226,28 +253,54 @@ export const totalPortions = (items: { food: Food; servings: number }[]): Portio
 export const servingsFromGrams = (f: Food, grams: number) => grams / f.grams;
 
 const WORDS: Record<string, number> = { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, half: 0.5, quarter: 0.25, couple: 2, few: 3 };
-const UNITS = /^(?:bowls?|plates?|cups?|katoris?|glass(?:es)?|pieces?|pcs?|slices?|servings?|portions?|handfuls?|scoops?|of)\b\s*/;
-const index = FOODS.flatMap((f) => terms(f).map((t) => ({ t, f }))).sort((a, b) => b.t.length - a.t.length);
+const UNITS = /^(?:bowls?|plates?|cups?|katoris?|glass(?:es)?|pieces?|pcs?|nos?|slices?|servings?|portions?|handfuls?|scoops?|small|medium|large|big|of)\b\s*/;
+// Grams per unit for weights and volumes (water-like density; a spoon of ghee or peanut butter is close enough).
+const MASS: Record<string, number> = { g: 1, gm: 1, gms: 1, gram: 1, grams: 1, kg: 1000, ml: 1, l: 1000, litre: 1000, liter: 1000, litres: 1000, liters: 1000, tsp: 5, tbsp: 15 };
+const AMOUNT = /^(\d+(?:\.\d+)?)\s*(g|gms?|grams?|kg|ml|l|lit(?:re|er)s?|tsp|tbsp)\b\s*/;
+// Words that also appear inside more specific dishes ("egg fried rice", "bhindi sabzi"); they only count when nothing else matched.
+const GENERIC = new Set(['sabzi', 'sabji', 'subzi', 'chicken', 'egg', 'eggs', 'anda', 'fish', 'cheese', 'salad', 'milk', 'doodh', 'mutton']);
+const index = FOODS.flatMap((f) => terms(f).map((t) => ({ t, f, re: new RegExp(`(?:^|\\s)(${t})(?:e?s)?(?=\\s|$)`) }))).sort((a, b) => b.t.length - a.t.length);
+
+/** Every table food named in a chunk, longest names first, in the order they appear ("idli sambar" → idli, sambar). */
+function findFoods(name: string): Food[] {
+  const spans: [number, number, Food, string][] = [];
+  for (const { t, f, re } of index) {
+    const m = re.exec(name); if (!m) continue;
+    const a = m.index + m[0].indexOf(t), b = a + t.length;
+    if (!spans.some(([x, y]) => a < y && x < b)) spans.push([a, b, f, t]);
+  }
+  const hits = spans.some(([, , , t]) => !GENERIC.has(t)) ? spans.filter(([, , , t]) => !GENERIC.has(t)) : spans;
+  return hits.sort((x, y) => x[0] - y[0]).map(([, , f]) => f).filter((f, i, all) => all.indexOf(f) === i);
+}
 
 export interface ParsedItem { food: Food; servings: number; text: string }
-/** Deterministic "I ate…" parser: splits on and/with/commas, reads a leading quantity or gram weight, and matches the longest table name. */
+/** Deterministic "I ate…" parser: splits on and/with/commas, reads a leading (or trailing) quantity, weight or volume, and matches table names. */
 export function parseMeal(text: string): { items: ParsedItem[]; unmatched: string[] } {
   const items: ParsedItem[] = [], unmatched: string[] = [];
-  const cleaned = text.toLowerCase().replace(/^\s*(?:i\s+(?:just\s+)?(?:ate|had)|ate|had|for \w+)\b[:\s]*/, '');
+  let cleaned = text.toLowerCase().replace(/(\d)?\s*½/g, (_, d: string | undefined) => ` ${d ?? 0}.5`)
+    .replace(/\b(\d+|an?|one|two|three|four|five)\s+and\s+a\s+half\b/g, (_, n: string) => String((WORDS[n] ?? Number(n)) + 0.5));
+  for (let m; (m = cleaned.match(/^\s*(?:i\s+(?:just\s+)?(?:ate|had|have\s+had|have\s+eaten)|i've\s+had|i'?ve\s+eaten|(?:just\s+)?(?:ate|had)|today|tonight|for\s+\w+|in\s+the\s+\w+)\b[:,\s]*/)) && m[0]; ) cleaned = cleaned.slice(m[0].length);
   for (const raw of cleaned.split(/\s*(?:,|;|\+|&|\n|\band\b|\bwith\b|\balong with\b|\bplus\b)\s*/)) {
     let chunk = raw.replace(/(\d)\s*\/\s*(\d)/g, '$1/$2').trim();
     if (!chunk) continue;
-    let qty = 1, grams = 0, m: RegExpMatchArray | null;
-    if ((m = chunk.match(/^(\d+(?:\.\d+)?)\s*(?:g|gm|gms|grams?)\b\s*/))) { grams = Number(m[1]); chunk = chunk.slice(m[0].length); }
-    else if ((m = chunk.match(/^(\d+)\/(\d+)\s*/))) { qty = Number(m[1]) / Number(m[2]); chunk = chunk.slice(m[0].length); }
-    else if ((m = chunk.match(/^(\d+(?:\.\d+)?)\s*/))) { qty = Number(m[1]); chunk = chunk.slice(m[0].length); }
-    else if ((m = chunk.match(/^([a-z]+)\b\s*/)) && m[1] && Object.hasOwn(WORDS, m[1])) { qty = WORDS[m[1]] ?? 1; chunk = chunk.slice(m[0].length); if (/^a\b/.test(chunk) && qty < 1) chunk = chunk.slice(1); }
-    for (let n; (n = chunk.match(UNITS)); ) chunk = chunk.slice(n[0].length);
-    const name = normalize(chunk);
-    const hit = index.find(({ t }) => new RegExp(`(?:^|\\s)${t}(?:e?s)?(?:\\s|$)`).test(name));
-    if (!hit || !(qty > 0)) { if (name) unmatched.push(raw.trim()); continue; }
-    const servings = grams > 0 ? servingsFromGrams(hit.f, grams) : qty;
-    items.push({ food: hit.f, servings: Math.min(20, servings), text: raw.trim() });
+    let qty = 1, grams = 0, counted = false, m: RegExpMatchArray | null;
+    const tail = chunk.match(/\s(\d+(?:\.\d+)?)(?:\s*(?:bowls?|plates?|cups?|katoris?|glass(?:es)?|pieces?|pcs?|nos?))?$/);
+    if (tail && !/^\d/.test(chunk)) { chunk = `${tail[1]} ${chunk.slice(0, tail.index)}`; }
+    if ((m = chunk.match(AMOUNT))) { grams = Number(m[1]) * MASS[m[2]!.replace(/^lit(?:re|er)s?$/, 'l')]!; chunk = chunk.slice(m[0].length); }
+    else if ((m = chunk.match(/^(\d+)\/(\d+)\s*/))) { qty = Number(m[1]) / Number(m[2]); counted = true; chunk = chunk.slice(m[0].length); }
+    else if ((m = chunk.match(/^(\d+(?:\.\d+)?)\s*/))) { qty = Number(m[1]); counted = true; chunk = chunk.slice(m[0].length); }
+    else if ((m = chunk.match(/^([a-z]+)\b\s*/)) && m[1] && Object.hasOwn(WORDS, m[1])) { qty = WORDS[m[1]] ?? 1; counted = m[1] !== 'a' && m[1] !== 'an'; chunk = chunk.slice(m[0].length); if (/^an?\b/.test(chunk) && qty < 1) chunk = chunk.replace(/^an?\s*/, ''); }
+    let container = false;
+    for (let n; (n = chunk.match(UNITS)); ) { container ||= /^(?:bowl|plate|cup|katori|glass|serving|portion)/.test(n[0]); chunk = chunk.slice(n[0].length); }
+    const name = normalize(chunk), foods = findFoods(name);
+    if (!foods.length || !(qty > 0)) { if (name) unmatched.push(raw.trim()); continue; }
+    foods.forEach((food, i) => {
+      // A bare count names pieces when the serving is several pieces: "3 tacos" is 1.5 servings of "2 tacos", "3 egg omelette" is 1.5 × "2 eggs".
+      const [, n = '1', noun] = food.serving.match(/^(\d+) ([a-z]+)/) ?? [];
+      const per = i === 0 && counted && !container && Number(n) > 1 && (noun !== 'eggs' || /^eggs?\b/.test(name)) ? Number(n) : 1;
+      const servings = i ? 1 : grams > 0 ? servingsFromGrams(food, grams) : qty / per;
+      items.push({ food, servings: Math.min(20, servings), text: raw.trim() });
+    });
   }
   return { items, unmatched };
 }

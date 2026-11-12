@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { getWellnessRecords, saveWellnessRecord, subscribeWellness, validateWellness, wellnessToday, type WellnessRecord } from '../app/wellnessStore';
+import { deleteWellnessRecord, getWellnessRecords, restoreWellnessRecord, saveWellnessRecord, subscribeWellness, validateWellness, wellnessToday, type WellnessRecord } from '../app/wellnessStore';
 import { Card, CardHead, Dialog, Icon, PageHead, Soon, toast } from './ui';
 import './labs.css';
 
@@ -72,6 +72,10 @@ export default function Labs() {
   const add = () => setDialog('add');
   const upload = () => setDialog('upload');
   const results = getWellnessRecords().filter((r) => r.kind === 'blood-records');
+  const remove = (r: WellnessRecord) => {
+    try { deleteWellnessRecord(r.id); } catch (err) { toast(err instanceof Error ? err.message : 'This result could not be deleted.'); return; }
+    toast(`${r.title} deleted.`, { label: 'Undo', run: () => { try { restoreWellnessRecord(r); } catch (err) { toast(err instanceof Error ? err.message : 'Could not undo.'); } } });
+  };
 
   return <>
     <PageHead title="Blood records" subtitle="Blood results and original reports, saved to your private account.">
@@ -88,7 +92,8 @@ export default function Labs() {
             <td className="num">{day(r.date)}</td>
             <td className="num"><b>{num(r.values.value!)}</b> <small>{r.unit}</small></td>
             <td className="num">{rangeOf(r.values)}</td>
-            <td><span className={`x-badge${flag.out ? ' x-labs-out' : ''}`}>{flag.text}</span></td>
+            <td><span className={`x-badge${flag.out ? ' x-labs-out' : ''}`}>{flag.text}</span>
+              <button className="x-icon-btn small x-labs-del" aria-label={`Delete ${r.title} from ${day(r.date)}`} onClick={() => remove(r)}><Icon name="close" /></button></td>
           </tr>; })}</tbody>
         </table></div> : <div className="x-labs-empty">
           <p>Your results, over time. Add the value, unit and reference range exactly as printed by your laboratory.</p>

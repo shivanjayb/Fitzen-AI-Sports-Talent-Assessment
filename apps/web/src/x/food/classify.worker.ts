@@ -12,14 +12,12 @@ export type WorkerOut =
 
 const post = (m: WorkerOut) => postMessage(m);
 const progress_callback = (p: ProgressInfo) => { if (p.status === 'progress') post({ type: 'progress', file: p.file, loaded: p.loaded, total: p.total }); };
-type Gpu = { gpu?: { requestAdapter(): Promise<unknown> } };
 
 const load = async () => {
   const { env, pipeline, RawImage } = await (import(/* @vite-ignore */ CDN) as Promise<typeof import('@huggingface/transformers')>);
   env.allowLocalModels = false;
-  const gpu = await (navigator as Navigator & Gpu).gpu?.requestAdapter().catch(() => null);
-  const make = (device: 'webgpu' | 'wasm') => pipeline('image-classification', MODEL, { device, dtype: 'q8', progress_callback });
-  return { RawImage, classify: await (gpu ? make('webgpu').catch(() => make('wasm')) : make('wasm')) };
+  // q8 = model_quantized.onnx, 93 MB vs 352 MB fp32 with near-identical top-1 on Food-101. WASM only: WebGPU int8 kernels are patchy and fail at inference time.
+  return { RawImage, classify: await pipeline('image-classification', MODEL, { device: 'wasm', dtype: 'q8', progress_callback }) };
 };
 let classifier: ReturnType<typeof load> | null = null;
 

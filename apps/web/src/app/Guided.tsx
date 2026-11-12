@@ -1,4 +1,5 @@
 import { t, setupFor } from './language';
+import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { exerciseById } from '@fitzen/engines';
 import { BATTERY } from './battery';
@@ -6,7 +7,8 @@ import { getHistory, isEligibleSession } from './store';
 
 export default function Guided() {
   const [params] = useSearchParams();
-  const run = params.get('run') ?? crypto.randomUUID();
+  const [fresh] = useState(() => crypto.randomUUID()); // stable across re-renders until a chip or test pins it in the URL
+  const run = params.get('run') ?? fresh;
   const requested = Number(params.get('step') ?? 0);
   const step = Number.isInteger(requested) && requested >= 0 && requested < BATTERY.length ? requested : 0;
   const ex = exerciseById(BATTERY[step]!)!;
@@ -21,6 +23,7 @@ export default function Guided() {
       <p>{t(ex.camera === 'side' ? 'Whole body visible · side-on · camera at hip height, 2–3 m away. A stable framing check and countdown precede capture. Tracking interruptions break continuous attempts.' : 'Whole body visible · front view · camera at hip height, 2–3 m away. A stable framing check and countdown precede capture. Tracking interruptions break continuous attempts.')}</p>
       <Link className="btn primary" to={`/train/${ex.id}?src=camera&battery=${encodeURIComponent(run)}`}>{t('Start this test')}</Link>
     </section>
+    {completed.length === BATTERY.length && <p role="status"><b>{t('Battery complete.')}</b> {t('Every test has an eligible result. Open History to review each report.')} <Link to="/history">{t('History')}</Link></p>}
     <p className="faint">{t('{n}/{total} eligible tests recorded for this run. No-attempt and flagged results are retained for inspection but do not count.', { n: completed.length, total: BATTERY.length })}</p>
     <div className="chips">{BATTERY.map((id, i) => <Link key={id} className={`chip ${i === step ? 'on' : ''}`} to={`/guided?run=${encodeURIComponent(run)}&step=${i}`}>{i + 1}. {exerciseById(id)?.name}{completed.includes(id) ? ' ✓' : ''}</Link>)}</div>
     <Link to="/app" className="btn">{t('Back to exercise library')}</Link>

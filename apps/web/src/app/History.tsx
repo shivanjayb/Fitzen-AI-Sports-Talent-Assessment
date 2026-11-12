@@ -2,7 +2,7 @@ import { t } from './language';
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { exerciseById, standardReps } from '@fitzen/engines';
-import { getHistory, isEligibleSession, measureOf, SYNCED, type SavedSession } from './store';
+import { getHistory, isComparableSession, isEligibleSession, measureOf, SYNCED, type SavedSession } from './store';
 import { Thumb } from './Figure';
 import { PageHeader } from './Shell';
 import { IconFlag, IconSparkle } from './icons';
@@ -31,7 +31,7 @@ export default function History() {
   const exercises = [...new Map(h.map((s) => [s.report.exerciseId, s.report.name])).entries()];
   const selected = exercise === 'all' ? undefined : exerciseById(exercise);
   const list = h.filter((s) => (exercise === 'all' || s.report.exerciseId === exercise) && (status === 'all' || (status === 'eligible' ? isEligibleSession(s) : status === 'demo' ? s.source === 'demo' : s.source !== 'demo' && !isEligibleSession(s))));
-  const eligible = h.filter((s) => s.report.exerciseId === exercise && isEligibleSession(s) && measured(s));
+  const eligible = h.filter((s) => s.report.exerciseId === exercise && isComparableSession(s) && measured(s));
   const latest = eligible[0];
   const latestMetric = latest ? measured(latest) : null;
   const compatible = latest && latestMetric ? eligible.filter((s) => !!s.report.validity && s.report.validity.protocolId === latest.report.validity?.protocolId && s.report.validity.modelVersion === latest.report.validity?.modelVersion && measured(s)?.metric === latestMetric.metric).slice(0, 12).reverse() : [];
@@ -65,7 +65,7 @@ export default function History() {
         {latestMetric ? <>
           <dl className="history-stats"><div><dt>{t('Latest measured')}</dt><dd>{valueLabel(latestMetric.value)} <small>{latestMetric.unit}</small></dd></div><div><dt>{t('Since previous')}</dt><dd>{previousMetric ? `${latestMetric.value - previousMetric.value > 0 ? '+' : ''}${valueLabel(latestMetric.value - previousMetric.value)} ${latestMetric.unit}` : '—'}</dd></div><div><dt>{t('Since first shown')}</dt><dd>{firstMetric && compatible.length > 1 ? `${latestMetric.value - firstMetric.value > 0 ? '+' : ''}${valueLabel(latestMetric.value - firstMetric.value)} ${latestMetric.unit}` : '—'}</dd></div></dl>
           {compatible.length > 1 ? <figure className="history-trend"><svg viewBox="0 0 600 160" role="img" aria-label={t('Last {n} measured attempts, oldest to newest', { n: compatible.length })}><path d="M20 140H580" stroke="currentColor" opacity=".15" /><polyline points={points.join(' ')} fill="none" stroke="currentColor" strokeWidth="2.5" />{points.map((p, i) => { const [cx, cy] = p.split(','); return <circle key={compatible[i]!.id} cx={cx} cy={cy} r="4"><title>{new Date(compatible[i]!.report.startedAt).toLocaleDateString()}: {valueLabel(values[i]!)} {latestMetric.unit}</title></circle>; })}</svg><figcaption><span>{new Date(first!.report.startedAt).toLocaleDateString()}</span><span>{new Date(latest!.report.startedAt).toLocaleDateString()}</span></figcaption></figure> : <p className="muted">{t('Complete one more comparable assessment to see a trend.')}</p>}
-          <p className="history-note">{t('Compared within the same exercise, recorded protocol and engine version. Reps use standard depth targets. These are screening estimates; camera setup and effort can affect each attempt.')}</p>
+          <p className="history-note">{t('Compared within the same exercise, recorded protocol and engine version; attempts with poor capture quality are left out. Reps use standard depth targets. These are screening estimates; camera setup and effort can affect each attempt.')}</p>
         </> : <p className="muted">{t('No measured assessment for this exercise yet. Demo and incomplete attempts appear below when available.')}</p>}
       </section>}
       {!list.length && <div className="empty"><div className="big"><IconFlag /></div><h2>{t(h.length ? 'No attempts match these filters.' : 'Your progress begins with one attempt.')}</h2><p>{t('Complete an assessment to keep its report and measurements here.')}</p><Link to={selected ? `/exercise/${selected.id}` : '/app'} className="btn primary">{t('Start training')}</Link></div>}

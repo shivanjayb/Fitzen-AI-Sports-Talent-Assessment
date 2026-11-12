@@ -4,9 +4,13 @@ import { getHistory, getProfile, getSession, isEligibleSession, measureOf, toAth
 
 export function localAdvice(c: AssistantContext, topic: string): string {
   if (c.kind === 'help') {
-    if (/video/i.test(topic)) return 'Choose an exercise, then Analyse video. Use a clip under 100 MB and 2 minutes, filmed at hip height with the whole body visible. The clip stays on your device. Authenticity flags need human review.';
-    if (/colour/i.test(topic)) return 'Green means within the exercise target band, amber is moderate, red needs attention. Grey or missing checks cannot be assessed. These bands are screening rules, still awaiting real-athlete calibration.';
-    return 'Choose a test and read Set up. Keep the whole body visible, camera 2–3 m away at hip height, and use the specified view. For the hands-on-hips countermovement jump, keep your hands on your hips throughout. Hold still for the framing check and countdown, then jump and land in the same place. Stop for pain, dizziness or illness.';
+    // Typed questions from the Ask bar arrive as 'help': route the ones this local coach can answer from saved sessions.
+    if (/progress|improv|better|often|frequen|next|how am i|my (?:sessions?|results?|scores?)/i.test(topic)) return localAdvice({ kind: 'progress' }, topic);
+    if (/video|clip|upload/i.test(topic)) return 'Choose an exercise, then Analyse video. Use a clip under 100 MB and 2 minutes, filmed at hip height with the whole body visible. The clip stays on your device. Authenticity flags need human review.';
+    if (/colou?r|green|amber|red\b/i.test(topic)) return 'Green means within the exercise target band, amber is moderate, red needs attention. Grey or missing checks cannot be assessed. These bands are screening rules, still awaiting real-athlete calibration.';
+    const unknown = topic.trim() && !/record|jump|camera|set ?up|start|test|how do i/i.test(topic)
+      ? 'I am Fitzen’s on-device coach, so I can only answer from your saved sessions and how the app works. Try asking how to record a test, how to analyse a video, what the colours mean, or how you are progressing.\n\n' : '';
+    return unknown + 'Choose a test and read Set up. Keep the whole body visible, camera 2–3 m away at hip height, and use the specified view. For the hands-on-hips countermovement jump, keep your hands on your hips throughout. Hold still for the framing check and countdown, then jump and land in the same place. Stop for pain, dizziness or illness.';
   }
   const history = getHistory().filter(isEligibleSession);
   if (c.kind === 'result') {
@@ -25,6 +29,10 @@ ${m ? `${m.value.toFixed(m.unit === 'reps' ? 0 : 1)} ${m.unit}. ` : ''}Form ${r.
   }
   const selected = c.kind === 'leaderboard' ? history.filter((s) => s.report.exerciseId === c.exerciseId) : history;
   if (!selected.length) return 'No eligible real assessments yet. Start with a guided test; demos and flagged or unassessed results do not count.';
+  if (/often|frequen|how many/i.test(topic)) {
+    const since = Date.now() - 28 * 864e5, n = selected.filter((s) => Date.parse(s.report.startedAt) >= since).length;
+    return `${n} eligible session${n === 1 ? '' : 's'} in the last 4 weeks (about ${(n / 4).toFixed(1)} a week). Most athletes progress with 2–4 focused sessions a week plus rest days; keep the same test and camera setup so retests compare fairly.`;
+  }
   const latest = selected[0]!, same = selected.filter((s) => s.report.exerciseId === latest.report.exerciseId);
   const values = same.map((s) => measureOf(s.report)).filter((x) => x !== null);
   const newest = values[0], oldest = values[values.length - 1];

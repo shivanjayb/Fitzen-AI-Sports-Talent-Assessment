@@ -1,9 +1,9 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
-import { getWellnessRecords, saveWellnessRecord, subscribeWellness, validateWellness, wellnessToday, type WellnessInput, type WellnessRecord } from '../app/wellnessStore';
+import { deleteWellnessRecord, getWellnessRecords, restoreWellnessRecord, saveWellnessRecord, subscribeWellness, validateWellness, wellnessToday, type WellnessInput, type WellnessRecord } from '../app/wellnessStore';
 import { dayStart, fmt, mean, pointsFor, series, shortDate, useSampleMode } from './sample';
 import { Card, CardHead, Dialog, Icon, MetricTile, PageHead, Soon, Stat, toast, useExplore } from './ui';
-import { circular, clock, clockDiff, parseClock, sleepDebt, sleepHours, socialJetLag } from './sleepMath';
+import { circular, clock, clockDiff, daysBefore, parseClock, sleepDebt, sleepHours, socialJetLag } from './sleepMath';
 import { goalsError, readGoals, reminderOn, setReminder, writeGoals, type Goals } from './sleepGoals';
 import { recoveryDays } from './recovery';
 import './sleep.css';
@@ -12,17 +12,17 @@ const TILES = ['performance', 'efficiency', 'deep', 'rem', 'light', 'awake'];
 const GROUP = ['sleep', ...TILES];
 const STAGES = [['Deep', 't-accent'], ['REM', 't-violet'], ['Light', 't-blue']] as const;
 const PAST = ['#bdbdb7', '#ffffff2e', '#ffffff0f'], NOW = ['var(--x-accent)', 'var(--x-violet)', 'var(--x-blue)'];
-const DAY = 864e5;
 const longDay = (d: Date) => d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
 
 /** One night, dated by the wake-up day: stage hours (deep, REM, light) when a watch recorded them, else a single total. */
-interface Night { date: Date; stages: number[]; bed?: number; wake?: number }
-const hoursOf = (n: Night) => n.stages.reduce((a, b) => a + b, 0);
+interface Night { date: Date; hours: number; stages: number[]; bed?: number; wake?: number }
+const hoursOf = (n: Night) => n.hours;
+const inLast = (n: Night, days: number) => daysBefore(n.date, dayStart()) < days;
 function sampleNights(days: number): Night[] {
   const [deep, rem, light] = ['deep', 'rem', 'light'].map((id) => series(id, days));
   return deep!.map((p, i) => {
     const stages = [p.value, rem![i]!.value, light![i]!.value], wake = 420 + ((p.date.getDate() * 37) % 50) - 25 + (p.date.getDay() % 6 ? 0 : 50);
-    return { date: p.date, stages, wake, bed: Math.round(wake - stages.reduce((a, b) => a + b, 0) * 60 + 1440) % 1440 };
+    return { date: p.date, hours: stages.reduce((a, b) => a + b, 0), stages, wake, bed: Math.round(wake - stages.reduce((a, b) => a + b, 0) * 60 + 1440) % 1440 };
   });
 }
 /** Latest entry per date, oldest first (records arrive newest first). */
@@ -31,7 +31,7 @@ function ownNights(records: WellnessRecord[]): Night[] {
   for (const r of records) if (r.kind === 'sleep' && r.values.hours !== undefined && !seen.has(r.date)) {
     const { hours, deep, rem, light, bedtime, wake } = r.values;
     seen.add(r.date);
-    out.push({ date: new Date(`${r.date}T12:00:00`), stages: deep !== undefined && rem !== undefined && light !== undefined ? [deep, rem, light] : [hours], bed: bedtime, wake });
+    out.push({ date: new Date(`${r.date}T12:00:00`), hours, stages: deep !== undefined && rem !== undefined && light !== undefined ? [deep, rem, light] : [hours], bed: bedtime, wake });
   }
   return out.reverse();
 }
@@ -95,8 +95,10 @@ function LastNight({ nights, avg30, sample }: { nights: Night[]; avg30: number; 
 
 function GoalsCard({ nights, sample, goals, onChange }: { nights: Night[]; sample: boolean; goals: Goals; onChange: () => void }) {
   const hours = nights.map(hoursOf), met = hours.filter((h) => h >= goals.sleep).length;
-  const recent = sleepDebt(hours.slice(-7), goals.sleep), before = hours.slice(-14, -7), diff = recent - sleepDebt(before, goals.sleep);
-  const days = Array.from({ length: 14 }, (_, i) => new Date(dayStart().getTime() - (13 - i) * DAY));
+  // Debt by calendar week, not by the last 7 entries, so a gap is not filled with older nights.
+  const week = nights.filter((n) => inLast(n, 7)).map(hoursOf), before = nights.filter((n) => !inLast(n, 7)).map(hoursOf);
+  const recent = sleepDebt(week, goals.sleep), diff = recent - sleepDebt(before, goals.sleep);
+  const t = dayStart(), days = Array.from({ length: 14 }, (_, i) => new Date(t.getFullYear(), t.getMonth(), t.getDate() - 13 + i));
   const readings = recoveryDays(days, (id) => pointsFor(id, 60, sample), goals.sleep).filter((r) => r !== null);
   const recovery = readings.filter((r) => r.value >= goals.recovery).length;
   const scale = Math.max(...hours, goals.sleep) * 1.12;
@@ -104,11 +106,11 @@ function GoalsCard({ nights, sample, goals, onChange }: { nights: Night[]; sampl
   return <Card tone="night" className="x-sleep-goals">
     <CardHead title="Your goals"><button className="x-btn small x-sleep-change" onClick={onChange}>Change goals</button></CardHead>
     <ul className="x-sleep-goal-list">
-      <li><span><b>Sleep goal</b><small>{hours.length ? `Met on ${met} of ${hours.length} recorded nights in the last ${Math.max(hours.length, 14)} days` : none}</small></span>
+      <li><span><b>Sleep goal</b><small>{hours.length ? `Met on ${met} of ${hours.length} recorded nights in the last 14 days` : none}</small></span>
         <span className="x-sleep-goal-value"><b>{fmt(goals.sleep, goals.sleep % 1 ? 2 : 0)}</b><small>h</small></span></li>
-      <li><span><b>Sleep debt · last 7 nights</b><small>{!hours.length ? none : !before.length ? 'Below your goal across your recorded nights'
+      <li><span><b>Sleep debt · last 7 nights</b><small>{!hours.length ? none : !before.length ? `Hours short of your goal over ${week.length} recorded night${week.length === 1 ? '' : 's'}`
         : Math.abs(diff) < .05 ? 'Same as the 7 nights before' : `${fmt(Math.abs(diff), 1)} h ${diff > 0 ? 'more' : 'less'} than the 7 nights before`}</small></span>
-        <span className="x-sleep-goal-value"><b>{hours.length ? fmt(recent, 1) : '–'}</b><small>h</small></span></li>
+        <span className="x-sleep-goal-value"><b>{week.length ? fmt(recent, 1) : '–'}</b><small>h</small></span></li>
       <li><span><b>Recovery goal</b><small>{readings.length ? `Reached on ${recovery} of ${readings.length} days with a reading in the last 14${readings.some((r) => r.estimate) ? ' · includes Fitzen estimates' : ''}` : 'Appears once a source records recovery, or after 7 days of HRV or resting heart rate.'}</small></span>
         <span className="x-sleep-goal-value"><b>{goals.recovery}</b><small>%</small></span></li>
     </ul>
@@ -178,35 +180,51 @@ function GoalsDialog({ goals, onSave, onClose }: { goals: Goals; onSave: (g: Goa
   </Dialog>;
 }
 
-function LogSleepDialog({ goals, onClose }: { goals: Goals; onClose: () => void }) {
+function LogSleepDialog({ goals, records, onClose }: { goals: Goals; records: WellnessRecord[]; onClose: () => void }) {
+  /** The night you logged yourself for a date (imports keep their own records). */
+  const loggedOn = (d: string) => records.find((r) => r.kind === 'sleep' && r.date === d && r.title === 'Sleep');
+  const fieldsOf = (r?: WellnessRecord) => ({ bed: clock(r?.values.bedtime ?? goals.bedtime), wake: clock(r?.values.wake ?? goals.wake), awake: r?.values.awake !== undefined ? String(r.values.awake) : '' });
   const [date, setDate] = useState(wellnessToday);
-  const [bed, setBed] = useState(clock(goals.bedtime)), [wake, setWake] = useState(clock(goals.wake)), [awake, setAwake] = useState('');
+  const prior = loggedOn(date);
+  const [f, setF] = useState(() => fieldsOf(prior));
+  const { bed, wake, awake } = f;
   const [error, setError] = useState<string | null>(null);
   const b = parseClock(bed), w = parseClock(wake), a = awake.trim() ? Number(awake) : 0;
   const hours = b !== null && w !== null && Number.isFinite(a) ? sleepHours(b, w, a) : NaN;
+  const pickDate = (d: string) => { setDate(d); setF(fieldsOf(loggedOn(d))); setError(null); };
   const submit = (e: FormEvent) => {
     e.preventDefault();
     if (b === null || w === null) return setError('Enter your bedtime and wake time.');
     if (!Number.isInteger(a) || a < 0) return setError('Awake time is whole minutes, 0 or more.');
     if (!(hours > 0)) return setError(b === w ? 'Bedtime and wake time cannot be the same.' : 'Awake time is longer than the time in bed.');
-    const input: WellnessInput = { kind: 'sleep', date, title: 'Sleep', note: '', unit: 'hours',
+    const input: WellnessInput = { kind: 'sleep', date, title: 'Sleep', note: '', unit: 'hours', id: prior?.id,
       values: { hours: Math.round(hours * 100) / 100, bedtime: b, wake: w, ...(awake.trim() ? { awake: a } : {}) } };
     const err = validateWellness(input);
     if (err) return setError(err);
     try { saveWellnessRecord(input); } catch (x) { return setError(x instanceof Error ? x.message : 'This night could not be saved.'); }
-    toast('Sleep saved.'); onClose();
+    toast(prior ? 'Night updated.' : 'Sleep saved.'); onClose();
   };
-  return <Dialog open onClose={onClose} kicker="Sleep" title="Log sleep">
+  const remove = () => {
+    if (!prior) return;
+    try { deleteWellnessRecord(prior.id); } catch (x) { return setError(x instanceof Error ? x.message : 'This night could not be deleted.'); }
+    toast('Night deleted.', { label: 'Undo', run: () => { try { restoreWellnessRecord(prior); } catch (x) { toast(x instanceof Error ? x.message : 'Could not undo.'); } } });
+    onClose();
+  };
+  const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
+  return <Dialog open onClose={onClose} kicker="Sleep" title={prior ? 'Edit logged night' : 'Log sleep'}>
     <form onSubmit={submit} noValidate>
       <div className="x-form-grid">
-        <label className="x-field">Woke up on<input type="date" max={wellnessToday()} value={date} onChange={(e) => setDate(e.target.value)} aria-invalid={!!error} /></label>
-        <label className="x-field">Awake in the night (min, optional)<input type="number" inputMode="numeric" min={0} max={600} step={1} placeholder="0" value={awake} onChange={(e) => setAwake(e.target.value)} aria-invalid={!!error} /></label>
-        <label className="x-field">Bedtime<input type="time" value={bed} onChange={(e) => setBed(e.target.value)} aria-invalid={!!error} /></label>
-        <label className="x-field">Wake time<input type="time" value={wake} onChange={(e) => setWake(e.target.value)} aria-invalid={!!error} /></label>
+        <label className="x-field">Woke up on<input type="date" max={wellnessToday()} value={date} onChange={(e) => pickDate(e.target.value)} aria-invalid={!!error} /></label>
+        <label className="x-field">Awake in the night (min, optional)<input type="number" inputMode="numeric" min={0} max={600} step={1} placeholder="0" value={awake} onChange={set('awake')} aria-invalid={!!error} /></label>
+        <label className="x-field">Bedtime<input type="time" value={bed} onChange={set('bed')} aria-invalid={!!error} /></label>
+        <label className="x-field">Wake time<input type="time" value={wake} onChange={set('wake')} aria-invalid={!!error} /></label>
       </div>
-      <p className="x-sleep-dialog-lede x-sleep-total" role="status">{hours > 0 ? `${fmt(hours, 2)} hours asleep` : 'Enter a bedtime and wake time.'}</p>
+      <p className="x-sleep-dialog-lede x-sleep-total" role="status">{hours > 0 ? `${fmt(hours, 2)} hours asleep` : 'Enter a bedtime and wake time.'}{prior ? ' · replaces the night you logged for this date' : ''}</p>
       {error && <p className="x-sleep-error" role="alert">{error}</p>}
-      <div className="x-form-actions x-sleep-dialog-foot"><span>Saved to your own records.</span><button className="x-btn" type="submit">Save night</button></div>
+      <div className="x-form-actions x-sleep-dialog-foot">
+        {prior ? <button type="button" className="x-btn ghost" onClick={remove}>Delete night</button> : <span>Saved to your own records.</span>}
+        <button className="x-btn" type="submit">{prior ? 'Update night' : 'Save night'}</button>
+      </div>
     </form>
   </Dialog>;
 }
@@ -217,10 +235,11 @@ export default function Sleep() {
   useEffect(() => subscribeWellness(() => setRecords(getWellnessRecords())), []);
   const [goals, setGoals] = useState(readGoals);
   const [dialog, setDialog] = useState<'goals' | 'log' | null>(null);
-  const own = ownNights(records), since = dayStart().getTime() - 29 * DAY;
-  const nights = sample ? sampleNights(14) : own.slice(-14);
-  const avg30 = mean((sample ? sampleNights(30) : own.filter((n) => n.date.getTime() >= since)).map(hoursOf)) || (nights.length ? hoursOf(nights[nights.length - 1]!) : 0);
-  const last = nights[nights.length - 1];
+  const own = ownNights(records);
+  const nights = sample ? sampleNights(14) : own.filter((n) => inLast(n, 14));
+  const hero = nights.length ? nights : own.slice(-1); // an older last night still shows, dated
+  const avg30 = mean((sample ? sampleNights(30) : own.filter((n) => inLast(n, 30))).map(hoursOf)) || (hero.length ? hoursOf(hero[hero.length - 1]!) : 0);
+  const last = hero[hero.length - 1];
   const subtitle = last ? `Your last recorded night · ${longDay(last.date)} · from ${sample ? 'Sample data' : 'your records'}` : 'No nights recorded yet.';
   return <>
     <PageHead title="Sleep" subtitle={subtitle}>
@@ -228,7 +247,7 @@ export default function Sleep() {
       <ManageSources />
     </PageHead>
     <div className="x-sleep-grid">
-      <LastNight nights={nights} avg30={avg30} sample={sample} />
+      <LastNight nights={hero} avg30={avg30} sample={sample} />
       <GoalsCard nights={nights} sample={sample} goals={goals} onChange={() => setDialog('goals')} />
       <ScheduleCard nights={nights} goals={goals} />
       {TILES.map((id) => <MetricTile key={id} id={id} group={GROUP} lastLabel="Last night" />)}
@@ -238,6 +257,6 @@ export default function Sleep() {
       </Card>
     </div>
     {dialog === 'goals' && <GoalsDialog goals={goals} onClose={() => setDialog(null)} onSave={(g) => { setGoals(g); setDialog(null); toast('Goals saved.'); }} />}
-    {dialog === 'log' && <LogSleepDialog goals={goals} onClose={() => setDialog(null)} />}
+    {dialog === 'log' && <LogSleepDialog goals={goals} records={records} onClose={() => setDialog(null)} />}
   </>;
 }

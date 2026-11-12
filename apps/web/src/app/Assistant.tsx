@@ -39,6 +39,8 @@ export default function Assistant() {
   const [open, setOpen] = useState(false);
   const [ctx, setCtx] = useState<AssistantContext>({ kind: 'help' });
   const [answer, setAnswer] = useState('');
+  const [question, setQuestion] = useState('');
+  const ask = (c: AssistantContext, q: string) => { setQuestion(q); setAnswer(localAdvice(c, q)); };
   const sheet = useRef<HTMLDivElement>(null);
   const opener = useRef<HTMLElement | null>(null);
   const close = () => { setOpen(false); opener.current?.focus(); };
@@ -46,7 +48,7 @@ export default function Assistant() {
     const on = (e: Event) => {
       const d = (e as CustomEvent<AssistantOpen>).detail;
       opener.current = document.activeElement as HTMLElement | null;
-      setCtx(d.context); setAnswer(localAdvice(d.context, d.prompt ?? '')); setOpen(true);
+      setCtx(d.context); ask(d.context, d.prompt?.trim() ?? ''); setOpen(true);
     };
     window.addEventListener(ASSISTANT_EVENT, on);
     return () => window.removeEventListener(ASSISTANT_EVENT, on);
@@ -76,8 +78,8 @@ export default function Assistant() {
           <div><h2 id="coach-title" style={{ margin: 0 }}>{t('Fitzen local coach')}</h2><p className="faint">{t("Guidance from your measurements. No account or internet needed.")}</p></div>
           <button className="btn icon glass" onClick={close} aria-label={t("Close")}><IconClose /></button>
         </div>
-        <div className="chips">{STARTERS[ctx.kind].map((s) => <button key={s} className="chip" onClick={() => setAnswer(localAdvice(ctx, s))}>{t(s)}</button>)}</div>
-        <div className="ai-log" role="status" aria-live="polite"><Md text={answer} /></div>
+        <div className="chips">{STARTERS[ctx.kind].map((s) => <button key={s} className="chip" onClick={() => ask(ctx, s)}>{t(s)}</button>)}</div>
+        <div className="ai-log" role="status" aria-live="polite">{question && <p className="faint"><b>{t("You asked")}:</b> {t(question)}</p>}<Md text={answer} /></div>
         <p className="faint">{t("Rule-based guidance stays on this device. Screening estimates, not medical advice or a selection decision.")}</p>
       </div>
     </>, document.body)}

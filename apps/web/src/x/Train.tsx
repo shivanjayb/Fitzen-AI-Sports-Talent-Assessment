@@ -91,6 +91,7 @@ export default function Train() {
         </div>
         <input ref={file} type="file" accept="video/*" hidden onChange={(e) => {
           const f = e.target.files?.[0];
+          e.target.value = ''; // picking the same clip again (e.g. after going back) must still fire onChange
           if (f) { setPendingVideo(f); nav(`/train/${clipFor}?src=video`); }
         }} />
       </section>

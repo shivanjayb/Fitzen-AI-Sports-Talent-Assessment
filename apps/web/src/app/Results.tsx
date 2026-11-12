@@ -2,14 +2,15 @@ import { t } from './language';
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { exerciseById, isAssessedReport, uploadCutoffHz, standardReps, mentalReport, readiness, summarizeFuture, type MetricProjection, type ReadinessInput, type SessionReport } from '@fitzen/engines';
-import { deleteSession, getHistory, getProfile, getSession, isEligibleSession, isSessionPersistent, measureOf, normOf, saveReadiness, saveSession, toAthlete, type SavedSession } from './store';
+import { assessEvidence, exerciseById, isAssessedReport, jumpTimingErrorCm, summarizeReport, uploadCutoffHz, standardReps, mentalReport, readiness, summarizeFuture, type MetricProjection, type ReadinessInput, type SessionReport } from '@fitzen/engines';
+import { deleteSession, getHistory, getProfile, getSession, isComparableSession, isEligibleSession, isSessionPersistent, measureOf, normOf, saveReadiness, saveSession, syncHistory, toAthlete, type SavedSession } from './store';
+import { storageOwner } from '../lib/supabase';
 import { IconAlert, IconBack, IconCheck, IconFolder, IconShare, IconSparkle, IconStop } from './icons';
 import { openAssistant } from './openAssistant';
 import { download } from './download';
 import { ReferenceCheck } from './Validation';
 import { BATTERY } from './battery';
-import Rings from './Rings';
+import './results.css';
 
 const ORD = new Intl.PluralRules('en', { type: 'ordinal' });
 const ord = (x: number) => { const n = Math.round(x); return `${n}${({ one: 'st', two: 'nd', few: 'rd' } as Record<string, string>)[ORD.select(n)] ?? 'th'}`; };
@@ -235,8 +236,8 @@ function PreviousPerformance({ session }: { session: SavedSession }) {
     return value === null ? null : { ...metric, value };
   };
   const metric = measured(session.report);
-  const prior = isEligibleSession(session) && metric ? getHistory()
-    .filter(s => s.id !== session.id && isEligibleSession(s) && s.report.exerciseId === session.report.exerciseId &&
+  const prior = isComparableSession(session) && metric ? getHistory()
+    .filter(s => s.id !== session.id && isComparableSession(s) && s.report.exerciseId === session.report.exerciseId &&
       Date.parse(s.report.startedAt) < Date.parse(session.report.startedAt) &&
       !!session.report.validity?.protocolId && s.report.validity?.protocolId === session.report.validity.protocolId && s.report.validity.modelVersion === session.report.validity.modelVersion)
     .sort((a, b) => Date.parse(b.report.startedAt) - Date.parse(a.report.startedAt))
@@ -257,6 +258,7 @@ export default function Results() {
   const loc = useLocation();
   const [, bump] = useState(0);
   const [asking, setAsking] = useState(Boolean((loc.state as { checkin?: boolean } | null)?.checkin));
+  const [sync, setSync] = useState<'idle' | 'busy' | 'pending'>('idle');
   const saved = getSession(id);
   if (!saved) return <main className="page"><div className="empty"><div className="big"><IconFolder /></div>{t("Session not found.")}<br /><br /><Link className="btn" to="/app">{t("Back to training")}</Link></div></main>;
   const r = saved.report;
@@ -268,12 +270,12 @@ export default function Results() {
 
   const exportJson = () => download(`fitzen-${r.exerciseId}-${r.startedAt.slice(0, 10)}.json`, JSON.stringify(saved, null, 2), 'application/json');
 
-  // Third ring: share of the goal reached (correct reps, hold target or mean attempt quality).
-  const goal = rp ? { value: rp.count ? rp.valid / rp.count : 0, label: 'correct' } : r.hold ? { value: Math.min(1, r.hold.bestSec / Math.max(1, r.hold.targetSec)), label: 'of hold goal' }
-    : { value: r.events?.length ? r.events.reduce((a, e) => a + e.score, 0) / r.events.length : 0, label: 'attempt quality' };
-  const headline = rp ? `${rp.count} reps · ${rp.valid} correct` : r.hold ? `${f(r.hold.bestSec)} s best hold` :
-    r.events?.length ? (r.events.some((e) => e.jumpHeightCm !== undefined) ? t('{n} cm best jump', { n: f(Math.max(...r.events.map((e) => e.jumpHeightCm ?? 0))) }) : t('{n} attempts', { n: r.events.length })) : t('No attempts detected');
-
+  const evidence = assessEvidence(ex, r);
+  const summary = summarizeReport(ex, r, evidence);
+  const bestJump = Math.max(0, ...(r.events ?? []).map((e) => e.jumpHeightCm ?? 0));
+  // The one number this attempt was about, in its own unit.
+  const result = !assessed ? { value: '—', unit: 'not scored' } : rp ? { value: String(rp.valid), unit: `of ${rp.count} reps to standard` } : r.hold ? { value: f(r.hold.bestSec), unit: `s best hold · goal ${r.hold.targetSec} s` }
+    : bestJump > 0 ? { value: f(bestJump), unit: 'cm best jump' } : { value: String(r.events?.length ?? 0), unit: 'attempts measured' };
   const noise = Object.values(r.angles).map((a) => a.noise);
   const precision = noise.length ? noise.reduce((a, b) => a + b, 0) / noise.length : NaN;
 
@@ -288,7 +290,9 @@ export default function Results() {
       </div>
 
       {!persistent && <div className="insight warn" role="alert" style={{ marginTop: 14 }}><div><b>{t("This report is only held in this tab")}</b><p>{t("Device storage is unavailable. Export JSON or print before closing. Free storage, then retry saving.")}</p><button className="btn" onClick={() => { saveSession(saved); bump((n) => n + 1); }}>{t("Retry save")}</button></div></div>}
-      {!assessed && <p role="status">{t("Insufficient evidence: no eligible completed attempt or scored checks. No performance grade is assigned.")}</p>}
+      {persistent && saved.source !== 'demo' && !saved.backedUp && storageOwner() !== 'guest' && <div className="insight info no-print" role="status" style={{ marginTop: 14 }}><div><b>{t('Not backed up to your account yet')}</b>
+        <p>{t(sync === 'pending' ? 'Still waiting: check your connection. It also retries automatically when you are back online.' : 'It uploads automatically when you are online. This report is safe on this device meanwhile.')}</p>
+        <button className="btn" disabled={sync === 'busy'} onClick={() => { setSync('busy'); void syncHistory().then((r) => setSync(r.pending ? 'pending' : 'idle'), () => setSync('pending')).finally(() => bump((n) => n + 1)); }}>{t(sync === 'busy' ? 'Backing up…' : 'Retry backup')}</button></div></div>}
       {saved.source === 'demo' && <p>{t("Demonstration only. This synthetic session does not count toward real progress.")}</p>}
       {banner && (
         <div className={`insight ${banner}`} role="alert" style={{ marginTop: 14 }}>
@@ -298,19 +302,45 @@ export default function Results() {
         </div>
       )}
 
-      <section className="glass result-hero">
-        <Rings values={[assessed ? r.formScore / 100 : 0, r.trackedPct / 100, goal.value]} size={104} />
-        <div style={{ minWidth: 0 }}>
-          <div className="faint" style={{ fontSize: '.8rem', fontWeight: 600 }}>{new Date(r.startedAt).toLocaleString()} · {saved.source === 'demo' ? 'Demo athlete' : saved.source === 'video' ? 'Video analysis' : 'Live camera'}</div>
-          <h1 className="large-title" style={{ fontSize: '1.75rem' }}>{r.name}</h1>
-          <div style={{ fontSize: '1.0625rem', fontWeight: 600 }}>{headline}</div>
-          <div className="ring-legend">
-            <span><b className="num" style={{ color: 'var(--move)' }}>{assessed ? r.formScore : '—'}</b> {t("form")}</span>
-            <span><b className="num" style={{ color: 'var(--exercise)' }}>{Math.round(r.trackedPct)}%</b> {t("tracked")}</span>
-            <span><b className="num" style={{ color: 'var(--stand)' }}>{Math.round(goal.value * 100)}%</b> {goal.label}</span>
-          </div>
+      <section className={`glass rx-hero ev-${evidence.level}`}>
+        <div className="rx-hero-main">
+          <div className="rx-meta">{new Date(r.startedAt).toLocaleString()} · {t(saved.source === 'demo' ? 'Demo athlete' : saved.source === 'video' ? 'Video analysis' : 'Live camera')}</div>
+          <h1>{r.name}</h1>
+          <div className="rx-result"><b className="num">{result.value}</b><span>{t(result.unit)}</span></div>
+          <p className="rx-verdict">{t(summary.verdict)}</p>
         </div>
-        <div className={`grade ${assessed ? r.grade : 'unassessed'}`}>{assessed ? r.grade : 'N/A'}</div>
+        <div className="rx-hero-side">
+          <div className="rx-score" aria-label={t('Form score')}>
+            <b className="num">{assessed ? r.formScore : '—'}</b><small>{t('form score / 100')}</small>
+            <div className="rx-meter" aria-hidden><i style={{ width: `${assessed ? r.formScore : 0}%`, background: !assessed ? 'transparent' : r.formScore >= 85 ? Z.good : r.formScore >= 65 ? Z.ok : Z.bad }} /></div>
+          </div>
+          <a href="#evidence" className={`rx-badge ev-${evidence.level}`}>{evidence.level === 'strong' ? <IconCheck /> : <IconAlert />}{t(evidence.level === 'strong' ? 'Strong evidence' : evidence.level === 'limited' ? 'Limited evidence' : 'Not enough evidence')}</a>
+        </div>
+      </section>
+
+      <div className="rx-cards">
+        <section className="glass panel rx-card good">
+          <h2>{t('What went well')}</h2>
+          {summary.strengths.length ? <ul>{summary.strengths.map((x) => <li key={x}>{t(x)}</li>)}</ul> : <p className="muted">{t(assessed ? 'Nothing stood out as a clear strength yet. Fix the focus point first.' : 'No scored movement to judge.')}</p>}
+        </section>
+        <section className="glass panel rx-card focus">
+          <h2>{t('Fix this next')}</h2>
+          {summary.focus ? <><b>{t(summary.focus.title)}</b><p>{t(summary.focus.detail)}</p></> : <p className="muted">{t('No measured fault needs fixing. Keep this quality as you progress.')}</p>}
+        </section>
+        <section className="glass panel rx-card next">
+          <h2>{t('Your next step')}</h2>
+          <p>{t(summary.next)}</p>
+          {ex && <Link className="btn primary press no-print" to={`/train/${ex.id}?src=${saved.source === 'demo' ? 'demo' : 'camera'}`}>{t(evidence.level === 'strong' ? 'Go again' : 'Retake')}</Link>}
+        </section>
+      </div>
+
+      <section className="glass panel rx-evidence" id="evidence">
+        <div className="row between"><h2>{t('Can you trust this result?')}</h2><span className={`rx-badge ev-${evidence.level}`}>{t(evidence.level === 'strong' ? 'Strong evidence' : evidence.level === 'limited' ? 'Limited evidence' : 'Not enough evidence')}</span></div>
+        <p className="muted">{t(evidence.level === 'strong' ? 'The camera saw the movement clearly enough to measure it.' : evidence.level === 'limited' ? 'The result is usable but approximate. The items marked below reduced measurement quality; they do not lower your score.' : 'There was not enough clean movement to score. This is a capture problem, not a poor performance.')} {t(summary.measured)}</p>
+        <ul className="rx-factors">
+          {evidence.factors.map((x) => <li key={x.id} className={x.status}><i aria-hidden /><span>{t(x.label)}<span className="sr-only">: {t(x.status === 'good' ? 'fine' : x.status === 'warn' ? 'reduced' : 'poor')}</span></span><b className="num">{x.value}</b>{x.advice && <p>{t(x.advice)}</p>}</li>)}
+        </ul>
+        <small className="faint">{t(evidence.comparable ? 'Eligible for comparison with other attempts recorded under the same protocol.' : 'Not compared with other attempts: capture quality was too low for a fair comparison.')}</small>
       </section>
 
       <PreviousPerformance session={saved} />
@@ -357,7 +387,7 @@ export default function Results() {
         {r.events?.map((e) => (
           <div key={e.index}><span>{t('Attempt {n}', { n: e.index })}</span>
             <b className="num">{e.jumpHeightCm !== undefined ? `${f(e.jumpHeightCm)} cm` : e.releaseAngle !== undefined ? `${f(e.releaseAngle, 0)}°` : `${Math.round(e.score * 100)}%`}</b>
-            <small>{e.flightMs !== undefined ? `flight ${Math.round(e.flightMs)} ms` : e.peakSpeed !== undefined ? `peak ${f(e.peakSpeed)} body-h/s` : ''}{e.releaseAngle !== undefined && e.jumpHeightCm !== undefined ? ` · take-off ${f(e.releaseAngle, 0)}°` : ''}</small>
+            <small>{e.flightMs !== undefined ? `flight ${Math.round(e.flightMs)} ms${e.jumpHeightCm !== undefined && r.fps > 0 ? ` · ±${f(jumpTimingErrorCm(e.flightMs, r.fps))} cm at ${Math.round(r.fps)} fps` : ''}` : e.peakSpeed !== undefined ? `peak ${f(e.peakSpeed)} body-h/s` : ''}{e.releaseAngle !== undefined && e.jumpHeightCm !== undefined ? ` · take-off ${f(e.releaseAngle, 0)}°` : ''}</small>
           </div>
         ))}
         <div><span>{t("Angle precision")}</span><b className="num">±{f(precision)}°</b><small>{t("frame noise (1 SD)")}</small></div>
@@ -365,7 +395,7 @@ export default function Results() {
         {r.kcal !== null && <div><span>{t("Energy")}</span><b className="num">{f(r.kcal)} kcal</b><small>MET {ex?.met}</small></div>}
       </div>
 
-      <h2 className="section-title">{t("How to do better")}</h2>
+      <h2 className="section-title">{t("All coaching notes")}</h2>
       <div className="list">
         {r.insights.length ? r.insights.map((i, k) => (
           <div key={k} className={`insight ${i.level}`}>
@@ -391,6 +421,8 @@ export default function Results() {
         )}
       </div>
 
+      <details className="rx-more">
+      <summary>{t('Detailed measurements')}<small>{t('joint-by-joint form, angle statistics, every rep')}</small></summary>
       <h2 className="section-title">{t("Joint-by-joint form")}</h2>
       <section className="glass panel">
         <div className="zone-legend" style={{ marginBottom: 6 }}><span><i style={{ background: Z.good }} />{t("Correct")}</span><span><i style={{ background: Z.ok }} />{t("Moderate")}</span><span><i style={{ background: Z.bad }} />{t("Incorrect")}</span></div>
@@ -435,6 +467,8 @@ export default function Results() {
         </section>
       </>)}
 
+      </details>
+
       {(saved.source === 'video' || saved.source === 'camera') && (<>
         <h2 className="section-title">{t("Authenticity")}</h2>
         <Authenticity s={saved} />
@@ -450,7 +484,6 @@ export default function Results() {
       </p>
 
       <div className="row no-print" style={{ marginTop: 18, gap: 10 }}>
-        {ex && <Link className="btn primary press" to={`/train/${ex.id}?src=${saved.source === 'demo' ? 'demo' : 'camera'}`}>{t('Go again')}</Link>}
         <button className="btn press" onClick={() => { if (deleteSession(id)) nav('/history'); else alert('Storage failed; deletion is held only in this tab.'); }}>{t("Delete local copy")}</button>
         {saved.cloudId && <button className="btn danger" onClick={() => {
           if (!confirm('Delete this session locally and its cloud result? Offline deletions wait for the next sync.')) return;
