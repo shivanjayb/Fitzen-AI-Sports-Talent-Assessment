@@ -112,7 +112,7 @@ function Onboarding({ onClose }: { onClose: () => void }) {
     'Where you train and who with. Used for local leaderboards when you choose to join them.'];
   return <div className="x-onboard" role="dialog" aria-modal="true" aria-labelledby="x-onboard-title">
     <header className="x-onboard-top">
-      <span className="x-brand"><span className="x-orb" aria-hidden /><span className="x-brand-name" translate="no">Fitzen</span></span>
+      <span className="x-brand"><img className="x-logo" src="/brand/mark-64.png" alt="" width="30" height="30" /><span className="x-brand-name" translate="no">fit<b>zen</b></span></span>
       <button type="button" className="x-btn ghost small" onClick={onClose}>Back to workspace</button>
     </header>
     <div className="x-onboard-grid">

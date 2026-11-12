@@ -83,7 +83,7 @@ export default function XShell() {
     <div className="x-frame" data-section={HEALTH.test(loc.pathname) ? 'health' : undefined}>
       <header className="x-topbar">
         <Link to="/home" className="x-brand" aria-label="Fitzen — home" style={{ textDecoration: 'none' }}>
-          <span className="x-orb" aria-hidden /><span className="x-brand-name" translate="no">Fitzen</span>
+          <img className="x-logo" src="/brand/mark-64.png" alt="" width="30" height="30" /><span className="x-brand-name" translate="no">fit<b>zen</b></span>
         </Link>
         <nav ref={navRef} className="x-nav" aria-label="Sections">
           {NAV.map((n, k) => n === 'sep' ? <span key={k} className="x-nav-sep" aria-hidden />

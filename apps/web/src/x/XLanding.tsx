@@ -26,7 +26,7 @@ export default function XLanding() {
   }, []);
   return <div className="x x-land">
     <header className="x-land-nav">
-      <Link to="/" className="x-brand" style={{ textDecoration: 'none' }}><span className="x-orb" aria-hidden /><span className="x-brand-name">Fitzen</span></Link>
+      <Link to="/" className="x-brand" style={{ textDecoration: 'none' }}><img className="x-logo" src="/brand/mark-64.png" alt="" width="30" height="30" /><span className="x-brand-name" translate="no">fit<b>zen</b></span></Link>
       <nav aria-label="Get started">
         {user ? <Link className="x-btn small" to="/home">Open your dashboard</Link> : <>
           <Link className="x-btn ghost small x-hide-sm" to="/auth?next=%2Fcoach">For coaches</Link>

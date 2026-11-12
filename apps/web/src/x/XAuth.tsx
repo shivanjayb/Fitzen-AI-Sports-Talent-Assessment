@@ -66,7 +66,7 @@ export default function XAuth() {
   };
 
   return <div className="x x-auth">
-    <header className="x-auth-top"><Link to="/" className="x-brand" style={{ textDecoration: 'none' }}><span className="x-orb" aria-hidden /><span className="x-brand-name">Fitzen</span></Link></header>
+    <header className="x-auth-top"><Link to="/" className="x-brand" style={{ textDecoration: 'none' }}><img className="x-logo" src="/brand/mark-64.png" alt="" width="30" height="30" /><span className="x-brand-name" translate="no">fit<b>zen</b></span></Link></header>
     <section className="x-auth-hero x-tile orange" aria-hidden>
       <div className="x-auth-figure"><FigureArt def={FIGURE} w={520} h={520} /></div>
       <div className="x-auth-panel">

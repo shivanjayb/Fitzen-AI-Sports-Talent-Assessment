@@ -60,3 +60,5 @@
   .x-land-grid { grid-template-columns: 1fr; }
   .x-land-nav .x-hide-sm { display: none; }
 }
+.x-land-nav .x-brand-name, .x-auth-top .x-brand-name { display: inline; font-size: 22px; }
+.x-land-nav .x-logo, .x-auth-top .x-logo { width: 38px; height: 38px; border-radius: 11px; }

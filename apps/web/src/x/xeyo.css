@@ -248,3 +248,8 @@ html.x-root body { background-color: var(--x-frame); background-image: var(--x-a
   .x-dialog { padding: 22px; max-height: calc(100vh - 24px); }
 }
 @media (forced-colors: active) { .x-card, .x-nav, .x-ask { border: 1px solid CanvasText; } }
+
+/* Brand: logo mark + "fitzen" wordmark (mint "zen" from the logo). */
+.x-logo { width: 30px; height: 30px; border-radius: 9px; flex: none; object-fit: cover; background: #000; box-shadow: 0 2px 8px #0000002e; }
+.x-brand-name { font-style: italic; font-weight: 700; letter-spacing: -.02em; text-transform: lowercase; }
+.x-brand-name b { font-weight: 700; color: #1fc796; }
