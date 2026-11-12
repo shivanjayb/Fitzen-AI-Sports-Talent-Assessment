@@ -138,3 +138,14 @@ a.x-card:hover, .x-card[role='button']:hover, .x-train-ex:hover { transform: tra
 
 @media (prefers-reduced-motion: reduce) { .fz-view { animation: none; } }
 @media (forced-colors: active) { .fz-tabs, .fz-start, .fz-last, .fz-prep { border: 1px solid CanvasText; } }
+
+/* Phone top bar: one row. Sync runs on its own, so the refresh button is desktop-only. */
+@media (max-width: 760px) {
+  .x-topbar { flex-wrap: nowrap; gap: 8px; }
+  .x-brand, .x-topbar-end { order: 0; }
+  .x-topbar-end { flex: 1 1 auto; gap: 8px; }
+  .x-topbar-end > .x-icon-btn[aria-label='Refresh data'] { display: none; }
+  .x-demo-pill { height: 36px; padding: 0 4px 0 10px; gap: 4px; }
+  .x-frame[data-section='health'] .x-topbar { flex-wrap: wrap; }
+  .x-frame[data-section='health'] .x-nav { order: 3; width: 100%; }
+}

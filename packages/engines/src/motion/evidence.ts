@@ -7,10 +7,11 @@
  */
 import type { ExerciseDef } from './types.js';
 import { isAssessedReport, type CheckStat, type SessionReport } from './engine.js';
+import type { ViewSummary } from './viewAngle.js';
 
 export type EvidenceLevel = 'strong' | 'limited' | 'insufficient';
 export interface EvidenceFactor {
-  id: 'tracking' | 'gap' | 'frameRate' | 'plane' | 'noise' | 'sample' | 'match';
+  id: 'tracking' | 'gap' | 'frameRate' | 'plane' | 'view' | 'noise' | 'sample' | 'match';
   label: string;
   status: 'good' | 'warn' | 'bad';
   /** Measured value, ready to show. */
@@ -38,7 +39,7 @@ export function jumpTimingErrorCm(flightMs: number, fps: number): number {
   return 100 * 9.81 * (flightMs / 1000) * (1 / fps / Math.sqrt(6)) / 4;
 }
 
-export function assessEvidence(def: ExerciseDef | undefined, r: SessionReport): Evidence {
+export function assessEvidence(def: ExerciseDef | undefined, r: SessionReport, viewAngle?: ViewSummary | null): Evidence {
   const view = def?.camera === 'front' ? 'facing the camera' : 'side-on to the camera';
   const factors: EvidenceFactor[] = [];
   const add = (f: EvidenceFactor) => factors.push(f.status === 'good' ? { ...f, advice: undefined } : f);
@@ -55,6 +56,9 @@ export function assessEvidence(def: ExerciseDef | undefined, r: SessionReport): 
       : 'The device processed frames slowly. Close other apps or choose the Lite pose model in Profile.' });
   add({ id: 'plane', label: 'Movement in view plane', status: grade3(r.foreshortenedPct, 10, 30, false), value: `${Math.round(100 - r.foreshortenedPct)}% of frames`,
     advice: `Limbs pointed toward or away from the camera, where a single camera cannot measure the angle. Stand ${view}.` });
+  // Wide bands: depth is BlazePose's weakest axis, so only a clear turn away from the needed view is marked.
+  if (viewAngle) add({ id: 'view', label: viewAngle.expected === 'side' ? 'Side-on to the camera' : 'Facing the camera', status: grade3(viewAngle.errorDeg, 20, 35, false),
+    value: `about ${Math.round(viewAngle.errorDeg)}° off`, advice: `You were turned about ${Math.round(viewAngle.errorDeg)}° away from the view this exercise needs, which makes single-camera angles read wrong. Stand ${view}.` });
   const noise = Object.values(r.angles).map((a) => a.noise).filter((x) => Number.isFinite(x));
   if (noise.length) {
     const n = noise.reduce((a, b) => a + b, 0) / noise.length;
@@ -71,7 +75,7 @@ export function assessEvidence(def: ExerciseDef | undefined, r: SessionReport): 
 
   const bad = factors.filter((f) => f.status === 'bad').length, warn = factors.filter((f) => f.status === 'warn').length;
   const level: EvidenceLevel = !isAssessedReport(r) ? 'insufficient' : bad > 0 || warn >= 2 ? 'limited' : 'strong';
-  const blocking = factors.some((f) => f.status === 'bad' && (f.id === 'tracking' || f.id === 'frameRate' || f.id === 'match'));
+  const blocking = factors.some((f) => f.status === 'bad' && (f.id === 'tracking' || f.id === 'frameRate' || f.id === 'match' || f.id === 'view'));
   return { level, comparable: level !== 'insufficient' && !blocking, factors };
 }
 

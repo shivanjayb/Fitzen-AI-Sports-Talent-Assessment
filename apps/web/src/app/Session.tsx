@@ -1,7 +1,7 @@
 import { getLanguage, t } from './language';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { MotionSession, analyseIntegrity, exerciseById, filtfiltLandmarks, inspectContainer, simulateExercise, uploadCutoffHz, type ForensicsReport, type LiveState, type PoseFrame } from '@fitzen/engines';
+import { MotionSession, ViewAngleTracker, analyseIntegrity, exerciseById, filtfiltLandmarks, inspectContainer, simulateExercise, uploadCutoffHz, type ForensicsReport, type LiveState, type PoseFrame } from '@fitzen/engines';
 import { CameraPoseSource, VideoFilePoseSource, MAX_VIDEO_BYTES, type PoseSource } from '../pose/poseSource';
 import { playRepCompletedSound } from '../lib/audioFeedback';
 import { drawOverlay } from './overlay';
@@ -75,7 +75,7 @@ const Silhouette = () => (
 /** Setup checks shown before the countdown. `ok: null` = not known yet. Only "body" gates the start; the rest advise. */
 interface SetupCheck { id: string; label: string; ok: boolean | null; fix?: string }
 const dist = (a: { x: number; y: number }, b: { x: number; y: number }, aspect: number) => Math.hypot((a.x - b.x) * aspect, a.y - b.y);
-function setupChecks(f: PoseFrame, l: LiveState, aspect: number, side: boolean, fps: number, needFps: number, luma: number | null): SetupCheck[] {
+function setupChecks(f: PoseFrame, l: LiveState, aspect: number, side: boolean, fps: number, needFps: number, luma: number | null, yaw: { ok: boolean } | null): SetupCheck[] {
   const p = f.landmarks;
   const seen = (i: number) => (p[i]?.visibility ?? 0) >= 0.5;
   const torso = [11, 12, 23, 24].every(seen);
@@ -88,7 +88,8 @@ function setupChecks(f: PoseFrame, l: LiveState, aspect: number, side: boolean, 
     // Shoulder width over torso length: about 0.6–0.8 seen from the front, near 0 from the side.
     const mid = (a: number, b: number) => ({ x: (p[a]!.x + p[b]!.x) / 2, y: (p[a]!.y + p[b]!.y) / 2 });
     const ratio = dist(p[11]!, p[12]!, aspect) / Math.max(1e-3, dist(mid(11, 12), mid(23, 24), aspect));
-    view = side ? { ...view, ok: ratio < 0.45, fix: 'Turn sideways to the camera' } : { ...view, ok: ratio > 0.4, fix: 'Turn to face the camera' };
+    // Prefer the 3D yaw estimate; fall back to the 2D shoulder ratio when world landmarks are missing.
+    view = { ...view, ok: yaw ? yaw.ok : side ? ratio < 0.45 : ratio > 0.4, fix: side ? 'Turn sideways to the camera' : 'Turn to face the camera' };
   }
   return [
     { id: 'body', label: 'Whole body in view', ok: l.tracking, fix: l.framing ?? undefined },
@@ -149,6 +150,9 @@ export default function Session() {
   const offset = useRef(0);
   const pauseTs = useRef<number | null>(null);
   const disp = useRef<PoseFrame['landmarks']>([]);
+  // Background view-angle detection: runs on every frame, records only while measuring.
+  const viewTracker = useRef<ViewAngleTracker | null>(null);
+  const [view, setView] = useState<{ yawDeg: number; errorDeg: number; ok: boolean } | null>(null);
   const [confirmExit, setConfirmExit] = useState(false);
   // Holds, jumps, throws and the guided battery are one continuous attempt: a break invalidates it. Free rep practice may pause.
   const continuous = !!batteryRun || def?.mode !== 'reps';
@@ -175,7 +179,8 @@ export default function Session() {
       extra = { integrity: analyseIntegrity(raw, { aspect, statureCm: profile.heightCm ?? undefined, mode: def.mode }), forensics: forensics.current };
     }
     const sid = crypto.randomUUID();
-    const persisted = saveSession({ id: sid, report, source: src, batteryRun, ...extra });
+    const viewSummary = viewTracker.current?.summary() ?? undefined;
+    const persisted = saveSession({ id: sid, report, source: src, batteryRun, ...(viewSummary ? { view: viewSummary } : {}), ...extra });
     session.current = null;
     nav(`/results/${sid}`, { replace: true, state: { checkin: true, storageFailed: !persisted } });
   }, [nav, src, def, batteryRun, profile.weightKg, profile.heightCm]);
@@ -184,7 +189,7 @@ export default function Session() {
     if (!def) return;
     session.current = new MotionSession(def, { weightKg: profile.weightKg ?? undefined });
     prev.current = { reps: 0, events: 0, cue: null, wrong: 0 };
-    lastTracked.current = 0; lostSaid.current = false; setLostFor(0); offset.current = 0; pauseTs.current = null;
+    lastTracked.current = 0; lostSaid.current = false; setLostFor(0); offset.current = 0; pauseTs.current = null; viewTracker.current?.reset();
     setStage('active');
     say(def.mode === 'hold' ? 'Hold it' : 'Go', voiceRef.current);
   }, [def, profile.weightKg]);
@@ -219,6 +224,12 @@ export default function Session() {
         }
       } catch { lu.v = null; }
       setFps(Math.round(fr.ema));
+    }
+    if (src !== 'demo') {
+      viewTracker.current ??= new ViewAngleTracker(def);
+      const vw = viewTracker.current.push(f.world, st === 'active');
+      // Re-render the status pill only when it would read differently.
+      setView((prev) => !vw ? null : prev && prev.ok === vw.ok && Math.abs(prev.errorDeg - vw.errorDeg) < 5 ? prev : vw);
     }
     let l: LiveState;
     if (st === 'active' && session.current) {
@@ -267,7 +278,7 @@ export default function Session() {
           if (f.timestampMs - okSince.current > 1500) setStage('countdown');
         } else okSince.current = null;
         setSteady(okSince.current === null ? 0 : Math.min(1, (f.timestampMs - okSince.current) / 1500));
-        if (src === 'camera') setSetup(setupChecks(f, l, aspect, def.camera === 'side', fr.ema, needFps, lu.v));
+        if (src === 'camera') setSetup(setupChecks(f, l, aspect, def.camera === 'side', fr.ema, needFps, lu.v, viewTracker.current?.push(null, false) ?? null));
       }
     }
     // Display-only smoothing of the drawn skeleton (EMA, ~1 frame lag). The engine above always receives the raw landmarks.
@@ -402,6 +413,7 @@ export default function Session() {
           <div className="hud-title glass">
             <span>{t(def.name)}</span>
             {src === 'demo' && <span className="tag">DEMO</span>}
+            {view && stage !== 'loading' && <span className={`cap-view ${view.ok ? 'ok' : 'no'}`} title={t('Estimated from 3D landmarks')}>{t(def.camera === 'side' ? 'Side view' : 'Front view')} {view.ok ? '✓' : `${Math.round(view.errorDeg)}° ${t('off')}`}</span>}
             {running && <span className={`cap-state ${stage}`} role="status"><i aria-hidden />{t(stage === 'paused' ? 'Paused' : src === 'video' ? 'Analysing' : 'Measuring')}</span>}
             <span className="num">{mmss(running ? live?.tMs ?? 0 : 0)}</span>
           </div>
@@ -411,6 +423,7 @@ export default function Session() {
 
         {notice && <div className="cap-notice glass" role="status">{t(notice)}</div>}
         {stage === 'active' && src === 'camera' && fps > 0 && fps < needFps * 0.6 && lostFor === 0 && <div className="cap-notice glass" role="status">{t('Slow tracking ({n} fps): results will be less precise', { n: fps })}</div>}
+        {stage === 'active' && lostFor === 0 && view && !view.ok && live?.tracking && !live.cue && <div className="cue glass ok" role="status"><IconCamera /><small>{t('Camera')}</small>{t(def.camera === 'side' ? 'Turn side-on to the camera' : 'Turn to face the camera')}</div>}
         {stage === 'active' && lostFor === 0 && live?.cue && <div key={live.cue} className={`cue glass ${cueKind === 'camera' ? 'ok' : cueZone}`} role="status">
           {cueKind === 'camera' ? <IconCamera /> : cueZone === 'bad' ? <IconAlert /> : <IconBulb />}<small>{t(cueKind === 'camera' ? 'Camera' : 'Form')}</small>{t(live.cue)}
         </div>}

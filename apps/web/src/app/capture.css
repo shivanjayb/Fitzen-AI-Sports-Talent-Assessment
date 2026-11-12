@@ -49,3 +49,11 @@
 @keyframes capPulse { 50% { opacity: .35; } }
 @media (max-width: 520px) { .cap-dock .counter { width: 100%; } .cap-controls { width: 100%; } .cap-btn { flex: 1; } .hud-angles { display: none; } }
 @media (prefers-reduced-motion: reduce) { .cap-state i { animation: none; } }
+.cap-view { font-size: .68rem; font-weight: 700; letter-spacing: .03em; padding: 3px 9px; border-radius: 999px; flex: none; white-space: nowrap; background: rgba(52, 210, 123, .2); color: #b9f5d2; }
+.cap-view.no { background: rgba(245, 167, 66, .28); color: #ffe2b8; }
+@media (max-width: 520px) { .hud-title .tag { display: none; } }
+@media (max-width: 520px) { .hud-title { padding: 8px 12px; gap: 6px; } .hud-title span:first-child { font-size: .9rem; } .hud-title .num { font-size: 1.05rem; } .cap-state { letter-spacing: .03em; padding: 3px 7px; } }
+/* Buttons on the dark camera cards: the light-theme button fill made white labels unreadable. */
+.stage .center-card .btn, .stage .cap-sheet-actions .btn { background: rgba(255, 255, 255, .16) !important; color: #fff !important; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .22) !important; }
+.stage .center-card .btn.primary, .stage .cap-sheet-actions .btn.primary { background: #fff !important; color: #0c0d10 !important; box-shadow: none !important; }
+.stage .cap-sheet-actions .btn.danger { background: #c8322b !important; }
