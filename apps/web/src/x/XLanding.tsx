@@ -7,6 +7,7 @@ import { Icon, Marker, type IconName, type Tone } from './ui';
 import { setSampleMode } from './sample';
 import './xeyo.css';
 import './auth.css';
+import './fitzen.css';
 
 const HERO = exerciseById('back-squat') ?? EXERCISES[0]!;
 const FEATURES: Array<{ title: string; text: string; icon: IconName; tone: Tone }> = [

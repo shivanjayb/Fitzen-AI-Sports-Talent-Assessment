@@ -4,7 +4,7 @@ import { CATEGORIES, EXERCISES, standardReps, type ExerciseDef } from '@fitzen/e
 import { ExerciseArt } from '../app/Figure';
 import { setPendingVideo } from '../app/pendingVideo';
 import { getHistory, isEligibleSession, measureOf } from '../app/store';
-import { Card, CardHead, Icon, PageHead, Soon, Stat, toast } from './ui';
+import { Card, CardHead, Icon, PageHead, Stat } from './ui';
 import './train.css';
 
 const MODE = { reps: 'Reps', hold: 'Hold', event: 'Power' } as const;
@@ -59,6 +59,7 @@ export default function Train() {
     (!needle || [e.name, catLabel(e.category), ...e.muscles, ...e.equipment].some((v) => v.toLocaleLowerCase().includes(needle))));
   const latest = useMemo(latestByExercise, []);
   const filtered = category !== 'all' || mode !== 'all' || !!query;
+  const recent = [...latest].slice(0, 8);
 
   return <div className="x-train">
     <PageHead title="Train" subtitle="90+ movements, measured by your camera.">
@@ -107,14 +108,12 @@ export default function Train() {
       </Card>
     </div>
 
-    <Card className="x-train-soon">
-      <div className="x-card-head">
-        <span className="x-train-glyph small" aria-hidden><Icon name="watch" size={17} /></span>
-        <h2>Smartwatch heart rate during sessions</h2><span className="x-spacer" /><Soon />
+    {recent.length > 0 && <section aria-labelledby="fz-recent-title">
+      <div className="x-card-head"><span className="x-marker" aria-hidden /><h2 id="fz-recent-title">Pick up where you left off</h2></div>
+      <div className="fz-rail">
+        {recent.map(([id, v]) => { const e = EXERCISES.find((x) => x.id === id); return e ? <Link key={id} to={`/exercise/${id}`}><b>{e.name}</b><span className="fz-num">{v}</span><small>Latest result · tap to retest</small></Link> : null; })}
       </div>
-      <p className="x-caption">Pair a watch to see your heart rate next to your form score while you train.</p>
-      <button className="x-btn ghost small" aria-disabled="true" onClick={() => toast('Smartwatch heart rate is coming soon.')}>Connect a watch</button>
-    </Card>
+    </section>}
 
     <section className="x-train-library" aria-labelledby="x-train-lib-title">
       <div className="x-train-lib-head">

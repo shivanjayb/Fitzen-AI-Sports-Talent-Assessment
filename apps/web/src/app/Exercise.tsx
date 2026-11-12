@@ -9,6 +9,7 @@ import { photoOf } from './photos';
 import { ExerciseCard, LEVEL, catLabel } from './Home';
 import { LESSONS, lessonSearchUrl } from './lessons';
 import { getHistory, isEligibleSession, personalFor } from './store';
+import { placementFor } from './placement';
 
 const MODE = { reps: 'Reps', hold: 'Hold', event: 'Power' } as const;
 const KEY: Check['when'][] = ['bottom', 'hold', 'release', 'active'];
@@ -82,6 +83,7 @@ export default function Exercise() {
   const targetLabel = ex.mode === 'reps' && ex.reps ? `${ex.angles.find((a) => a.id === ex.reps!.driver)?.label ?? 'Joint'} at depth` : ex.mode === 'hold' ? 'Hold target' : ex.event?.releaseAngle ? 'Release angle' : 'Measures';
   const more = EXERCISES.filter((e) => e.category === ex.category && e.id !== ex.id);
   const photo = photoOf(ex.id);
+  const place = placementFor(ex);
   const attempts = getHistory().filter((s) => s.report.exerciseId === ex.id);
   const measuredAttempts = attempts.filter(isEligibleSession).length;
 
@@ -110,6 +112,22 @@ export default function Exercise() {
         </div>
       </section>
       <input ref={file} type="file" accept="video/*" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) { setPendingVideo(f); go('video'); } }} />
+
+      <section className="fz-prep" aria-labelledby="fz-prep-title">
+        <svg className="fz-diagram" viewBox="0 0 220 130" role="img" aria-label={t(place.floor ? 'Phone on the floor, turned sideways, 2 to 3 metres away' : 'Phone upright at hip height, 2 to 3 metres away')} fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M6 118h208" opacity=".25" />
+          {place.floor
+            ? <><rect x="14" y="98" width="30" height="18" rx="3" /><circle cx="150" cy="92" r="7" /><path d="M157 96l40 14M160 98l-6 18M197 110l8 6" /></>
+            : <><rect x="20" y="52" width="16" height="30" rx="3" /><path d="M28 82v36M18 118h20" /><circle cx="170" cy="34" r="8" /><path d="M170 42v40M170 52l-14 18M170 52l14 18M170 82l-10 36M170 82l10 36" /></>}
+          <path d="M52 124h96M52 124l6-4M52 124l6 4M148 124l-6-4M148 124l-6 4" stroke="var(--x-accent)" strokeWidth="2" />
+          <text x="100" y="114" textAnchor="middle" fontSize="12" fontWeight="700" fill="var(--x-accent-deep)" stroke="none">2–3 m</text>
+        </svg>
+        <div>
+          <h2 id="fz-prep-title">{t('Set up your camera')}</h2>
+          <ol>{place.steps.map((x) => <li key={x}>{t(x)}</li>)}</ol>
+          <p className="fz-prep-note">{t('Fitzen checks your framing before it starts, then counts down by itself. Live video is never recorded or uploaded; only joint measurements are saved to your report.')}</p>
+        </div>
+      </section>
 
       <section className="exercise-history-link">
         <div><b>{t('Your history')}</b><p>{attempts.length ? t('{n} measured assessments. Open any attempt to review its report and compare your progress.', { n: measuredAttempts }) : t('Your reports and progress will appear here after your first attempt.')}</p></div>
@@ -171,6 +189,12 @@ export default function Exercise() {
           <h2 className="section-title">{t("Muscles")}</h2>
           <div className="pills">{ex.muscles.map((m) => <span key={m}>{m}</span>)}</div>
         </div>
+      </div>
+
+      <div className="fz-start no-print">
+        <button className="x-btn accent" onClick={() => go('camera')}><IconCamera /> {t('Start with camera')}</button>
+        <button className="x-btn ghost" onClick={() => file.current?.click()} aria-label={t('Analyse a video')}><IconUpload /> <span>{t('Video')}</span></button>
+        <button className="x-btn ghost" onClick={() => go('demo')} aria-label={t('Watch demo')}><IconPlay /> <span>{t('Demo')}</span></button>
       </div>
 
       {more.length > 0 && <><h2 className="section-title">{t("More Like This")}</h2><div className="shelf">{more.map((e) => <ExerciseCard key={e.id} ex={e} />)}</div></>}

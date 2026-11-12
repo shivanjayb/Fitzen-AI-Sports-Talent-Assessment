@@ -10,6 +10,7 @@ import { ExploreProvider, Icon, Toast, toast, type IconName } from './ui';
 import { setSampleMode, useSampleMode } from './sample';
 import './xeyo.css';
 import './legacy.css';
+import './fitzen.css';
 
 const NAV: Array<{ to: string; label: string; icon: IconName; also?: RegExp } | 'sep'> = [
   { to: '/home', label: 'Home', icon: 'home' },
@@ -22,6 +23,15 @@ const NAV: Array<{ to: string; label: string; icon: IconName; also?: RegExp } | 
   { to: '/journal', label: 'Journal', icon: 'journal' },
   { to: '/sleep', label: 'Sleep', icon: 'sleep' },
   { to: '/blood-records', label: 'Blood records', icon: 'labs' },
+];
+
+const HEALTH = /^\/(vitals|body|nutrition|journal|sleep|blood-records|integrations)/;
+const TABS: Array<{ to: string; label: string; icon: IconName; match: RegExp }> = [
+  { to: '/home', label: 'Home', icon: 'home', match: /^\/home/ },
+  { to: '/train', label: 'Train', icon: 'train', match: /^\/(train|app|exercise|search|guided)/ },
+  { to: '/reports', label: 'Reports', icon: 'reports', match: /^\/(reports|history|results|progress|compete)/ },
+  { to: '/vitals', label: 'Health', icon: 'heart', match: HEALTH },
+  { to: '/profile', label: 'Profile', icon: 'user', match: /^\/(profile|privacy|coach|admin)/ },
 ];
 
 /** Home listens for this to enter dashboard edit mode. */
@@ -38,6 +48,12 @@ export default function XShell() {
   const [syncing, setSyncing] = useState(false);
   const [updated, setUpdated] = useState(stamp);
   const [ask, setAsk] = useState('');
+  const [online, setOnline] = useState(() => typeof navigator === 'undefined' || navigator.onLine);
+  useEffect(() => {
+    const on = () => setOnline(true), off = () => setOnline(false);
+    window.addEventListener('online', on); window.addEventListener('offline', off);
+    return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off); };
+  }, []);
 
   useEffect(() => {
     document.documentElement.classList.add('x-root');
@@ -64,14 +80,14 @@ export default function XShell() {
   const isHome = loc.pathname === '/home';
 
   return <div className="x">
-    <div className="x-frame">
+    <div className="x-frame" data-section={HEALTH.test(loc.pathname) ? 'health' : undefined}>
       <header className="x-topbar">
         <Link to="/home" className="x-brand" aria-label="Fitzen — home" style={{ textDecoration: 'none' }}>
           <span className="x-orb" aria-hidden /><span className="x-brand-name" translate="no">Fitzen</span>
         </Link>
         <nav ref={navRef} className="x-nav" aria-label="Sections">
           {NAV.map((n, k) => n === 'sep' ? <span key={k} className="x-nav-sep" aria-hidden />
-            : <NavLink key={n.to} to={n.to} title={n.label} aria-current={loc.pathname === n.to || n.also?.test(loc.pathname) ? 'page' : undefined}>
+            : <NavLink key={n.to} to={n.to} title={n.label} data-main={k < 3 ? '' : undefined} aria-current={loc.pathname === n.to || n.also?.test(loc.pathname) ? 'page' : undefined}>
               <Icon name={n.icon} /><span>{n.label}</span>
             </NavLink>)}
         </nav>
@@ -102,8 +118,12 @@ export default function XShell() {
         </div>
       </header>
       <main id="main-content" tabIndex={-1} style={{ outline: 0, flex: 1 }}>
-        <ExploreProvider><Outlet /></ExploreProvider>
+        {!online && <div className="fz-offline" role="status"><i aria-hidden />Offline. Assessments and reports still work on this device; syncing resumes when you reconnect.</div>}
+        <ExploreProvider><div key={loc.pathname} className="fz-view"><Outlet /></div></ExploreProvider>
       </main>
+      <nav className="fz-tabs" aria-label="Main">
+        {TABS.map((x) => <Link key={x.to} to={x.to} aria-current={x.match.test(loc.pathname) ? 'page' : undefined}><Icon name={x.icon} /><span>{x.label}</span></Link>)}
+      </nav>
     </div>
     <Toast />
     <Assistant />

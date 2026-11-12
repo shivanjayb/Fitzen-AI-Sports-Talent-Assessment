@@ -10,6 +10,8 @@ import { METRICS, dayStart, fmt, longDate, pointsFor, realSeries, setSampleMode,
 import { changeText, energyOn, sameDay, weekCompare } from './homeMath';
 import { RECOVERY_FORMULA, readiness, recoveryDays, type Reading } from './recovery';
 import { readGoals } from './sleepGoals';
+import Today from './Today';
+import '../app/results.css';
 import './home.css';
 
 const HOME = ['recovery', 'hrv', 'rhr', 'sleep', 'strain', 'hr'];
@@ -95,6 +97,7 @@ export default function Home() {
 
   return <>
     <PageHead title="Home" hidden />
+    {!draft && <Today />}
     {draft && <div className="x-home-editbar" role="region" aria-label="Customize your dashboard">
       <span>Move or remove tiles. Colours stay with each position.</span>
       {draft.removed.length > 0 && <button className="x-text-button" onClick={() => setDraft({ ...draft, removed: [] })}>Restore {draft.removed.length} removed</button>}

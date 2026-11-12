@@ -8,6 +8,7 @@ import { drawOverlay } from './overlay';
 import { drawAthlete } from './Figure';
 import { getProfile, personalFor, saveSession } from './store';
 import { getPendingVideo, setPendingVideo } from './pendingVideo';
+import { placementFor } from './placement';
 import { IconAlert, IconBulb, IconCamera, IconCheck, IconClose, IconFlip, IconVolume } from './icons';
 import './capture.css';
 
@@ -18,7 +19,11 @@ const screenRatio = typeof window === 'undefined' ? NaN : window.innerWidth / wi
 const DEMO_W = Math.round(DEMO_H * (Number.isFinite(screenRatio) && screenRatio > 0 ? Math.max(0.5, Math.min(2, screenRatio)) : 16 / 9));
 const DEMO_GROUND = DEMO_W < DEMO_H ? 0.74 : 0.86;
 
-type Stage = 'loading' | 'framing' | 'countdown' | 'active' | 'error';
+/**
+ * Capture states. Only `active` feeds the assessment engine, so timers, counts and the report always agree:
+ * loading → framing → countdown → active ⇄ paused → analysing → results; `interrupted` ends a continuous attempt.
+ */
+type Stage = 'loading' | 'framing' | 'countdown' | 'active' | 'paused' | 'interrupted' | 'analysing' | 'error';
 type Src = 'camera' | 'video' | 'demo';
 
 /** Replays the synthetic athlete in real time through the PoseSource interface. */
@@ -140,6 +145,13 @@ export default function Session() {
   const lastTracked = useRef(0);
   const lastSpoke = useRef(0);
   const lostSaid = useRef(false);
+  // Paused time is removed from the timestamps the engine sees, so tempo, hold time and gaps exclude the break.
+  const offset = useRef(0);
+  const pauseTs = useRef<number | null>(null);
+  const disp = useRef<PoseFrame['landmarks']>([]);
+  const [confirmExit, setConfirmExit] = useState(false);
+  // Holds, jumps, throws and the guided battery are one continuous attempt: a break invalidates it. Free rep practice may pause.
+  const continuous = !!batteryRun || def?.mode !== 'reps';
   const voiceRef = useRef(voice); voiceRef.current = voice;
 
   const setStage = (s: Stage) => { stageRef.current = s; setStageState(s); };
@@ -172,7 +184,7 @@ export default function Session() {
     if (!def) return;
     session.current = new MotionSession(def, { weightKg: profile.weightKg ?? undefined });
     prev.current = { reps: 0, events: 0, cue: null, wrong: 0 };
-    lastTracked.current = 0; lostSaid.current = false; setLostFor(0);
+    lastTracked.current = 0; lostSaid.current = false; setLostFor(0); offset.current = 0; pauseTs.current = null;
     setStage('active');
     say(def.mode === 'hold' ? 'Hold it' : 'Go', voiceRef.current);
   }, [def, profile.weightKg]);
@@ -210,7 +222,8 @@ export default function Session() {
     }
     let l: LiveState;
     if (st === 'active' && session.current) {
-      l = session.current.push(f, aspect);
+      if (pauseTs.current !== null) { offset.current += f.timestampMs - pauseTs.current; pauseTs.current = null; }
+      l = session.current.push(offset.current ? { ...f, timestampMs: f.timestampMs - offset.current } : f, aspect);
       const p = prev.current;
       if (l.mismatchedReps > p.wrong) {
         // Different exercise detected: not counted — alert with a red flash, buzz and voice (the cue carries the reason).
@@ -240,6 +253,7 @@ export default function Session() {
       if (lost > 1200 && !lostSaid.current) { lostSaid.current = true; say(l.framing ?? 'Step back into the frame', voiceRef.current); }
       if (lost === 0 && lostSaid.current) { lostSaid.current = false; say('Tracking again', voiceRef.current); }
     } else {
+      if (st === 'paused') pauseTs.current ??= f.timestampMs;
       probe.current ??= new MotionSession(def);
       l = probe.current.push(f, aspect);
       // Real cameras dip below the visibility bar for single frames; only 300 ms of bad framing counts as leaving the frame.
@@ -256,7 +270,14 @@ export default function Session() {
         if (src === 'camera') setSetup(setupChecks(f, l, aspect, def.camera === 'side', fr.ema, needFps, lu.v));
       }
     }
-    if (cv) drawOverlay(cv, f, l, mirror, src === 'demo' ? (ctx, fr) => drawAthlete(ctx, fr.landmarks, DEMO_GROUND, def) : undefined);
+    // Display-only smoothing of the drawn skeleton (EMA, ~1 frame lag). The engine above always receives the raw landmarks.
+    let shown = f;
+    if (src === 'camera' && f.landmarks.length) {
+      const d = disp.current;
+      disp.current = d.length === f.landmarks.length ? f.landmarks.map((q, i) => ({ ...q, x: d[i]!.x + 0.55 * (q.x - d[i]!.x), y: d[i]!.y + 0.55 * (q.y - d[i]!.y) })) : f.landmarks;
+      shown = { ...f, landmarks: disp.current };
+    } else disp.current = [];
+    if (cv) drawOverlay(cv, shown, l, mirror, src === 'demo' ? (ctx, fr) => drawAthlete(ctx, fr.landmarks, DEMO_GROUND, def) : undefined);
     setLive(l);
   }, [def, src, mirror, needFps]);
 
@@ -310,14 +331,15 @@ export default function Session() {
     const wl = (navigator as Navigator & { wakeLock?: { request: (t: 'screen') => Promise<Lock> } }).wakeLock;
     const hold = () => { void wl?.request('screen').then((x) => { if (gone) void x.release(); else lock = x; }, () => undefined); };
     const onVis = () => {
-      if (document.visibilityState !== 'visible') return;
-      hold();
-      if (stageRef.current === 'active' && src === 'camera') { setNotice('Capture paused while the screen was hidden. Time away is not counted.'); window.setTimeout(() => setNotice(null), 5000); }
+      if (document.visibilityState === 'visible') { hold(); return; }
+      // The camera delivers no frames while hidden. Practice reps pause; a continuous attempt cannot be stitched back together.
+      if (stageRef.current === 'active' && src === 'camera') { setStage(continuous ? 'interrupted' : 'paused'); if (!continuous) { setNotice('Paused because the screen was hidden.'); window.setTimeout(() => setNotice(null), 5000); } }
+      else if (stageRef.current === 'countdown' && src === 'camera') { okSince.current = null; setStage('framing'); }
     };
     hold();
     document.addEventListener('visibilitychange', onVis);
     return () => { gone = true; document.removeEventListener('visibilitychange', onVis); void lock?.release().catch(() => undefined); };
-  }, [src]);
+  }, [src, continuous]);
 
   const onFrameRef = useRef(onFrame); onFrameRef.current = onFrame;
   const finishRef = useRef(finish); finishRef.current = finish;
@@ -343,14 +365,32 @@ export default function Session() {
 
   useEffect(() => () => window.speechSynthesis?.cancel(), []);
 
+  const pause = () => { if (stageRef.current === 'active') { setStage('paused'); say('Paused', voiceRef.current); } };
+  const resume = () => { if (stageRef.current === 'paused') { setStage('active'); say('Go', voiceRef.current); } };
+  /** Discard this attempt and set up again. Nothing from it is saved. */
+  const retake = () => {
+    setConfirmExit(false);
+    session.current = null; probe.current = null; okSince.current = null; badSince.current = null; pauseTs.current = null; offset.current = 0;
+    setLive(null); setLostFor(0);
+    if (src === 'demo') { source.current?.stop(); setStage('countdown'); } else setStage('framing');
+  };
+  const end = () => { setStage('analysing'); window.setTimeout(() => finishRef.current(), 250); };
+  const leave = () => { source.current?.stop(); nav(-1); };
+  const hasData = !!live && (live.reps > 0 || live.holdMs > 500 || live.events.length > 0);
+  const close = () => { if ((stageRef.current === 'active' || stageRef.current === 'paused') && hasData) setConfirmExit(true); else leave(); };
+
   if (!def) return <div className="stage"><div className="center-card glass">{t("Exercise not found.")} <button className="btn" onClick={() => nav('/app')}>{t("Back")}</button></div></div>;
 
   const angles = def.angles.map((a) => ({ a, r: live?.angles[a.id] })).filter((x) => x.r);
   const lastEvent = live?.events[live.events.length - 1];
   const cueZone = live?.checkZones.includes('bad') ? 'bad' : 'ok';
+  const running = stage === 'active' || stage === 'paused';
+  const place = placementFor(def);
+  // Camera problems and technique advice are different messages: never coach form on a body the camera cannot see.
+  const cueKind = live?.framing || !live?.tracking ? 'camera' : 'form';
 
   return (
-    <div className={`stage ${src === 'video' ? 'contain' : ''}`} data-cat={def.category}>
+    <div className={`stage ${src === 'video' ? 'contain' : ''} st-${stage}`} data-cat={def.category}>
       {src === 'demo' ? <div className="demo-bg" /> : <video ref={video} playsInline muted autoPlay style={mirror ? { transform: 'scaleX(-1)' } : undefined} />}
       <canvas ref={canvas} />
       <div className="vignette" />
@@ -358,36 +398,39 @@ export default function Session() {
 
       <div className="hud">
         <div className="hud-top">
-          <button className="btn icon glass press" onClick={() => { source.current?.stop(); nav(-1); }} aria-label={t("Close")}><IconClose /></button>
+          <button className="btn icon glass press" onClick={close} aria-label={t(running ? 'Cancel attempt' : 'Close')}><IconClose /></button>
           <div className="hud-title glass">
-            <span>{def.name}</span>
+            <span>{t(def.name)}</span>
             {src === 'demo' && <span className="tag">DEMO</span>}
-            <span className="num">{mmss(stage === 'active' ? live?.tMs ?? 0 : 0)}</span>
+            {running && <span className={`cap-state ${stage}`} role="status"><i aria-hidden />{t(stage === 'paused' ? 'Paused' : src === 'video' ? 'Analysing' : 'Measuring')}</span>}
+            <span className="num">{mmss(running ? live?.tMs ?? 0 : 0)}</span>
           </div>
-          <button className="btn icon glass press" onClick={() => setVoice((x) => !x)} aria-label={voice ? 'Mute voice' : 'Unmute voice'}><IconVolume off={!voice} /></button>
-          {src === 'camera' && <button className="btn icon glass press" onClick={() => setFacing((f) => (f === 'user' ? 'environment' : 'user'))} aria-label={t("Switch camera")}><IconFlip /></button>}
+          <button className="btn icon glass press" onClick={() => setVoice((x) => !x)} aria-label={t(voice ? 'Mute voice' : 'Unmute voice')} aria-pressed={voice}><IconVolume off={!voice} /></button>
+          {src === 'camera' && !running && stage !== 'analysing' && <button className="btn icon glass press" onClick={() => setFacing((x) => (x === 'user' ? 'environment' : 'user'))} aria-label={t('Switch camera')}><IconFlip /></button>}
         </div>
 
         {notice && <div className="cap-notice glass" role="status">{t(notice)}</div>}
         {stage === 'active' && src === 'camera' && fps > 0 && fps < needFps * 0.6 && lostFor === 0 && <div className="cap-notice glass" role="status">{t('Slow tracking ({n} fps): results will be less precise', { n: fps })}</div>}
-        {stage === 'active' && lostFor === 0 && live?.cue && <div key={live.cue} className={`cue glass ${cueZone}`}>{live.framing ? <IconCamera /> : cueZone === 'bad' ? <IconAlert /> : <IconBulb />} {t(live.cue)}</div>}
+        {stage === 'active' && lostFor === 0 && live?.cue && <div key={live.cue} className={`cue glass ${cueKind === 'camera' ? 'ok' : cueZone}`} role="status">
+          {cueKind === 'camera' ? <IconCamera /> : cueZone === 'bad' ? <IconAlert /> : <IconBulb />}<small>{t(cueKind === 'camera' ? 'Camera' : 'Form')}</small>{t(live.cue)}
+        </div>}
 
-        {(stage === 'active' || stage === 'countdown' || stage === 'framing') && angles.length > 0 && (
+        {(stage === 'active' || stage === 'countdown') && angles.length > 0 && (
           <div className="hud-angles">
-            {angles.map(({ a, r }) => (
+            {angles.slice(0, 4).map(({ a, r }) => (
               <div key={a.id} className={`angle-chip glass ${r!.zone ? `z-${r!.zone}` : ''}`}>
-                <i /><span>{a.label}</span><b className="num">{a.kind === 'spread' ? `${r!.value.toFixed(2)}×` : `${Math.round(r!.value)}°`}</b>
+                <i /><span>{t(a.label)}</span><b className="num">{a.kind === 'spread' ? `${r!.value.toFixed(2)}×` : `${Math.round(r!.value)}°`}</b>
               </div>
             ))}
           </div>
         )}
 
-        {stage === 'active' && (
-          <div className="hud-bottom">
+        {running && (
+          <div className="hud-bottom cap-dock">
             <div key={`${live?.reps}-${live?.events.length}`} className="counter glass pulse">
               {def.mode === 'reps' && (<>
                 <div><div className="lbl">{t("Reps")}</div><div className="big">{live?.reps ?? 0}</div></div>
-                <div><div className="sub z-good">{t('{n} correct', { n: live?.validReps ?? 0 })}</div><div className="sub" style={{ opacity: 0.6 }}>{t(live?.phase === 'active' ? 'Working…' : 'Ready')}</div></div>
+                <div><div className="sub z-good">{t('{n} correct', { n: live?.validReps ?? 0 })}</div><div className="sub" style={{ opacity: 0.6 }}>{t(stage === 'paused' ? 'Paused' : live?.phase === 'active' ? 'Working…' : 'Ready')}</div></div>
                 <Ring value={live?.progress ?? 0} color="var(--accent-2)" label={`${Math.round((live?.progress ?? 0) * 100)}`} />
               </>)}
               {def.mode === 'hold' && (<>
@@ -403,15 +446,20 @@ export default function Session() {
                 </div>
               </>)}
             </div>
-            <div style={{ marginLeft: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 10 }}>
-              <div className="glass" style={{ borderRadius: 999, padding: 4 }}><Ring value={(live?.score ?? 100) / 100} color={zoneColor(live?.score ?? 100)} label={`${live?.score ?? 100}`} /></div>
-              {src !== 'video' && <button className="btn danger press" onClick={finish}>{t('End')}</button>}
-            </div>
+            {src !== 'video' && <div className="cap-controls" role="group" aria-label={t('Attempt controls')}>
+              <button className="cap-btn glass press" onClick={retake}>{t('Restart')}</button>
+              {src === 'camera' && !continuous && <button className="cap-btn glass press" onClick={stage === 'paused' ? resume : pause} aria-pressed={stage === 'paused'}>{t(stage === 'paused' ? 'Resume' : 'Pause')}</button>}
+              <button className="cap-btn finish press" onClick={end}>{t('Finish')}</button>
+            </div>}
           </div>
         )}
       </div>
 
-      {stage === 'loading' && <div className="center-card glass"><div className="spinner" /><b>{t(status.replace(/ \d+%$/, ''))}{status.match(/ \d+%$/)?.[0]}</b><p className="muted" style={{ color: 'rgba(255,255,255,.7)', fontSize: '.88rem' }}>{t("Pose model runs on this device. Nothing is uploaded.")}</p></div>}
+      {stage === 'loading' && <div className="center-card glass" role="status"><div className="spinner" /><b>{t(status.replace(/ \d+%$/, ''))}{status.match(/ \d+%$/)?.[0]}</b>
+        <p className="cap-hint">{t(src === 'camera' ? 'Allow camera access when your browser asks. The pose model runs on this device; nothing is uploaded.' : 'Pose model runs on this device. Nothing is uploaded.')}</p>
+        {typeof navigator !== 'undefined' && !navigator.onLine && <p className="cap-hint">{t('You are offline. Tracking starts only if the pose model was loaded on this device before.')}</p>}
+      </div>}
+      {stage === 'analysing' && <div className="center-card glass" role="status"><div className="spinner" /><b>{t('Building your report…')}</b><p className="cap-hint">{t('Measurements only. No video was saved.')}</p></div>}
       {stage === 'active' && lostFor > 0 && (
         <div className="cap-lost glass" role="alert">
           <IconCamera />
@@ -420,6 +468,23 @@ export default function Session() {
           <small>{t('Counting resumes when you are back in view. Nothing is lost.')}</small>
         </div>
       )}
+      {stage === 'paused' && <div className="cap-lost glass" role="status">
+        <b>{t('Paused')}</b>
+        <p>{t('Rest, then resume. Paused time is left out of your tempo and totals.')}</p>
+        <div className="cap-sheet-actions"><button className="btn primary" onClick={resume} autoFocus>{t('Resume')}</button><button className="btn" onClick={end}>{t('Finish')}</button></div>
+      </div>}
+      {stage === 'interrupted' && <div className="cap-lost glass" role="alertdialog" aria-label={t('Attempt interrupted')}>
+        <IconAlert />
+        <b>{t('Attempt interrupted')}</b>
+        <p>{t(def.mode === 'hold' ? 'The screen was hidden, so the hold could not be timed without a gap.' : 'The screen was hidden, so part of this attempt was not seen.')}</p>
+        <small>{t(batteryRun ? 'A standard test must be one continuous attempt. Restart it so the result is comparable.' : 'Restart for a clean result, or finish with what was measured before the break.')}</small>
+        <div className="cap-sheet-actions"><button className="btn primary" onClick={retake} autoFocus>{t('Restart attempt')}</button>{!batteryRun && hasData && <button className="btn" onClick={end}>{t('Finish with what was measured')}</button>}<button className="btn" onClick={leave}>{t('Cancel')}</button></div>
+      </div>}
+      {confirmExit && <div className="cap-lost glass" role="alertdialog" aria-label={t('Discard this attempt?')}>
+        <b>{t('Discard this attempt?')}</b>
+        <p>{t('What was measured so far will not be saved.')}</p>
+        <div className="cap-sheet-actions"><button className="btn primary" onClick={() => { setConfirmExit(false); end(); }} autoFocus>{t('Finish and save instead')}</button><button className="btn danger" onClick={leave}>{t('Discard')}</button><button className="btn" onClick={() => setConfirmExit(false)}>{t('Keep going')}</button></div>
+      </div>}
       {stage === 'framing' && (() => {
         // One instruction at a time: the first failed check, in priority order.
         const fix = setup.find((c) => c.ok === false);
@@ -428,20 +493,21 @@ export default function Session() {
           <div className="cap-setup glass">
             <b className="cap-setup-lead" role="status" aria-live="polite">{t(fix?.fix ?? live?.framing ?? (steady > 0 ? 'Hold still…' : 'Step into the frame'))}</b>
             <div className="cap-progress" role="progressbar" aria-label={t('Ready check')} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(steady * 100)}><i style={{ transform: `scaleX(${steady})` }} /></div>
-            {setup.length > 0 ? <ul className="cap-checks">
+            {setup.length > 0 && live?.tracking ? <ul className="cap-checks">
               {setup.map((c) => <li key={c.id} className={c.ok === true ? 'ok' : c.ok === false ? 'no' : ''}><span aria-hidden>{c.ok === true ? <IconCheck /> : c.ok === false ? <IconAlert /> : <i />}</span>{t(c.label)}<span className="sr-only">{c.ok === true ? t(' — ok') : c.ok === false ? t(' — needs fixing') : ''}</span></li>)}
-            </ul> : <p className="cap-hint">{t(def.camera === 'side' ? 'Stand side-on to the camera · whole body visible · 2–3 m away' : 'Face the camera · whole body visible · 2–3 m away')}</p>}
-            <p className="cap-hint">{t('Prop the phone at hip height. The countdown starts on its own.')}</p>
+            </ul> : <ol className="cap-place">{place.steps.map((x) => <li key={x}>{t(x)}</li>)}</ol>}
+            <p className="cap-hint">{t('The countdown starts on its own once you are in position. Live video is not recorded or uploaded; only joint measurements are saved.')}</p>
           </div>
         </>);
       })()}
       {stage === 'countdown' && <div className="countdown" role="status" aria-live="assertive"><span key={count}>{count}</span><small>{t(def.mode === 'hold' ? 'Get into position' : def.mode === 'event' ? 'One attempt at a time' : 'Start from the top position')}</small></div>}
       {stage === 'error' && (
-        <div className="center-card glass">
+        <div className="center-card glass" role="alert">
           <div className="ic-lg"><IconCamera /></div>
           <b>{t(error ?? '')}</b>
           <div style={{ display: 'grid', gap: 8, marginTop: 16 }}>
             {src === 'camera' && <button className="btn primary" onClick={() => setRetry((n) => n + 1)}>{t('Retry')}</button>}
+            <button className="btn" onClick={() => nav(`/exercise/${def.id}`, { replace: true })}>{t('Upload a video or see other options')}</button>
             <button className="btn" onClick={() => nav(`/train/${def.id}?src=demo`, { replace: true })}>{t("Watch the demo instead")}</button>
             <button className="btn" onClick={() => nav(-1)}>{t("Back")}</button>
           </div>

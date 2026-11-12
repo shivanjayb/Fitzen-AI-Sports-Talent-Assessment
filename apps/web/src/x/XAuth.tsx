@@ -9,6 +9,7 @@ import { setSampleMode } from './sample';
 import { authMessage, authProblem } from './authMessage';
 import './xeyo.css';
 import './auth.css';
+import './fitzen.css';
 
 const FIGURE = exerciseById('warrior-ii') ?? EXERCISES[0]!;
 
