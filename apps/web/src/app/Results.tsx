@@ -270,7 +270,7 @@ export default function Results() {
 
   const exportJson = () => download(`fitzen-${r.exerciseId}-${r.startedAt.slice(0, 10)}.json`, JSON.stringify(saved, null, 2), 'application/json');
 
-  const evidence = assessEvidence(ex, r);
+  const evidence = assessEvidence(ex, r, saved.view);
   const summary = summarizeReport(ex, r, evidence);
   const bestJump = Math.max(0, ...(r.events ?? []).map((e) => e.jumpHeightCm ?? 0));
   // The one number this attempt was about, in its own unit.

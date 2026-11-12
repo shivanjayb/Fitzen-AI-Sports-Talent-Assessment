@@ -102,13 +102,6 @@ export default function Exercise() {
           <div className="meta-line">
             <span>{t(MODE[ex.mode])}</span><span>{t(ex.camera === 'side' ? 'Side view' : 'Front view')}</span><span>{t(LEVEL[ex.difficulty])}</span>
           </div>
-          <div className="detail-actions on-media">
-            <button className="btn primary block press" onClick={() => go('camera')}><IconCamera /> {t("Let's Go")}</button>
-            <div className="pair">
-              <button className="btn press" onClick={() => file.current?.click()}><IconUpload /> {t('Analyse video')}</button>
-              <button className="btn press" onClick={() => go('demo')}><IconPlay /> {t('Watch demo')}</button>
-            </div>
-          </div>
         </div>
       </section>
       <input ref={file} type="file" accept="video/*" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) { setPendingVideo(f); go('video'); } }} />

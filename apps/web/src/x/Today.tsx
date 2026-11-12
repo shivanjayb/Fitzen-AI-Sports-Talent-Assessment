@@ -10,7 +10,7 @@ export default function Today() {
   const real = getHistory().filter((s: SavedSession) => s.source !== 'demo').sort((a, b) => b.report.startedAt.localeCompare(a.report.startedAt));
   const last = real.find(isEligibleSession);
   const ex = last ? exerciseById(last.report.exerciseId) : undefined;
-  const evidence = last ? assessEvidence(ex, last.report) : null;
+  const evidence = last ? assessEvidence(ex, last.report, last.view) : null;
   const summary = last && evidence ? summarizeReport(ex, last.report, evidence) : null;
   const m = last ? measureOf(last.report) : null;
   const value = m ? (m.metric === 'reps' ? standardReps(last!.report) ?? m.value : m.value) : null;

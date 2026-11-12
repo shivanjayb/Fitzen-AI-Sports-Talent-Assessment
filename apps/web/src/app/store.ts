@@ -4,7 +4,7 @@
  * on any device, and each camera/video session's headline number goes to the leaderboards. Video never leaves the device.
  * Offline changes wait in local flags (synced, backedUp, profile dirty, deletions) and go up on the next syncHistory().
  */
-import { assessEvidence, exerciseById, bestJumpCm, isAssessedReport, percentileFor, personalize, standardReps, usualExtreme, type AthleteProfile, type ExerciseDef, type Personalized, type TrainingLevel, type ForensicsReport, type IntegrityReport, type NormResult, type ReadinessInput, type SessionReport } from '@fitzen/engines';
+import { assessEvidence, exerciseById, bestJumpCm, type ViewSummary, isAssessedReport, percentileFor, personalize, standardReps, usualExtreme, type AthleteProfile, type ExerciseDef, type Personalized, type TrainingLevel, type ForensicsReport, type IntegrityReport, type NormResult, type ReadinessInput, type SessionReport } from '@fitzen/engines';
 import { isMissingSchema, storageOwner, supabase } from '../lib/supabase';
 import { isLowEndDevice } from '../pose/poseSource';
 
@@ -30,6 +30,8 @@ export interface SavedSession {
   backedUp?: boolean;
   batteryRun?: string;
   reference?: { value: number; unit: string; method: string; notes: string };
+  /** How the body was turned relative to the lens during the attempt (background view-angle detection). */
+  view?: ViewSummary;
 }
 
 const PROFILE = 'fitzen.profile';
@@ -80,7 +82,7 @@ export function saveSession(s: SavedSession): boolean {
   return ok;
 }
 /** Eligible and captured well enough to compare fairly with other attempts (trends, since-last deltas). */
-export const isComparableSession = (s: SavedSession) => isEligibleSession(s) && assessEvidence(exerciseById(s.report.exerciseId), s.report).comparable;
+export const isComparableSession = (s: SavedSession) => isEligibleSession(s) && assessEvidence(exerciseById(s.report.exerciseId), s.report, s.view).comparable;
 export const isEligibleSession = (s: SavedSession) => s.source !== 'demo' && s.integrity?.verdict !== 'fail' &&
   !s.forensics?.flags.some((f) => f.severity === 'strong') && isAssessedReport(s.report);
 const isCloudMetric = (s: SavedSession, metric: NonNullable<ReturnType<typeof measureOf>>) =>

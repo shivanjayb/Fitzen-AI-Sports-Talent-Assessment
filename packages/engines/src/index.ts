@@ -25,6 +25,7 @@ export * from './gamification/badges.js';
 export * from './motion/types.js';
 export * from './motion/engine.js';
 export * from './motion/evidence.js';
+export * from './motion/viewAngle.js';
 export { simulateExercise, puppetProps, type PuppetOptions, type Prop } from './motion/puppet.js';
 export * from './motion/forensics.js';
 export * from './motion/catalog/index.js';
