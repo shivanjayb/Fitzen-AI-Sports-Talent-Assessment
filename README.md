@@ -24,10 +24,18 @@ Nashik. Not an official SAI product.
   compared against age-group norms only when the protocol matches.
 - **Wellness** — sleep schedule, Bluetooth heart-rate watches (resting HR, HRV), Apple Health /
   Fitbit / Garmin / CSV import, and food-photo nutrition estimates (on-device model).
-- **Accounts** — email + password (Supabase), per-user data with offline queue, demo mode,
-  coach portal (squads, verdicts, API keys) and admin portal.
-- **Mobile-first PWA** — installable, safe-area and keyboard aware, works offline; English, Hindi,
-  Marathi, Tamil and Telugu athlete flows.
+- **Session review** — an AI coach (Google Gemini, numbers only, adults only, with an on-device
+  fallback) and **Ask a coach**: pick a coach, send a request, then chat while the coach reads your
+  reports.
+- **Leaderboards and friends** — per-exercise boards plus consistency, stamina and technique over
+  30 days; city / state / country / world scopes; an optional size class (10 kg and 10 cm bands);
+  friend groups with join requests the owner accepts.
+- **History and streak** — day streak on Home and a progress graph for every exercise.
+- **Coaches** — temporary 14-day coach access for any adult, talent boards (leader of every
+  exercise), athlete requests and chat, squads, verdicts and API keys; admin portal.
+- **Accounts** — email + password (Supabase), per-user data with offline queue, demo mode.
+- **Web, Android and iOS** — installable PWA plus Capacitor projects for both stores; safe-area
+  and keyboard aware, works offline; English, Hindi, Marathi, Tamil and Telugu athlete flows.
 
 ## Quick start
 
@@ -42,13 +50,27 @@ The camera needs `localhost` or HTTPS. No camera? Every exercise has **Watch dem
 athlete run through the real engine) and **Analyse video**.
 
 Accounts are optional locally. To enable them, copy `apps/web/.env.example` to `apps/web/.env.local` and set
-`VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`, then apply `supabase/migrations/*.sql` in order
-(see `docs/AUTHENTICATION.md`).
+`VITE_SUPABASE_URL` / `VITE_SUPABASE_PUBLISHABLE_KEY`, then apply `supabase/migrations/*.sql` in
+order (see `docs/AUTHENTICATION.md`). The AI coach also needs the `ai-coach` edge function deployed
+with a `GEMINI_API_KEY` secret; without it the app shows the on-device summary.
 
 ```bash
 npm test             # engines + server + web
 npm run build        # production build → dist/
 ```
+
+## Android and iOS
+
+The native apps bundle the same web build (Capacitor 8). From `apps/web`:
+
+```bash
+npm run mobile:sync      # build the web app and copy it into ios/ and android/
+npm run mobile:ios       # open the iOS project in Xcode (signing needs an Apple team)
+npm run mobile:android   # open the Android project (needs Android Studio)
+```
+
+The app id `app.fitzen.mobile` is a placeholder: set the final one before the first store upload.
+Bluetooth watches work in the browser only, not inside the native apps.
 
 ## How it works
 
@@ -73,10 +95,11 @@ clinical measurements.
 packages/engines/   motion engine (MotionSession, 90-exercise catalog, evidence, view angle), tests
 apps/web/           React + Vite PWA
   src/x/            app shell and pages (home, train, wellness, food, wearables, auth, landing)
-  src/app/          exercise, session, results, history, coach/admin, i18n
+  src/app/          exercise, session, results, review, history, compete, messages, coach/admin, i18n
   src/pose/         camera and video pose sources
+  ios/, android/    Capacitor native projects
 apps/server/        Node API for signed assessments (served via api/[...path].ts)
-supabase/           migrations 001–009 and SQL tests
+supabase/           migrations 001–010, SQL tests, edge function ai-coach
 docs/               architecture, API, auth, validation, project state and log
 ```
 
@@ -87,7 +110,8 @@ Design notes: `apps/web/PRODUCT.md`, `apps/web/DESIGN.md`. Project status and ro
 
 - **Tests:** web 68/68, server 34/34, engines 220/222 (two known accuracy cases at low frame rates).
 - **Not yet verified:** live camera accuracy on real athletes, real Bluetooth watches and food photos
-  on devices.
+  on devices; the signed-in coach, chat and leaderboard flows on the live site; the Android build
+  and both native apps on a real phone.
 - **Known limits:** unilateral poses assume a fixed side; throws assume a right-hander.
 
 ## Team
