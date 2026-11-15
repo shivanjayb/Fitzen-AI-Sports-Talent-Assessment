@@ -71,7 +71,7 @@ Other limits include fixed-side/right-handed assumptions in some exercises, even
 
 ## Sources and drift traps
 
-- Current priorities/history: `docs/PROJECT_STATE.md`; earlier assessment: `docs/PROJECT_ANALYSIS.md`.
+- Current priorities/history: `docs/PROJECT_STATE.md`.
 - Measurement targets, synthetic results and explicit limitations: `docs/VALIDATION.md`. Historical “gaps found” may be followed by fixes later in the same document.
 - Account setup and provider operations: `docs/AUTHENTICATION.md`, migrations and actual auth/store code.
 - Current UI: `apps/web/DESIGN.md` plus `glass.css`/`landing.css`; black/flat content, glass navigation, activity rings, photos with a synthetic-figure fallback. `PRODUCT.md` still describes an older aurora visual direction.

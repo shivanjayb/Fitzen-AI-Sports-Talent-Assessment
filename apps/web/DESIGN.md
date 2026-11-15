@@ -17,7 +17,7 @@ typography:
 
 # Fitzen Quiet Performance
 
-The application uses the owner-approved Quiet Performance concept from `docs/design/quiet-performance/`, with real application behavior and clear empty states. Source: `src/app/quiet.css` after legacy `glass.css`; route styles in `dashboard.css`, `training-quiet.css`, and `wellness.css`. The existing landing page retains its scoped broadcast-demo treatment.
+The app shell (`src/x/`, Xeyo-style tokens in `xeyo.css` and `fitzen.css`) sits on top of the earlier Quiet Performance layer, with real application behavior and clear empty states. Source: `src/app/quiet.css` after legacy `glass.css`; route styles in `dashboard.css`, and `training-quiet.css`. The existing landing page retains its scoped broadcast-demo treatment.
 
 - Warm light canvas, white content surfaces, graphite text and restrained ember actions. Profile retains a dark preference with warm charcoal surfaces. Form judgement colors remain green/amber/red. No decorative data or synthetic user statistics.
 - System typography, tabular measurements, 44px controls, readable input text, explicit focus, reduced-motion/transparency handling, safe-area padding. Existing Fitzen athlete mark and exercise media; incorrect or missing media uses the equipment-correct drawn athlete.
@@ -28,4 +28,4 @@ The application uses the owner-approved Quiet Performance concept from `docs/des
 - Wellness data is dated manual entry with validation, history, edit/remove/undo and optional account sync. Nutrition shows logged totals; lab trends separate test/unit. Recovery uses actual post-session check-ins. Camera does not measure HRV, sleep or resting heart rate.
 - Existing authentication, account sync, local coach and coach/admin controls retain service boundaries. Unsupported wearable/hosted-AI/file-import actions are described honestly in Connections.
 
-See `docs/design/quiet-performance/INTEGRATION.md` for backend setup and verification limits. Motion engine accuracy and live-provider readiness are separate release gates.
+Wellness cloud sync needs migrations 007–009 (applied live 2026-11-13). Motion engine accuracy and live-provider readiness are separate release gates.

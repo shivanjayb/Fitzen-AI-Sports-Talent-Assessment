@@ -19,3 +19,8 @@ graphify-out/
 .claude/settings.json
 !.env.example
 brag-output/
+
+# local junk
+archive-*/
+.worktrees/
+.codex/
