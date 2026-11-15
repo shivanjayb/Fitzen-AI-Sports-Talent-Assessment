@@ -10,7 +10,9 @@ import { languageReady } from './app/language';
 // Lite mode: weak phones skip blur and motion so the camera and pose model get the CPU/GPU.
 if (isLowEndDevice()) document.documentElement.dataset.lite = '';
 
-if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+// Inside the Android/iOS app the files are already on the device: no service worker there.
+const native = !!(window as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.();
+if (import.meta.env.PROD && !native && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => { void navigator.serviceWorker.register('/sw.js').catch(() => {}); });
 }
 
