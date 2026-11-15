@@ -7,6 +7,7 @@ import { Thumb } from './Figure';
 import { PageHeader } from './Shell';
 import { IconFlag, IconSparkle } from './icons';
 import { openAssistant } from './openAssistant';
+import './social.css';
 
 /** Repetition comparisons use catalog targets even when practice ranges were personalized. */
 const measured = (s: SavedSession) => {
@@ -42,6 +43,14 @@ export default function History() {
     const d = new Date(s.report.startedAt).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' });
     byDay.set(d, [...(byDay.get(d) ?? []), s]);
   }
+  // One card per exercise: every fairly comparable attempt, oldest to newest, and the change since the time before.
+  const tracks = [...new Map(h.filter((s) => isComparableSession(s) && measured(s)).reverse().map((s) => [s.report.exerciseId, s])).keys()].map((id) => {
+    const runs = h.filter((s) => s.report.exerciseId === id && isComparableSession(s) && measured(s)).reverse();
+    const vals = runs.map((s) => measured(s)!.value), unit = measured(runs[0]!)!.unit;
+    const lo = Math.min(...vals), hi = Math.max(...vals);
+    return { id, name: runs[0]!.report.name, unit, vals, last: runs.at(-1)!, delta: vals.length > 1 ? vals.at(-1)! - vals.at(-2)! : null,
+      path: vals.map((v, i) => `${vals.length > 1 ? 6 + (i / (vals.length - 1)) * 188 : 100},${48 - ((v - lo) / (hi - lo || 1)) * 40}`) };
+  }).sort((a, b) => b.last.report.startedAt.localeCompare(a.last.report.startedAt));
   const updateFilter = (key: string, value: string) => {
     const next = new URLSearchParams(params);
     if (value === 'all') next.delete(key); else next.set(key, value);
@@ -67,6 +76,16 @@ export default function History() {
           {compatible.length > 1 ? <figure className="history-trend"><svg viewBox="0 0 600 160" role="img" aria-label={t('Last {n} measured attempts, oldest to newest', { n: compatible.length })}><path d="M20 140H580" stroke="currentColor" opacity=".15" /><polyline points={points.join(' ')} fill="none" stroke="currentColor" strokeWidth="2.5" />{points.map((p, i) => { const [cx, cy] = p.split(','); return <circle key={compatible[i]!.id} cx={cx} cy={cy} r="4"><title>{new Date(compatible[i]!.report.startedAt).toLocaleDateString()}: {valueLabel(values[i]!)} {latestMetric.unit}</title></circle>; })}</svg><figcaption><span>{new Date(first!.report.startedAt).toLocaleDateString()}</span><span>{new Date(latest!.report.startedAt).toLocaleDateString()}</span></figcaption></figure> : <p className="muted">{t('Complete one more comparable assessment to see a trend.')}</p>}
           <p className="history-note">{t('Compared within the same exercise, recorded protocol and engine version; attempts with poor capture quality are left out. Reps use standard depth targets. These are screening estimates; camera setup and effort can affect each attempt.')}</p>
         </> : <p className="muted">{t('No measured assessment for this exercise yet. Demo and incomplete attempts appear below when available.')}</p>}
+      </section>}
+      {exercise === 'all' && status === 'all' && tracks.length > 0 && <section aria-labelledby="hx-title">
+        <h2 className="section-title" id="hx-title">{t('How each exercise is going')}</h2>
+        <div className="hx-grid">{tracks.map((x) => <Link key={x.id} to={`/history?exercise=${encodeURIComponent(x.id)}`} className="hx-card" aria-label={`${x.name}: latest ${valueLabel(x.vals.at(-1)!)} ${x.unit}${x.delta !== null ? `, ${x.delta >= 0 ? 'up' : 'down'} ${valueLabel(Math.abs(x.delta))} since the time before` : ''}`}>
+          <b>{t(x.name)}</b>
+          <svg viewBox="0 0 200 56" aria-hidden><polyline points={x.path.join(' ')} fill="none" stroke="var(--x-accent, #f2540c)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />{x.path.map((p, i) => <circle key={i} cx={p.split(',')[0]} cy={p.split(',')[1]} r={i === x.path.length - 1 ? 4 : 2.5} fill={i === x.path.length - 1 ? 'var(--x-ink, #121417)' : 'var(--x-accent, #f2540c)'} />)}</svg>
+          <span><b className="num">{valueLabel(x.vals.at(-1)!)}</b> <small>{x.unit}</small></span>
+          <small className={x.delta === null ? 'faint' : x.delta > 0 ? 'up' : x.delta < 0 ? 'down' : 'faint'}>{x.delta === null ? t('First measured attempt') : `${x.delta > 0 ? '▲ +' : x.delta < 0 ? '▼ ' : ''}${valueLabel(x.delta)} ${x.unit} ${t('since')} ${new Date(h.filter((s) => s.report.exerciseId === x.id && isComparableSession(s) && measured(s))[1]!.report.startedAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })} · ${x.vals.length} ${t('attempts')}`}</small>
+        </Link>)}</div>
+        <p className="history-note">{t('Tap an exercise for its full graph. Only attempts captured well enough to compare fairly are plotted.')}</p>
       </section>}
       {!list.length && <div className="empty"><div className="big"><IconFlag /></div><h2>{t(h.length ? 'No attempts match these filters.' : 'Your progress begins with one attempt.')}</h2><p>{t('Complete an assessment to keep its report and measurements here.')}</p><Link to={selected ? `/exercise/${selected.id}` : '/app'} className="btn primary">{t('Start training')}</Link></div>}
       {[...byDay].map(([day, sessions]) => <section key={day}>

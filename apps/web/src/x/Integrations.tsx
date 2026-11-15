@@ -122,6 +122,12 @@ function LiveCard({ onImport }: { onImport: () => void }) {
         <button type="button" className="x-btn ghost" onClick={stopLiveHr}>Disconnect</button>
       </div>
     </> : <>
+      <ol className="x-caption" style={{ margin: '0 0 10px', paddingLeft: 18, display: 'grid', gap: 4, fontSize: 13 }}>
+        <li>Use Chrome or Edge on Android, Windows, Mac or Chromebook, with Bluetooth switched on.</li>
+        <li>On the watch, start heart-rate broadcast: Garmin “Broadcast Heart Rate”, Polar “Share HR with other devices”, Coros “HR Broadcast”, Amazfit and Huawei “Heart rate push”. A chest strap only needs to be worn.</li>
+        <li>Press the button below and pick your device from the browser’s list. If it is missing, close the watch’s own phone app for a moment: most watches broadcast to one receiver at a time.</li>
+        <li>Sit still for a minute to save resting heart rate and HRV, or leave it connected while you train.</li>
+      </ol>
       <p>Pair any watch or chest strap that broadcasts heart rate: Garmin (turn on “Broadcast heart rate”), Polar, Wahoo, Coros, many Amazfit and Huawei models, and most HR straps. Your browser will ask which device to use; that prompt only appears on https or localhost.</p>
       {hr.status === 'error' && <p className="x-source-meta">Could not connect: {hr.error} Make sure broadcast is on and the device is not paired to another app.</p>}
       <div className="x-source-actions">

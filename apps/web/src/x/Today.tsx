@@ -18,6 +18,9 @@ export default function Today() {
   const hour = new Date().getHours();
   const trained = new Set(real.map((s) => dayKey(new Date(s.report.startedAt))));
   const now = new Date();
+  // Consecutive training days ending today, or yesterday if today is not done yet.
+  let streak = 0;
+  for (let d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (trained.has(dayKey(now)) ? 0 : 1)); trained.has(dayKey(d)); d.setDate(d.getDate() - 1)) streak++;
   const week = Array.from({ length: 7 }, (_, i) => new Date(now.getFullYear(), now.getMonth(), now.getDate() - (6 - i)));
 
   return <section className="fz-today" aria-label="Today">
@@ -31,6 +34,8 @@ export default function Today() {
         {last && ex ? <Link className="x-btn accent" to={`/exercise/${ex.id}`}><Icon name="camera" />Retest {ex.name}</Link>
           : <Link className="x-btn accent" to="/guided"><Icon name="camera" />Start guided assessment</Link>}
         <Link className="x-btn ghost" to="/train">Browse movements</Link>
+        <Link className="x-btn ghost" to="/history">My history</Link>
+        <Link className="x-btn ghost" to="/compete">Leaderboards</Link>
       </div>
     </div>
     {last && m && value !== null
@@ -39,20 +44,24 @@ export default function Today() {
         <b style={{ fontSize: 17, fontWeight: 650 }}>{last.report.name}</b>
         <span className="fz-row"><span className="fz-num">{Number(value.toFixed(1))}</span><small>{m.unit} · form {last.report.formScore}/100</small></span>
         {evidence && <span className={`rx-badge ev-${evidence.level}`} style={{ alignSelf: 'flex-start' }}>{evidence.level === 'strong' ? 'Strong evidence' : 'Limited evidence'}</span>}
-        <WeekStrip week={week} trained={trained} />
+        <WeekStrip week={week} trained={trained} streak={streak} />
       </Link>
       : <div className="fz-last">
         <span className="fz-today-date">This week</span>
         <b style={{ fontSize: 17, fontWeight: 650 }}>No measured result yet</b>
         <small>Your latest result, its evidence quality and your training days will show here after your first attempt.</small>
-        <WeekStrip week={week} trained={trained} />
+        <WeekStrip week={week} trained={trained} streak={streak} />
       </div>}
   </section>;
 }
 
-function WeekStrip({ week, trained }: { week: Date[]; trained: Set<string> }) {
+function WeekStrip({ week, trained, streak }: { week: Date[]; trained: Set<string>; streak: number }) {
   const count = week.filter((d) => trained.has(dayKey(d))).length;
-  return <div className="fz-week" role="img" aria-label={`Trained on ${count} of the last 7 days`}>
-    {week.map((d, i) => <span key={i}><i className={`${trained.has(dayKey(d)) ? 'on' : ''}${i === 6 ? ' today' : ''}`} />{d.toLocaleDateString(undefined, { weekday: 'narrow' })}</span>)}
-  </div>;
+  const doneToday = trained.has(dayKey(week[6]!));
+  return <>
+    <div className="fz-streak"><span className="fz-num">{streak}</span><span><b>{streak === 1 ? 'day streak' : 'day streak'}</b><small>{streak === 0 ? 'Train today to start one' : doneToday ? 'Today is done. Come back tomorrow.' : 'Train today to keep it going'}</small></span></div>
+    <div className="fz-week" role="img" aria-label={`Trained on ${count} of the last 7 days`}>
+      {week.map((d, i) => <span key={i}><i className={`${trained.has(dayKey(d)) ? 'on' : ''}${i === 6 ? ' today' : ''}`} />{d.toLocaleDateString(undefined, { weekday: 'narrow' })}</span>)}
+    </div>
+  </>;
 }

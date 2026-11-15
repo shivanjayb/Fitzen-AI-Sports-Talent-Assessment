@@ -11,7 +11,11 @@ import { download } from './download';
 import { ReferenceCheck } from './Validation';
 import { BATTERY } from './battery';
 import './results.css';
+import Review from './Review';
 
+const CHECKIN_KEY = 'fitzen-checkin-asked';
+const checkinAsked = () => { try { return localStorage.getItem(CHECKIN_KEY) === '1'; } catch { return true; } };
+const markCheckinAsked = () => { try { localStorage.setItem(CHECKIN_KEY, '1'); } catch { /* private mode: asks again next time */ } };
 const ORD = new Intl.PluralRules('en', { type: 'ordinal' });
 const ord = (x: number) => { const n = Math.round(x); return `${n}${({ one: 'st', two: 'nd', few: 'rd' } as Record<string, string>)[ORD.select(n)] ?? 'th'}`; };
 const f = (x: number | undefined, d = 1) => (x === undefined || !Number.isFinite(x) ? '—' : x.toFixed(d));
@@ -257,7 +261,8 @@ export default function Results() {
   const nav = useNavigate();
   const loc = useLocation();
   const [, bump] = useState(0);
-  const [asking, setAsking] = useState(Boolean((loc.state as { checkin?: boolean } | null)?.checkin));
+  // The rest-and-sleep check-in is offered once, after the first ever session; later it is opened from the outlook card.
+  const [asking, setAsking] = useState(() => Boolean((loc.state as { checkin?: boolean } | null)?.checkin) && !checkinAsked());
   const [sync, setSync] = useState<'idle' | 'busy' | 'pending'>('idle');
   const saved = getSession(id);
   if (!saved) return <main className="page"><div className="empty"><div className="big"><IconFolder /></div>{t("Session not found.")}<br /><br /><Link className="btn" to="/app">{t("Back to training")}</Link></div></main>;
@@ -345,14 +350,8 @@ export default function Results() {
 
       <PreviousPerformance session={saved} />
 
-      <section className="glass panel no-print" style={{ marginTop: 14 }}>
-        <b className="row" style={{ gap: 8, color: 'var(--accent)' }}><IconSparkle /> <span style={{ color: 'var(--text)' }}>{t('Local coaching report')}</span></b>
-        <p className="muted" style={{ margin: '6px 0 12px', fontSize: '.9rem' }}>{t("Review measured faults and the existing training guidance. Works offline; no athlete data is sent to an AI service.")}</p>
-        <div className="row" style={{ flexWrap: 'wrap' }}>
-          <button className="btn primary press" onClick={() => openAssistant({ kind: 'result', sessionId: id }, 'Give me a professional scouting report on this session and how to improve')}>{t('Generate report')}</button>
-          <button className="btn glass press" onClick={() => openAssistant({ kind: 'result', sessionId: id })}>{t('Open local guide')}</button>
-        </div>
-      </section>
+      <Review session={saved} />
+      <p className="no-print" style={{ margin: '10px 0 0' }}><button className="x-text-button" onClick={() => openAssistant({ kind: 'result', sessionId: id })}>{t('Open the offline guide for this session')}</button></p>
 
       <p className="faint">{t("Single-camera screening estimates, not clinical measurements or athlete-selection evidence.")}</p>
       <section className="glass panel" style={{ marginTop: 14 }}>
@@ -406,7 +405,7 @@ export default function Results() {
       </div>
 
       {isEligibleSession(saved) && <Future s={saved} onCheckIn={() => setAsking(true)} />}
-      {asking && isEligibleSession(saved) && !saved.readiness && <CheckIn onDone={(v) => { if (v) saveReadiness(id, v); setAsking(false); nav('.', { replace: true, state: null }); bump((n) => n + 1); }} />}
+      {asking && isEligibleSession(saved) && !saved.readiness && <CheckIn onDone={(v) => { if (v) saveReadiness(id, v); markCheckinAsked(); setAsking(false); nav('.', { replace: true, state: null }); bump((n) => n + 1); }} />}
 
       <div className="two-col" style={{ marginTop: 14 }}>
         <section className="glass panel">

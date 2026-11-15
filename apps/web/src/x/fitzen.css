@@ -149,3 +149,9 @@ a.x-card:hover, .x-card[role='button']:hover, .x-train-ex:hover { transform: tra
   .x-frame[data-section='health'] .x-topbar { flex-wrap: wrap; }
   .x-frame[data-section='health'] .x-nav { order: 3; width: 100%; }
 }
+
+.fz-streak { display: flex; align-items: center; gap: 12px; margin-top: auto; padding-top: 12px; }
+.fz-streak .fz-num { font-size: 44px; line-height: 1; color: var(--x-accent); }
+.fz-streak b { display: block; font-weight: 650; }
+.fz-streak small { color: var(--x-ink-2); font-size: 13px; }
+.fz-streak + .fz-week { margin-top: 0; }

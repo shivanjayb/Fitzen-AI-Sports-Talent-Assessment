@@ -6,13 +6,15 @@ import { t } from './language';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { exerciseById, responseProfile, type SessionReport } from '@fitzen/engines';
-import { getAccount, publicApi, supabase, useUser, type Account } from '../lib/supabase';
+import { getAccount, isCoach, isTemporaryCoach, publicApi, supabase, useUser, type Account } from '../lib/supabase';
+import { EXERCISES } from '@fitzen/engines';
+import './social.css';
 import { measureOf, type SavedSession, type Verdict } from './store';
 import { PageHeader } from './Shell';
 
 interface Squad { id: string; name: string; invite_code: string }
 interface Athlete { athlete: string; display_name: string; minor: boolean; visible: boolean; sessions_30d: number; avg_form: number | null; genuine: number; review: number; suspect: number; last_at: string | null }
-interface Row { id: string; exercise_id: string; source: 'camera' | 'video'; started_at: string; verdict: Verdict; form_score: number; data: SavedSession }
+export interface Row { id: string; exercise_id: string; source: 'camera' | 'video'; started_at: string; verdict: Verdict; form_score: number; data: SavedSession }
 interface Key { id: string; name: string; prefix: string; created_at: string; last_used_at: string | null; revoked_at: string | null }
 
 const errText = (e: unknown) => (e as { message?: string })?.message || 'Something went wrong. Check your connection and try again.';
@@ -34,7 +36,69 @@ export default function Coach() {
   if (!acct) return <main className="page">{head}<section className="glass panel"><p style={{ marginTop: 0 }}>{t("Create your account details first (name and birth year).")}</p><Link className="btn primary" to="/profile#account">{t("Finish my account")}</Link></section></main>;
   // `role` comes from migration 005; without it the portal's tables and functions don't exist yet.
   if (acct.role === undefined) return <main className="page">{head}<section className="glass panel"><b>{t("Coach accounts are being switched on")}</b><p className="muted" style={{ marginBottom: 0 }}>{t("Squads, athlete reports and API keys open here as soon as Fitzen's account database is updated. Training, results and leaderboards work as normal.")}</p></section></main>;
-  return <main className="page" style={{ maxWidth: 980 }}>{head}{acct.role === 'coach' || acct.role === 'admin' ? <><Squads /><ApiKeys /></> : <Apply />}</main>;
+  const refresh = () => void getAccount().then(setAcct, (e) => setErr(errText(e)));
+  return <main className="page" style={{ maxWidth: 980 }}>{head}
+    {isTemporaryCoach(acct) && <div className="fz-banner" role="status"><b>{t('Temporary coach account.')}</b> {t('You have coach access until')} {day(acct.coach_trial_until ?? null)}. {t('Athletes see you marked as a temporary coach. Apply below to keep access.')}</div>}
+    {isCoach(acct) ? <><p className="row" style={{ gap: 8, flexWrap: 'wrap' }}><Link className="btn primary" to="/messages">{t('Messages and requests')}</Link></p><Talent /><Squads />{!isTemporaryCoach(acct) && <ApiKeys />}{isTemporaryCoach(acct) && <Apply />}</>
+      : <><Trial used={!!acct.coach_trial_until} done={refresh} /><Apply /></>}
+  </main>;
+}
+
+/** One-time 14-day coach access for any adult, so the portal can be tried and shown without waiting for approval. */
+function Trial({ used, done }: { used: boolean; done: () => void }) {
+  const [msg, setMsg] = useState(''); const [busy, setBusy] = useState(false);
+  return (
+    <section className="glass panel" style={{ display: 'grid', gap: 10, marginBottom: 14 }}>
+      <b>{t('Try the coach portal now')}</b>
+      <p className="muted" style={{ margin: 0 }}>{t(used ? 'Your temporary coach access has ended. Apply below for a permanent coach account.' : 'Get temporary coach access for 14 days: see the talent boards, invite athletes, answer their requests and chat. You are shown as a temporary coach. Coaches must be 18+.')}</p>
+      {msg && <p role="alert" style={{ margin: 0 }}>{msg}</p>}
+      {!used && <button className="btn primary" style={{ justifySelf: 'start' }} disabled={busy} onClick={() => { setBusy(true); setMsg(''); void supabase!.rpc('start_coach_trial').then(({ error }) => { setBusy(false); if (error) setMsg(errText(error)); else done(); }); }}>{t(busy ? 'Starting…' : 'Start temporary coach access')}</button>}
+    </section>
+  );
+}
+
+interface TalentRow { rank: number; athlete: string; display_name: string; value: number; form_score: number; metric: 'reps' | 'holdSec' | 'jumpHeightCm'; city: string | null; state: string | null }
+interface Leader { exercise_id: string; athlete: string; display_name: string; value: number; form_score: number; metric: TalentRow['metric']; athletes: number }
+const UNITS = { reps: 'reps', holdSec: 's', jumpHeightCm: 'cm' } as const;
+const amount = (v: number, m: TalentRow['metric']) => `${v.toFixed(m === 'reps' ? 0 : 1)} ${UNITS[m]}`;
+
+/** Public results across every exercise: who leads each one, the full board for one exercise, and a request to connect. */
+function Talent() {
+  const [leaders, setLeaders] = useState<Leader[] | null>(null);
+  const [ex, setEx] = useState('');
+  const [sort, setSort] = useState<'value' | 'form'>('value');
+  const [rows, setRows] = useState<TalentRow[] | null>(null);
+  const [msg, setMsg] = useState('');
+  const [sent, setSent] = useState<Set<string>>(new Set());
+  useEffect(() => { void supabase!.rpc('coach_leaders').then(({ data, error }) => { if (error) { setMsg(errText(error)); setLeaders([]); return; } setLeaders(data as Leader[]); setEx((cur) => cur || (data as Leader[])[0]?.exercise_id || 'bodyweight-squat'); }); }, []);
+  useEffect(() => { if (!ex) return; setRows(null); void supabase!.rpc('coach_board', { exercise: ex, sort, lim: 50 }).then(({ data, error }) => error ? setMsg(errText(error)) : setRows((data as TalentRow[]).map((r) => ({ ...r, rank: Number(r.rank) })))); }, [ex, sort]);
+  const invite = (r: { athlete: string; display_name: string }, exercise: string) => {
+    const note = `Hello, I am a coach on Fitzen. I saw your ${exerciseById(exercise)?.name ?? exercise} result and would like to help you improve.`;
+    void supabase!.rpc('invite_athlete', { athlete: r.athlete, note, exercise }).then(({ error }) => { if (error) setMsg(errText(error)); else { setSent((s) => new Set(s).add(r.athlete)); setMsg(`Request sent to ${r.display_name}. They appear in Messages once they accept.`); } });
+  };
+  const Ask = ({ r, exercise }: { r: { athlete: string; display_name: string }; exercise: string }) => <button className="btn glass press" disabled={sent.has(r.athlete)} onClick={() => invite(r, exercise)}>{t(sent.has(r.athlete) ? 'Requested' : 'Message')}</button>;
+  return (<>
+    <h2 className="section-title">{t('Talent boards')}</h2>
+    <p className="muted" style={{ marginTop: 0 }}>{t('Athletes who chose to appear on public boards. Under-18s show as initials and only after a parent confirmed. “Message” sends a request; you can chat and see their reports once they accept.')}</p>
+    {msg && <p role="status">{msg}</p>}
+    <section className="glass panel" style={{ overflowX: 'auto' }}>
+      <b>{t('Leader of each exercise')}</b>
+      {leaders === null ? <div className="spinner" aria-label={t('Loading')} /> : leaders.length === 0 ? <p className="muted" style={{ marginBottom: 0 }}>{t('No public results yet. Boards fill as athletes record sessions while signed in with public boards on.')}</p> : (
+        <table className="data num" style={{ marginTop: 8 }}><thead><tr><th>{t('Exercise')}</th><th>{t('Leader')}</th><th>{t('Best')}</th><th>{t('Form')}</th><th>{t('Athletes')}</th><th /></tr></thead>
+          <tbody>{leaders.map((l) => <tr key={l.exercise_id}><td style={{ fontFamily: 'var(--font)' }}><button className="x-text-button" onClick={() => setEx(l.exercise_id)}>{exerciseById(l.exercise_id)?.name ?? l.exercise_id}</button></td><td style={{ fontFamily: 'var(--font)' }}>{l.display_name}</td><td>{amount(l.value, l.metric)}</td><td>{l.form_score}</td><td>{Number(l.athletes)}</td><td><Ask r={l} exercise={l.exercise_id} /></td></tr>)}</tbody></table>)}
+    </section>
+    <section className="glass panel" style={{ marginTop: 12, display: 'grid', gap: 12 }}>
+      <div className="row" style={{ gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+        <label className="field" style={{ flex: '1 1 220px' }}><span>{t('Exercise')}</span><select value={ex} onChange={(e) => setEx(e.target.value)}>{EXERCISES.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</select></label>
+        <div className="segmented glass" role="group" aria-label={t('Rank by')}>{([['value', 'Performance'], ['form', 'Accuracy']] as const).map(([v, l]) => <button key={v} className={sort === v ? 'on' : ''} aria-pressed={sort === v} onClick={() => setSort(v)}>{l}</button>)}</div>
+      </div>
+      {rows === null ? <div className="spinner" aria-label={t('Loading')} /> : rows.length === 0 ? <p className="muted" style={{ margin: 0 }}>{t('No public results for this exercise yet.')}</p> : (
+        <div className="rows">{rows.map((r) => <div key={r.athlete} className="session-row" style={{ alignItems: 'center' }}>
+          <span style={{ minWidth: 0 }}><b><span className="num">{r.rank}.</span> {r.display_name}</b><small>{[r.city, r.state].filter(Boolean).join(', ') || t('Location not shared')} · {t('form')} {r.form_score}/100</small></span>
+          <span className="row" style={{ gap: 10 }}><b className="num">{amount(r.value, r.metric)}</b><Ask r={r} exercise={ex} /></span>
+        </div>)}</div>)}
+    </section>
+  </>);
 }
 
 function Apply() {
@@ -150,7 +214,7 @@ function AthleteReports({ squad, athlete, close }: { squad: string; athlete: Ath
   );
 }
 
-function Report({ row }: { row: Row }) {
+export function Report({ row }: { row: Row }) {
   const s = row.data, r: SessionReport = s.report;
   const m = measureOf(r), v = VERDICT[row.verdict];
   const evidence = [

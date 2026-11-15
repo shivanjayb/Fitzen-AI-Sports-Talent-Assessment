@@ -19,6 +19,7 @@ const Admin = lazy(() => import('./app/Admin'));
 const History = lazy(() => import('./app/History'));
 const Progress = lazy(() => import('./app/Progress'));
 const Compete = lazy(() => import('./app/Compete'));
+const Messages = lazy(() => import('./app/Messages'));
 const Consent = lazy(() => import('./app/Consent'));
 const Validation = lazy(() => import('./app/Validation'));
 const Guided = lazy(() => import('./app/Guided'));
@@ -70,6 +71,7 @@ export default function App() {
               <Route path="/exercise/:id" element={<Exercise />} />
               <Route path="/progress" element={<Progress />} />
               <Route path="/compete" element={<Compete />} />
+              <Route path="/messages" element={<Messages />} />
               <Route path="/history" element={<History />} />
               <Route path="/validation" element={<Validation />} />
               <Route path="/guided" element={<Guided />} />

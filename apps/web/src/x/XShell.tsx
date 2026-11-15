@@ -8,6 +8,8 @@ import { supabase, useIdentity } from '../lib/supabase';
 import { signOut } from '../lib/auth';
 import { ExploreProvider, Icon, Toast, toast, type IconName } from './ui';
 import { setSampleMode, useSampleMode } from './sample';
+import { pendingRequests } from '../app/Messages';
+import '../app/social.css';
 import './xeyo.css';
 import './legacy.css';
 import './fitzen.css';
@@ -29,7 +31,7 @@ const HEALTH = /^\/(vitals|body|nutrition|journal|sleep|blood-records|integratio
 const TABS: Array<{ to: string; label: string; icon: IconName; match: RegExp }> = [
   { to: '/home', label: 'Home', icon: 'home', match: /^\/home/ },
   { to: '/train', label: 'Train', icon: 'train', match: /^\/(train|app|exercise|search|guided)/ },
-  { to: '/reports', label: 'Reports', icon: 'reports', match: /^\/(reports|history|results|progress|compete)/ },
+  { to: '/reports', label: 'Reports', icon: 'reports', match: /^\/(reports|history|results|progress|compete|messages)/ },
   { to: '/vitals', label: 'Health', icon: 'heart', match: HEALTH },
   { to: '/profile', label: 'Profile', icon: 'user', match: /^\/(profile|privacy|coach|admin)/ },
 ];
@@ -48,6 +50,9 @@ export default function XShell() {
   const [syncing, setSyncing] = useState(false);
   const [updated, setUpdated] = useState(stamp);
   const [ask, setAsk] = useState('');
+  const [requests, setRequests] = useState(0);
+  // Requests waiting for an answer: checked on sign-in and on each page change (cheap, one RPC).
+  useEffect(() => { if (identity.user) void pendingRequests().then(setRequests, () => setRequests(0)); else setRequests(0); }, [identity.user?.id, loc.pathname]);
   const [online, setOnline] = useState(() => typeof navigator === 'undefined' || navigator.onLine);
   useEffect(() => {
     const on = () => setOnline(true), off = () => setOnline(false);
@@ -104,10 +109,13 @@ export default function XShell() {
           <button className={`x-icon-btn${syncing ? ' is-syncing' : ''}`} aria-label="Refresh data" title={`Records updated ${updated}`} disabled={syncing} onClick={refresh}><Icon name="refresh" /></button>
           <span className="sr-only" role="status">{syncing ? 'Updating your data…' : `Records updated ${updated}`}</span>
           <details ref={menu} className="x-menu">
-            <summary className="x-icon-btn" aria-label="Account menu"><Icon name="menu" /></summary>
+            <summary className="x-icon-btn" aria-label={requests > 0 ? `Account menu, ${requests} new requests` : 'Account menu'} style={{ position: 'relative' }}><Icon name="menu" />{requests > 0 && <span className="fz-dot" style={{ position: 'absolute', top: -4, right: -4 }} aria-hidden>{requests}</span>}</summary>
             <div className="x-popover">
               <div className="who"><span className="x-avatar">{name[0]!.toUpperCase()}</span><span style={{ minWidth: 0 }}><b>{name}</b><small>{identity.user?.email ?? 'Saved on this device'}</small></span></div>
               <Link to="/profile"><Icon name="user" />Profile</Link>
+              <Link to="/compete"><Icon name="trophy" />Leaderboards &amp; friends</Link>
+              <Link to="/messages"><Icon name="people" />Messages{requests > 0 && <span className="fz-dot" aria-label={`${requests} new requests`}>{requests}</span>}</Link>
+              <Link to="/coach"><Icon name="flag" />Coach portal</Link>
               <Link to="/integrations"><Icon name="link" />Integrations</Link>
               <Link to="/privacy"><Icon name="shield" />Privacy &amp; data</Link>
               {identity.user

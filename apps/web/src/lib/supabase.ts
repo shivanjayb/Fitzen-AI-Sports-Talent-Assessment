@@ -47,7 +47,14 @@ export interface Account {
   public_boards: boolean; parent_email: string | null; parent_consent_at: string | null;
   /** Migration 005. Missing on projects that only have 002–004. */
   role?: 'athlete' | 'coach' | 'admin';
+  /** Migration 010: end of the 14-day temporary coach access, if it was started. */
+  coach_trial_until?: string | null;
 }
+
+const onTrial = (a: Account | null | undefined) => !!a?.coach_trial_until && Date.parse(a.coach_trial_until) > Date.now();
+/** Approved coach or admin, or an adult on temporary coach access. */
+export const isCoach = (a: Account | null | undefined) => a?.role === 'coach' || a?.role === 'admin' || onTrial(a);
+export const isTemporaryCoach = (a: Account | null | undefined) => a?.role === 'athlete' && onTrial(a);
 
 // With year-only data adulthood is not established until the entire eighteenth-birthday year has passed.
 export const isMinor = (birthYear: number) => !Number.isInteger(birthYear) || new Date().getFullYear() - birthYear <= 18;
