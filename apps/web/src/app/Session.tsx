@@ -1,6 +1,7 @@
 import { getLanguage, t } from './language';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { verifyC2pa } from './c2pa';
 import { MotionSession, ViewAngleTracker, analyseIntegrity, exerciseById, filtfiltLandmarks, inspectContainer, simulateExercise, uploadCutoffHz, type ForensicsReport, type LiveState, type PoseFrame } from '@fitzen/engines';
 import { CameraPoseSource, VideoFilePoseSource, MAX_VIDEO_BYTES, type PoseSource } from '../pose/poseSource';
 import { playRepCompletedSound } from '../lib/audioFeedback';
@@ -319,6 +320,13 @@ export default function Session() {
         // Read the bytes once for container forensics; its frame rate drives the sampling rate.
         try { forensics.current = inspectContainer(await file.arrayBuffer(), { fileName: file.name, lastModified: file.lastModified }); }
         catch { forensics.current = undefined; } // unreadable/huge file: analyse anyway, the report just has no container facts
+        // Content Credentials found: verify the signature with the C2PA SDK and replace the unverified text-scan flags.
+        const f = forensics.current;
+        if (f?.metadata.c2pa) {
+          setStatus('Checking Content Credentials…');
+          const verified = await verifyC2pa(file);
+          if (verified) f.flags = [...f.flags.filter((x) => !x.code.startsWith('c2pa-')), ...verified];
+        }
         if (cancelled) return;
         source.current = new VideoFilePoseSource(cb, file, profile.model, forensics.current?.metadata.nominalFps);
         beginActive();
