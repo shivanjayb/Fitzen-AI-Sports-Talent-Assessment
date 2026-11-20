@@ -10,6 +10,12 @@ repository were written for Fitzen.
 Pose estimation uses Google MediaPipe Pose Landmarker (Apache-2.0), loaded at runtime.
 OpenPose is **not** used: its CMU licence prohibits use in sports applications.
 
+Uploaded videos' Content Credentials are verified with the C2PA SDK `@contentauth/c2pa-web`
+(Copyright Adobe, MIT), loaded on demand. The offline developer tools in `tools/offline-check/`
+use rtmlib (Apache-2.0), MediaPipe (Apache-2.0) and Sports2D (BSD-3-Clause), installed from PyPI;
+their research clones (DeMamba, Apache-2.0; DeepfakeBench, CC BY-NC 4.0) are fetched into a
+gitignored folder and are not distributed with Fitzen.
+
 - react-native-nitro-pose-exercises — Copyright (c) 2026 Gautham495 — MIT
 - fitness-trainer-pose-estimation — Copyright (c) 2024 Yakup Zengin — MIT
 - Good-GYM — Copyright (c) 2024 yo-WASSUP — MIT

@@ -18,6 +18,7 @@
     "@capacitor/android": "^8.6.2",
     "@capacitor/core": "^8.6.2",
     "@capacitor/ios": "^8.6.2",
+    "@contentauth/c2pa-web": "^0.17.1",
     "@fitzen/engines": "*",
     "@huggingface/transformers": "^3.8.1",
     "@mediapipe/tasks-vision": "^0.10.18",

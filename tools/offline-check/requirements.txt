@@ -1,0 +1,8 @@
+# Python 3.11 (MediaPipe and onnxruntime wheels do not cover 3.13+ everywhere).
+# uv venv --python 3.11 .venv && uv pip install --python .venv/bin/python -r requirements.txt
+rtmlib==0.0.16
+onnxruntime==1.32.0
+mediapipe==1.2.3
+opencv-python-headless==5.1.0.95
+numpy==2.4.6
+sports2d==0.8.34
